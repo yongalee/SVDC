@@ -1,0 +1,34 @@
+name: "Spec ambiguity"
+description: "SDD or IP contradicts itself or the paper. Do not guess; surface here."
+title: "[spec-ambiguity] "
+labels: ["spec-ambiguity", "for:claude"]
+body:
+  - type: textarea
+    id: where
+    attributes:
+      label: Where is the ambiguity?
+      description: "Cite SDD/IP section numbers and paper page numbers if relevant."
+      placeholder: "SDD §6.3 says X; IP §4.2 says Y; CIGRE 2024 paper §3 says Z."
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: What work does this block?
+      description: "Which WBS items cannot proceed until this is resolved?"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: SSIEC proposed resolution
+      description: "Recommended interpretation, formatted so the professor can answer yes/no per item."
+    validations:
+      required: true
+  - type: checkboxes
+    id: stop
+    attributes:
+      label: Pre-flight
+      options:
+        - label: "I have stopped any work that would silently choose between the alternatives."
+          required: true

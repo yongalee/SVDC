@@ -1,0 +1,54 @@
+name: "Task for Antigravity"
+description: "Execution, parallel runs, CI/bench, multi-file mechanical refactor (after design is settled), browser/MQTT/SQL verification."
+title: "[antigravity] "
+labels: ["for:antigravity"]
+body:
+  - type: input
+    id: wbs
+    attributes:
+      label: WBS code
+      description: "e.g. WBS-1.4. Find it in docs/SVDC_Implementation_Plan_v0.2.html §2."
+      placeholder: "WBS-X.Y"
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands to run
+      description: "Exact shell commands. If long-running, note expected duration."
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected output / acceptance criteria
+      description: "What does success look like? Exit codes, log lines, artefacts produced."
+    validations:
+      required: true
+  - type: input
+    id: branch
+    attributes:
+      label: Branch name to use
+      description: "Per ADR-0001 §3, must start with antigravity/<wbs-code>-..."
+      placeholder: "antigravity/wbs-1-4-ci-pipeline"
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Files / crates in scope
+      description: "List the files or crates this task may modify. Do not edit outside this scope."
+    validations:
+      required: true
+  - type: checkboxes
+    id: pre-flight
+    attributes:
+      label: Pre-flight (per AGENTS.md)
+      options:
+        - label: "This task fits an 'Antigravity-appropriate' category in AGENTS.md."
+          required: true
+        - label: "No ADR in docs/decisions/ would be contradicted by this work."
+          required: true
+        - label: "If anything is unclear, I will stop and open a `for:claude` issue rather than guess."
+          required: true

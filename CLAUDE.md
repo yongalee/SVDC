@@ -58,11 +58,13 @@ Phase 0 task checklist (from IP §9.1):
 - [x] WBS-1.1 Repository initialization (this starter)
 - [x] WBS-1.2 Cargo workspace structure (skeleton in `crates/`)
 - [x] WBS-1.5 Coding standards (`CONTRIBUTING.md`)
-- [ ] WBS-1.3 Toolchain pin (`rust-toolchain.toml`) and dev container
-- [ ] WBS-1.4 CI pipeline (GitHub Actions: fmt, clippy, test)
-- [ ] WBS-1.6 Issue tracker setup (one issue per WBS item, labels by WBS code)
+- [x] WBS-1.3 Toolchain pin (`rust-toolchain.toml`) — dev container deferred until a Linux-only dep lands
+- [x] WBS-1.4 CI pipeline (`.github/workflows/ci.yml`: fmt, clippy, test on Ubuntu+Windows, NFR-10 lint)
+- [ ] WBS-1.6 Issue tracker setup — templates/labels declared in repo; awaits `gh label create` (or web-UI) application on GitHub
 - [ ] WBS-6.1 (skeleton) `ssiec-sv-publisher` emits one valid SV packet
 - [ ] **Spec-lock review session with Prof. Meliopoulos → Gate G0**
+
+See `docs/decisions/0001-dual-agent-workflow.md` for the Claude Code ↔ Antigravity protocol.
 
 **Do not proceed past Gate G0 into Phase 1 work** until the six open questions in SDD §15 are
 resolved with the professor and recorded in `docs/spec-lock-v0.1.md` (create when answers

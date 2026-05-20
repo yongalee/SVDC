@@ -22,7 +22,7 @@ version = "0.0.1"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["Shinsung Industrial Electric Co., Ltd. (SSIEC)"]
-repository = "TBD"
+repository = "https://github.com/yongalee/SVDC"
 rust-version = "1.75"
 
 [workspace.dependencies]

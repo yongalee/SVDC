@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Spec-lock open questions (Q1–Q6)
+    url: https://github.com/yongalee/SVDC/blob/main/docs/spec-lock-v0.1.md
+    about: For questions that depend on Prof. Meliopoulos's responses, add notes
+      to docs/spec-lock-v0.1.md instead of opening an issue.
+  - name: SDD (authoritative)
+    url: https://github.com/yongalee/SVDC/blob/main/docs/SVDC_Design_Document_v0.1.html
+    about: Read the SDD before opening a design issue.
+  - name: Implementation Plan (WBS + phases)
+    url: https://github.com/yongalee/SVDC/blob/main/docs/SVDC_Implementation_Plan_v0.2.html
+    about: Find the correct WBS code and phase before opening an issue.

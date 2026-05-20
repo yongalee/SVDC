@@ -1,0 +1,45 @@
+name: "Task for Claude Code"
+description: "Design, deep reasoning, careful single-task writing, code review, ADR authorship."
+title: "[claude] "
+labels: ["for:claude"]
+body:
+  - type: input
+    id: wbs
+    attributes:
+      label: WBS code
+      description: "e.g. WBS-2.5. Find it in docs/SVDC_Implementation_Plan_v0.2.html §2."
+      placeholder: "WBS-X.Y"
+    validations:
+      required: true
+  - type: input
+    id: sdd
+    attributes:
+      label: SDD / IP section reference
+      description: "Section number(s) in the SDD or IP this task relates to."
+      placeholder: "SDD §6.3, IP §4.2"
+  - type: textarea
+    id: task
+    attributes:
+      label: Task description
+      description: "What needs to be designed, reasoned about, or carefully authored?"
+    validations:
+      required: true
+  - type: textarea
+    id: dod
+    attributes:
+      label: Definition of done
+      description: "Concrete acceptance criteria. What artefacts land in the repo, what tests pass?"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / constraints
+      description: "Spec-lock dependencies, prior ADRs to respect, performance constraints, etc."
+  - type: checkboxes
+    id: pre-flight
+    attributes:
+      label: Pre-flight
+      options:
+        - label: "I have checked docs/decisions/ for prior ADRs that constrain this task."
+        - label: "I have checked docs/spec-lock-v0.1.md and this task is not blocked on spec lock."

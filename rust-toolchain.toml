@@ -1,0 +1,7 @@
+# Pin the Rust toolchain so Claude Code, Antigravity, CI, and human contributors
+# all resolve the same compiler. Stable channel per CLAUDE.md non-negotiables
+# (no nightly features). MSRV is declared separately in Cargo.toml.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

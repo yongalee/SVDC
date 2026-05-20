@@ -14,13 +14,24 @@ perf.data
 perf.data.old
 
 # Editor / IDE
-.vscode/
+# Share .vscode/{extensions,settings,tasks,launch}.json so Claude Code and
+# Antigravity bootstrap the same dev environment on this machine. Personal
+# overrides go in .vscode/settings.local.json (ignored).
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+.vscode/settings.local.json
 .idea/
 *.iml
 *.swp
 *.swo
 *~
 .DS_Store
+
+# Stray loose binaries (build artifacts must live under /target/).
+/debug/
 
 # Build outputs we may share locally but never commit
 /dist/
