@@ -1,0 +1,38 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock.bak
+
+# Profiling and coverage
+*.profraw
+tarpaulin-report.html
+*.gcda
+*.gcno
+heaptrack.*.gz
+perf.data
+perf.data.old
+
+# Editor / IDE
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build outputs we may share locally but never commit
+/dist/
+/build/
+
+# Generated docs (we publish via CI)
+/book/
+
+# Secrets / local config
+.env
+.env.local
+secrets/
+
+# Starter template backup
+svdc-starter.tar.gz

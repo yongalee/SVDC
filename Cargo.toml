@@ -1,0 +1,47 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/svdc-core",
+    "crates/svdc-bin",
+    "crates/ssiec-sv-publisher",
+]
+
+# Additional crates planned for later phases (per IP §2 WBS-1.2):
+#   crates/svdc-ingress      -- WBS-2.1..2.4 (Phase 1)
+#   crates/svdc-aligner      -- WBS-2.5..2.7 (Phase 2)
+#   crates/svdc-cb           -- WBS-2.8, 2.9 (Phase 2)
+#   crates/svdc-api          -- WBS-3.1..3.4 (Phase 3)
+#   crates/svdc-opcua        -- WBS-3.7      (Phase 4)
+#   crates/svdc-mqtt         -- WBS-3.8      (Phase 4)
+#   crates/ssiec-svdc-historian -- WBS-3.9   (Phase 4)
+#   crates/svdc-cabi         -- C ABI for in-process subscribers
+# Add each to `members` above when the crate is created.
+
+[workspace.package]
+version = "0.0.1"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Shinsung Industrial Electric Co., Ltd. (SSIEC)"]
+repository = "TBD"
+rust-version = "1.75"
+
+[workspace.dependencies]
+# Pin shared deps here as they are introduced.
+# Examples (uncomment when used):
+# anyhow = "1"
+# thiserror = "1"
+# tracing = "0.1"
+# tracing-subscriber = { version = "0.3", features = ["json"] }
+# tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = 1            # keep symbols for production profiling
+
+[profile.bench]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = 1

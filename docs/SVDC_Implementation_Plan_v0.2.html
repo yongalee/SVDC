@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVDC — Implementation Plan v0.2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0B1F3A;
+    --navy-soft: #1B3556;
+    --copper: #B4541F;
+    --copper-soft: #D4773F;
+    --paper: #F7F4ED;
+    --paper-warm: #FAF8F3;
+    --ink: #16181D;
+    --ink-soft: #3A3F4A;
+    --muted: #6B6F7A;
+    --rule: #D8D2C4;
+    --rule-soft: #E8E3D5;
+    --accent-bg: #EFEADC;
+    --code-bg: #1B2438;
+    --code-ink: #E8E3D5;
+    --green: #4A6B3F;
+    --amber: #B8821F;
+    --crimson: #8B2D1F;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ── Page Frame ─────────────────────────────── */
+  .page { max-width: 880px; margin: 0 auto; padding: 0 56px 120px; }
+
+  /* ── Document Header ────────────────────────── */
+  .doc-header {
+    border-bottom: 2px solid var(--navy);
+    padding: 64px 0 28px;
+    margin-bottom: 56px;
+    position: relative;
+  }
+  .doc-header::before {
+    content: ""; position: absolute; top: 64px; left: -56px;
+    width: 32px; height: 2px; background: var(--copper);
+  }
+  .doc-stamp {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--copper);
+    margin-bottom: 18px; font-weight: 500;
+  }
+  .doc-title {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 52px; line-height: 1.05;
+    letter-spacing: -0.02em; margin: 0 0 12px;
+    color: var(--navy); font-variation-settings: "opsz" 96;
+  }
+  .doc-subtitle {
+    font-family: 'Fraunces', serif; font-style: italic;
+    font-size: 22px; color: var(--ink-soft); font-weight: 400;
+    margin: 0 0 32px; font-variation-settings: "opsz" 32;
+  }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 14px 40px; margin-top: 28px;
+    padding-top: 24px; border-top: 1px solid var(--rule-soft);
+  }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
+  .meta-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .meta-value { font-size: 14px; color: var(--ink); font-weight: 500; }
+
+  /* ── Section Headings ───────────────────────── */
+  h2 {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 32px; letter-spacing: -0.015em;
+    color: var(--navy); margin: 72px 0 8px;
+    padding-top: 24px; border-top: 1px solid var(--rule);
+    font-variation-settings: "opsz" 48; position: relative;
+  }
+  h2 .section-num {
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    color: var(--copper); margin-right: 16px; font-weight: 500;
+    letter-spacing: 0.05em; vertical-align: middle;
+    position: relative; top: -4px;
+  }
+  h3 {
+    font-family: 'Fraunces', serif; font-weight: 600;
+    font-size: 21px; color: var(--navy-soft);
+    margin: 40px 0 10px; font-variation-settings: "opsz" 32;
+  }
+  h3 .subsec-num {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    color: var(--copper); margin-right: 10px; font-weight: 500;
+  }
+  h4 {
+    font-family: 'IBM Plex Sans', sans-serif; font-weight: 600;
+    font-size: 15px; color: var(--navy); margin: 28px 0 6px;
+  }
+
+  /* ── Body ───────────────────────────────────── */
+  p { margin: 14px 0; color: var(--ink-soft); }
+  p strong, li strong { color: var(--ink); font-weight: 600; }
+  em { color: var(--ink); }
+
+  /* ── Abstract ───────────────────────────────── */
+  .abstract {
+    background: var(--accent-bg);
+    border-left: 3px solid var(--copper);
+    padding: 28px 32px; margin: 40px 0 0;
+    font-size: 15px; line-height: 1.7;
+  }
+  .abstract-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--copper);
+    margin-bottom: 10px; font-weight: 500;
+  }
+  .abstract p:first-of-type { margin-top: 0; }
+  .abstract p:last-of-type { margin-bottom: 0; }
+
+  /* ── TOC ────────────────────────────────────── */
+  .toc {
+    background: transparent; border: 1px solid var(--rule);
+    padding: 24px 32px; margin: 48px 0;
+  }
+  .toc-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--copper);
+    margin-bottom: 16px; font-weight: 500;
+  }
+  .toc ol {
+    list-style: none; padding: 0; margin: 0;
+    columns: 2; column-gap: 40px;
+  }
+  .toc li { padding: 4px 0; font-size: 14px; break-inside: avoid; }
+  .toc a {
+    color: var(--ink-soft); text-decoration: none;
+    display: flex; align-items: baseline; gap: 8px;
+    transition: color 0.15s;
+  }
+  .toc a:hover { color: var(--copper); }
+  .toc-num {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    color: var(--muted); flex-shrink: 0; min-width: 22px;
+  }
+
+  /* ── Lists ──────────────────────────────────── */
+  ul, ol { padding-left: 24px; color: var(--ink-soft); }
+  li { margin: 6px 0; }
+
+  /* ── Code ───────────────────────────────────── */
+  code {
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.9em;
+    background: var(--accent-bg); padding: 1px 6px;
+    color: var(--navy); border-radius: 2px;
+  }
+
+  /* ── WBS Table ──────────────────────────────── */
+  .wbs-section {
+    margin: 32px 0;
+    border: 1px solid var(--rule);
+    background: var(--paper-warm);
+  }
+  .wbs-header {
+    background: var(--navy); color: var(--paper);
+    padding: 16px 22px;
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 16px;
+  }
+  .wbs-header .wbs-code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 0.14em;
+    color: var(--copper-soft); font-weight: 500;
+  }
+  .wbs-header .wbs-name {
+    font-family: 'Fraunces', serif; font-size: 18px;
+    font-weight: 500; flex-grow: 1;
+    font-variation-settings: "opsz" 24;
+  }
+  .wbs-header .wbs-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--paper); opacity: 0.75;
+    letter-spacing: 0.04em;
+  }
+  .wbs-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .wbs-table th {
+    text-align: left; padding: 10px 14px;
+    background: var(--rule-soft); color: var(--navy);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.1em;
+    text-transform: uppercase; font-weight: 500;
+  }
+  .wbs-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top; color: var(--ink-soft);
+  }
+  .wbs-table tr:last-child td { border-bottom: none; }
+  .wbs-table .wbs-id {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    color: var(--copper); font-weight: 500; white-space: nowrap;
+  }
+  .wbs-table .wbs-task-name { color: var(--ink); font-weight: 500; }
+  .wbs-table .wbs-trace {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    color: var(--muted); white-space: nowrap;
+  }
+  .wbs-table .wbs-effort {
+    text-align: right; font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; color: var(--ink); white-space: nowrap;
+  }
+
+  /* ── Phase Card ─────────────────────────────── */
+  .phase {
+    margin: 36px 0;
+    border: 1px solid var(--rule);
+    background: var(--paper-warm);
+    position: relative;
+  }
+  .phase-header {
+    display: grid;
+    grid-template-columns: 88px 1fr auto;
+    align-items: center; gap: 20px;
+    padding: 20px 26px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--accent-bg);
+  }
+  .phase-num {
+    font-family: 'Fraunces', serif;
+    font-size: 44px; line-height: 1;
+    color: var(--copper); font-weight: 500;
+    font-variation-settings: "opsz" 96;
+    text-align: center;
+  }
+  .phase-num .ph-label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; color: var(--muted);
+    letter-spacing: 0.18em; margin-bottom: 2px;
+    text-transform: uppercase; font-weight: 500;
+  }
+  .phase-title {
+    font-family: 'Fraunces', serif; font-weight: 500;
+    font-size: 22px; color: var(--navy); margin: 0;
+    font-variation-settings: "opsz" 32;
+  }
+  .phase-week {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--copper);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    margin-top: 4px;
+  }
+  .phase-effort {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .phase-body { padding: 22px 26px 24px; }
+  .phase-row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 16px; padding: 10px 0;
+    border-bottom: 1px dashed var(--rule-soft);
+  }
+  .phase-row:last-child { border-bottom: none; }
+  .phase-row-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--navy);
+    font-weight: 500; padding-top: 2px;
+  }
+  .phase-row-content { color: var(--ink-soft); font-size: 14px; }
+  .phase-row-content ul { margin: 0; padding-left: 18px; }
+  .phase-row-content li { margin: 4px 0; }
+  .wbs-chip {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--copper);
+    background: var(--paper); padding: 2px 8px;
+    border: 1px solid var(--rule);
+    margin: 2px 4px 2px 0; border-radius: 2px;
+  }
+
+  /* ── Task Checklist ─────────────────────────── */
+  .task-list { list-style: none; padding: 0; margin: 0; }
+  .task-list li {
+    padding: 4px 0 4px 22px;
+    position: relative; margin: 4px 0;
+    font-size: 14px; color: var(--ink-soft);
+  }
+  .task-list li::before {
+    content: ""; position: absolute;
+    left: 0; top: 8px; width: 12px; height: 12px;
+    border: 1.5px solid var(--copper); background: var(--paper);
+  }
+
+  /* ── Gate Marker ────────────────────────────── */
+  .gate-table {
+    width: 100%; border-collapse: collapse;
+    margin: 20px 0; font-size: 14px;
+  }
+  .gate-table th {
+    text-align: left; padding: 10px 14px;
+    background: var(--navy); color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.12em;
+    text-transform: uppercase; font-weight: 500;
+  }
+  .gate-table td {
+    padding: 14px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top; color: var(--ink-soft);
+  }
+  .gate-table tr:last-child td { border-bottom: none; }
+  .gate-id {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500; color: var(--copper); white-space: nowrap;
+  }
+  .gate-name { color: var(--ink); font-weight: 500; }
+
+  /* ── Diagrams ───────────────────────────────── */
+  .diagram {
+    margin: 32px 0; padding: 32px 24px;
+    background: var(--paper-warm); border: 1px solid var(--rule);
+  }
+  .diagram-caption {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted);
+    margin-top: 16px; text-align: center;
+  }
+  .diagram-caption .fig-num { color: var(--copper); font-weight: 500; }
+  svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+
+  /* ── Generic Spec Table ─────────────────────── */
+  .spec-table {
+    width: 100%; border-collapse: collapse;
+    margin: 20px 0; font-size: 14px;
+  }
+  .spec-table th, .spec-table td {
+    text-align: left; padding: 10px 14px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  .spec-table th {
+    color: var(--navy); font-weight: 600;
+    border-bottom: 1.5px solid var(--navy);
+    font-size: 12px; letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .spec-table td { color: var(--ink-soft); }
+
+  /* ── Callout ────────────────────────────────── */
+  .callout {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--navy);
+    padding: 16px 22px; margin: 24px 0;
+    background: var(--paper-warm); font-size: 14.5px;
+  }
+  .callout-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--navy);
+    margin-bottom: 6px; font-weight: 500;
+  }
+  .callout.copper { border-left-color: var(--copper); }
+  .callout.copper .callout-label { color: var(--copper); }
+
+  /* ── Footer ─────────────────────────────────── */
+  .doc-footer {
+    margin-top: 96px; padding-top: 32px;
+    border-top: 2px solid var(--navy);
+    font-size: 12px; color: var(--muted);
+    display: flex; justify-content: space-between;
+    align-items: baseline;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.06em;
+  }
+  .doc-footer .mark { color: var(--copper); font-weight: 500; }
+
+  /* ── Responsive ─────────────────────────────── */
+  @media (max-width: 720px) {
+    .page { padding: 0 24px 80px; }
+    .doc-title { font-size: 36px; }
+    .toc ol { columns: 1; }
+    .meta-grid { grid-template-columns: 1fr; }
+    .phase-header { grid-template-columns: 1fr; gap: 8px; }
+    .phase-row { grid-template-columns: 1fr; gap: 4px; }
+    .wbs-table { font-size: 12.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══════════════════════════════════════════════
+       DOCUMENT HEADER
+       ═══════════════════════════════════════════════ -->
+  <header class="doc-header">
+    <div class="doc-stamp">Implementation Plan · v0.2 · Draft</div>
+    <h1 class="doc-title">SVDC Implementation Plan</h1>
+    <p class="doc-subtitle">Thirteen-week execution plan for the SV Data Concentrator</p>
+
+    <div class="meta-grid">
+      <div class="meta-item">
+        <span class="meta-label">Project</span>
+        <span class="meta-value">SVDC for a²SDP</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Parent Document</span>
+        <span class="meta-value">SVDC Software Design Document v0.1</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Originating Organization</span>
+        <span class="meta-value">Shinsung Industrial Electric Co., Ltd. (신성산전 · SSIEC)</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Intended Recipient</span>
+        <span class="meta-value">Prof. A. P. Sakis Meliopoulos · Georgia Tech</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Planning Methodology</span>
+        <span class="meta-value">MECE WBS + Phased Execution</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Date</span>
+        <span class="meta-value">May 2026</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════
+       ABSTRACT
+       ═══════════════════════════════════════════════ -->
+  <div class="abstract">
+    <div class="abstract-label">Abstract</div>
+    <p>This document operationalizes the <em>SVDC Software Design Document v0.1</em> into a step-by-step development plan. Engineering work is decomposed under the MECE principle (mutually exclusive, collectively exhaustive) into eight Work Breakdown Structure (WBS) categories with approximately fifty individual work items, each traceable to a functional requirement, non-functional requirement, or design module of the parent document.</p>
+    <p>The WBS is then sequenced into seven execution phases (Phase 0 through Phase 6) running across a twelve-week schedule. Each phase carries a single goal, an explicit WBS scope, a concrete task checklist, and measurable exit criteria. Three formal Quality Gates (G0, G3, G6) mark the points at which SSIEC requests review and sign-off from the Georgia Tech a²SDP programme.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       TOC
+       ═══════════════════════════════════════════════ -->
+  <nav class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#s1"><span class="toc-num">1</span>Purpose and methodology</a></li>
+      <li><a href="#s2"><span class="toc-num">2</span>Work Breakdown Structure</a></li>
+      <li><a href="#s3"><span class="toc-num">3</span>Dependency map</a></li>
+      <li><a href="#s4"><span class="toc-num">4</span>Phased execution plan</a></li>
+      <li><a href="#s5"><span class="toc-num">5</span>Quality gates</a></li>
+      <li><a href="#s6"><span class="toc-num">6</span>Effort and resourcing</a></li>
+      <li><a href="#s7"><span class="toc-num">7</span>Risk register</a></li>
+      <li><a href="#s8"><span class="toc-num">8</span>Communication cadence</a></li>
+      <li><a href="#s9"><span class="toc-num">9</span>Appendix · master checklist</a></li>
+    </ol>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════
+       CHANGELOG v0.2
+       ═══════════════════════════════════════════════ -->
+  <div class="callout copper" style="margin-top:48px">
+    <div class="callout-label">Changes since v0.1</div>
+    <p style="margin:8px 0 0"><strong>Northbound interface strategy explicit.</strong> v0.1 specified an in-process C ABI and a UDS transport for application access. v0.2 adopts a layered northbound architecture (L0 in-process · L1 OPC UA Server · L2 MQTT streaming · L3 optional Time-Series DB sidecar) reflecting modern industrial data architecture practice and the OPC Foundation's IEC 61850 ↔ OPC UA companion specification (OPC 10040). See new §1.4.</p>
+    <p style="margin:8px 0 0"><strong>South-bound terminology aligned to standard.</strong> WBS-2.1 renamed and FR-1 wording aligned to the formal role "IEC 61850-9-2 SV Subscriber."</p>
+    <p style="margin:8px 0 0"><strong>MU simulator upgraded to a conformance-grade SV Publisher reference (<code>ssiec-sv-publisher</code>)</strong>, packaged as a standalone deliverable suitable for third-party vendor MU interoperability testing. New WBS-6.7 covers the vendor interop test plan.</p>
+    <p style="margin:8px 0 0"><strong>Effort and schedule revised.</strong> Total effort 89 PD → 102 PD; schedule 12 weeks → 13 weeks (Phase 4 expanded by one week to accommodate L1/L2 integration).</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       1. PURPOSE & METHODOLOGY
+       ═══════════════════════════════════════════════ -->
+  <section id="s1">
+    <h2><span class="section-num">§ 1</span>Purpose and methodology</h2>
+
+    <h3><span class="subsec-num">1.1</span>Relation to the Software Design Document</h3>
+    <p>The Software Design Document v0.1 (SDD) specifies <em>what</em> the SVDC shall be: its functional and non-functional requirements, its module decomposition (M1–M9), its data model, and its external interfaces. This Implementation Plan specifies <em>how</em> SSIEC will deliver it: the discrete work items, their sequencing, the engineering effort required, and the checkpoints at which Georgia Tech is asked to review.</p>
+    <p>Every WBS item in §2 below carries a traceability tag pointing back to one or more FRs, NFRs, or design modules of the SDD. Conversely, every FR/NFR/module of the SDD is covered by at least one WBS item — this is the collective-exhaustiveness half of MECE.</p>
+
+    <h3><span class="subsec-num">1.2</span>MECE decomposition</h3>
+    <p>Work is partitioned into eight top-level WBS categories, chosen so that each work item belongs to exactly one category (mutually exclusive) and so that the categories together cover all engineering effort needed for a v0.1 release (collectively exhaustive):</p>
+    <ul>
+      <li><strong>WBS-1 · Project Foundation</strong> — repository, build system, CI, coding standards.</li>
+      <li><strong>WBS-2 · Core Data Plane</strong> — the hot path: ingest, decode, align, interpolate, calibrate, buffer.</li>
+      <li><strong>WBS-3 · External Interfaces</strong> — subscriber API, write-back API, management endpoint.</li>
+      <li><strong>WBS-4 · Configuration and Registry</strong> — SCD parser, channel registry, runtime calibration management.</li>
+      <li><strong>WBS-5 · Observability</strong> — metrics, telemetry, structured logging, audit log.</li>
+      <li><strong>WBS-6 · Test Infrastructure</strong> — MU simulator, stubs, harnesses, fault injection.</li>
+      <li><strong>WBS-7 · Validation</strong> — unit, property, integration, performance, soak, acceptance.</li>
+      <li><strong>WBS-8 · Documentation and Release</strong> — API reference, integration guide, performance report, packaging.</li>
+    </ul>
+
+    <h3><span class="subsec-num">1.3</span>Phased execution</h3>
+    <p>The MECE WBS answers "what work exists." It does not by itself answer "in what order." §4 sequences the WBS into seven phases that respect technical dependencies (e.g., subscribers cannot be tested before buffers exist), align demos to natural cohesive units of progress, and place the three formal Quality Gates at points where the deliverable is independently meaningful to Georgia Tech.</p>
+
+    <h3><span class="subsec-num">1.4</span>Northbound interface strategy</h3>
+    <p>v0.1 of this plan inherited the SDD's assumption that node-local applications consume SV data via an in-process C ABI or a UNIX domain socket. That assumption is correct for the sub-millisecond protection path (EBP relays, Phasor Computation Module, QSE) but is insufficient for the broader operational context where SCADA, HMI, asset management, historian, and cloud analytics systems also need access to SVDC data — typically over standards already operating at the host utility.</p>
+    <p>v0.2 therefore adopts a <strong>layered northbound architecture</strong>. Each layer targets a distinct class of consumer with the interface that consumer expects, and the layers are isolated so that failure in one (e.g., a stalled historian) cannot impair the others (e.g., the protection path). This is the dominant pattern in current industrial data architecture practice.</p>
+
+    <table class="spec-table">
+      <thead><tr><th>Layer</th><th>Target consumer</th><th>Interface</th><th>Rationale</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>L0</strong></td>
+          <td>Same-node protection apps: EBP relays, Phasor Computation Module, QSE</td>
+          <td>In-process C ABI + shared memory (CB direct read); UDS framing for cross-process consumers in the same node</td>
+          <td>Sub-millisecond latency, zero-copy. Unchanged from SDD §8.2.</td>
+        </tr>
+        <tr>
+          <td><strong>L1</strong></td>
+          <td>SCADA, HMI, asset management, plant-wide OT systems</td>
+          <td><strong>OPC UA Server</strong> exposing channels and aligned records per OPC Foundation's IEC 61850 companion specification (OPC 10040)</td>
+          <td>OPC UA is the industrial de-facto standard (IEC 62541). The IEC 61850 → OPC UA mapping is itself standardized, so the channel registry maps automatically into the OPC UA Information Model.</td>
+        </tr>
+        <tr>
+          <td><strong>L2</strong></td>
+          <td>Analytics, ML training, cloud, multi-consumer fan-out</td>
+          <td><strong>MQTT publisher</strong> (rumqttc) on a configurable broker; payload reuses OPC UA encoding (PubSub over MQTT pattern)</td>
+          <td>Temporal decoupling, fan-out to arbitrary subscribers without coupling to SVDC. Quality of service tunable per consumer class.</td>
+        </tr>
+        <tr>
+          <td><strong>L3</strong></td>
+          <td>Historian, replay, audit, BI tools</td>
+          <td><strong>TimescaleDB sidecar</strong> — separate process that subscribes to L2 MQTT and persists into a time-series schema</td>
+          <td>DB write load is fully isolated from the hot path. TimescaleDB chosen for PostgreSQL compatibility (existing BI/SQL tools work unchanged).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout copper">
+      <div class="callout-label">Design principle · failure isolation</div>
+      <p style="margin:0">L0 has no dependency on L1, L2, or L3. L1 has no dependency on L2 or L3. L2 has no dependency on L3. A failure in any layer is contained to that layer and the layers above it; the protection path (L0) survives any northbound failure. The TimescaleDB sidecar in particular runs in a separate OS process and on a separate CPU set from the SVDC core.</p>
+    </div>
+
+    <p><strong>What this changes in the plan:</strong> WBS-3 grows to include the L1 OPC UA Server (new WBS-3.7), the L2 MQTT publisher (new WBS-3.8), and the L3 TimescaleDB sidecar (new WBS-3.9). Phase 4 in §4 absorbs the L1/L2 integration work, lengthening Phase 4 from one week to two weeks. Total effort rises from 89 PD to 102 PD; total schedule from 12 to 13 weeks.</p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       2. WORK BREAKDOWN STRUCTURE
+       ═══════════════════════════════════════════════ -->
+  <section id="s2">
+    <h2><span class="section-num">§ 2</span>Work Breakdown Structure</h2>
+
+    <p>Each row below describes one discrete work item with its traceability and rough effort estimate in person-days (PD). Effort estimates are for a senior Rust/systems engineer; pair-programming or junior engagement will scale these accordingly.</p>
+
+    <!-- WBS-1 -->
+    <div class="wbs-section">
+      <div class="wbs-header">
+        <span class="wbs-code">WBS-1</span>
+        <span class="wbs-name">Project Foundation</span>
+        <span class="wbs-meta">~3.5 PD · prerequisite for all subsequent work</span>
+      </div>
+      <table class="wbs-table">
+        <thead><tr><th style="width:70px">ID</th><th>Work item</th><th style="width:120px">Trace</th><th style="width:50px">PD</th></tr></thead>
+        <tbody>
+          <tr><td class="wbs-id">1.1</td><td><span class="wbs-task-name">Repository initialization.</span> GitHub repo with Apache-2.0 LICENSE, README skeleton, CODEOWNERS, branching policy (main + feature branches), PR template.</td><td class="wbs-trace">SDD §12, §13</td><td class="wbs-effort">0.5</td></tr>
+          <tr><td class="wbs-id">1.2</td><td><span class="wbs-task-name">Cargo workspace structure.</span> Multi-crate layout: <code>svdc-core</code>, <code>svdc-ingress</code>, <code>svdc-cb</code>, <code>svdc-api</code>, <code>svdc-sim</code>, <code>svdc-bin</code>, <code>svdc-cabi</code>. Shared <code>Cargo.lock</code>.</td><td class="wbs-trace">SDD §9</td><td class="wbs-effort">0.5</td></tr>
+          <tr><td class="wbs-id">1.3</td><td><span class="wbs-task-name">Toolchain and dev environment.</span> Pin Rust stable (<code>rust-toolchain.toml</code>), Ubuntu 22.04 dev container, devcontainer.json for VSCode parity.</td><td class="wbs-trace">NFR-9</td><td class="wbs-effort">0.5</td></tr>
+          <tr><td class="wbs-id">1.4</td><td><span class="wbs-task-name">CI pipeline.</span> GitHub Actions: <code>fmt</code>, <code>clippy -D warnings</code>, <code>cargo test</code>, <code>cargo bench</code> (smoke only on PR), nightly benchmark workflow.</td><td class="wbs-trace">SDD §10</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">1.5</td><td><span class="wbs-task-name">Coding standards (NFR-10 enforcement).</span> CONTRIBUTING.md mandating English for all identifiers, comments, log strings, error messages, commit messages. Clippy lints + lint script for prohibited non-ASCII in source.</td><td class="wbs-trace">NFR-10</td><td class="wbs-effort">0.5</td></tr>
+          <tr><td class="wbs-id">1.6</td><td><span class="wbs-task-name">Issue tracker setup.</span> GitHub Issues with labels matching WBS codes; project board with phase columns.</td><td class="wbs-trace">SDD §13</td><td class="wbs-effort">0.5</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- WBS-2 -->
+    <div class="wbs-section">
+      <div class="wbs-header">
+        <span class="wbs-code">WBS-2</span>
+        <span class="wbs-name">Core Data Plane</span>
+        <span class="wbs-meta">~19 PD · hot path; performance critical</span>
+      </div>
+      <table class="wbs-table">
+        <thead><tr><th style="width:70px">ID</th><th>Work item</th><th style="width:120px">Trace</th><th style="width:50px">PD</th></tr></thead>
+        <tbody>
+          <tr><td class="wbs-id">2.1</td><td><span class="wbs-task-name">IEC 61850-9-2 SV Subscriber.</span> Implements the SV Subscriber role per IEC 61850-9-2 / 9-2 LE. Binds raw socket (<code>AF_PACKET</code>) to the process-bus interface; captures via <code>recvmmsg</code> batches; per-CPU socket option for scalability.</td><td class="wbs-trace">FR-1, NFR-3, M1</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">2.2</td><td><span class="wbs-task-name">IEC 61850-9-2 LE decoder.</span> Hand-rolled ASN.1 BER decoder restricted to the 9-2 LE profile (savPdu, ASDU array, smpCnt, smpSynch, seqOfData). Zero-allocation parse into fixed layout.</td><td class="wbs-trace">FR-1, M1</td><td class="wbs-effort">3.0</td></tr>
+          <tr><td class="wbs-id">2.3</td><td><span class="wbs-task-name">PTP timestamp extraction.</span> Hardware timestamp via <code>SO_TIMESTAMPING</code> (<code>SOF_TIMESTAMPING_RX_HARDWARE</code>); fallback to software ts. Convert to UTC nanoseconds via PHC offset from <code>linuxptp</code>.</td><td class="wbs-trace">FR-1, NFR-1, M1</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">2.4</td><td><span class="wbs-task-name">SPSC ring M1→M2.</span> Cache-line-aligned single-producer single-consumer ring (power-of-two capacity, sequence-number coordination). No allocations on push/pop.</td><td class="wbs-trace">NFR-4, M1↔M2</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">2.5</td><td><span class="wbs-task-name">Time Aligner.</span> Sliding window keyed by sample-count tick; per-channel slot placement; emission trigger on completion OR deadline (default 1.5 ms). Out-of-order arrival tolerant within window.</td><td class="wbs-trace">FR-2, M2</td><td class="wbs-effort">3.0</td></tr>
+          <tr><td class="wbs-id">2.6</td><td><span class="wbs-task-name">Interpolator.</span> Linear interpolation between adjacent valid samples; zero-order hold fallback when only past sample is available; flag affected sample as <code>INTERPOLATED</code> with gap-length annotation.</td><td class="wbs-trace">FR-4, M3</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">2.7</td><td><span class="wbs-task-name">Calibration application.</span> Apply per-channel <code>(scale, offset, φ_ns)</code> triple. Versioned-snapshot reads of the calibration table so updates do not race the hot path.</td><td class="wbs-trace">M4, SDD §10</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">2.8</td><td><span class="wbs-task-name">Dual circular buffer (SPMC, lock-free).</span> Cursor-published-with-release / snapshot-with-acquire ordering. Pre-allocated record array of size <code>N</code>. CB-A primary, CB-B redundant mirror; both receive identical writes.</td><td class="wbs-trace">FR-3, M5, M6</td><td class="wbs-effort">4.0</td></tr>
+          <tr><td class="wbs-id">2.9</td><td><span class="wbs-task-name">CB integrity and failover.</span> CRC32 per record; on snapshot CRC mismatch, transparent failover to sibling CB; rebuild path for corrupted CB from healthy sibling.</td><td class="wbs-trace">NFR-7</td><td class="wbs-effort">2.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- WBS-3 -->
+    <div class="wbs-section">
+      <div class="wbs-header">
+        <span class="wbs-code">WBS-3</span>
+        <span class="wbs-name">External Interfaces (layered northbound)</span>
+        <span class="wbs-meta">~20 PD · L0 in-process · L1 OPC UA · L2 MQTT · L3 DB sidecar</span>
+      </div>
+      <table class="wbs-table">
+        <thead><tr><th style="width:70px">ID</th><th>Work item</th><th style="width:120px">Trace</th><th style="width:50px">PD</th></tr></thead>
+        <tbody>
+          <tr><td class="wbs-id">3.1</td><td><span class="wbs-task-name">In-process C ABI subscriber.</span> <code>svdc_subscribe / read_latest / read_since / release / unsubscribe</code>. Zero-copy reads via shared-memory CB pointers. Generated C header.</td><td class="wbs-trace">FR-5, M7, SDD §8.2</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">3.2</td><td><span class="wbs-task-name">UDS out-of-process subscriber.</span> UNIX domain socket server, length-prefixed framing, serialized <code>TickRecord</code> with explicit endianness. Backpressure handled by dropping the slow subscriber, not the producer.</td><td class="wbs-trace">FR-5, M7</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">3.3</td><td><span class="wbs-task-name">Subscriber cursor management.</span> Per-subscriber cursor stored separately; snapshot semantics; cursor advancement does not block any other party. Slow-subscriber detection and metric.</td><td class="wbs-trace">NFR-6, M7</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">3.4</td><td><span class="wbs-task-name">Write-back API.</span> <code>svdc_writeback(batch, n)</code>. Per-element validation (tick still in window, channel exists). Reject-fast on stale ticks. In-place dual-CB update.</td><td class="wbs-trace">FR-6, M8, SDD §8.3</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">3.5</td><td><span class="wbs-task-name">HTTP/JSON management server.</span> <code>hyper</code>-based server on configurable port, JSON serialization via <code>serde_json</code>. Read-only-by-default; write routes scoped.</td><td class="wbs-trace">NFR-8, M9</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">3.6</td><td><span class="wbs-task-name">Management routes.</span> <code>GET /health</code>, <code>GET /channels</code>, <code>GET /metrics</code>, <code>POST /calibration/{channel_id}</code>. Conformance to SDD §8.4.</td><td class="wbs-trace">SDD §8.4, M9</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">3.7</td><td><span class="wbs-task-name">OPC UA Server (L1).</span> Embed <code>open62541</code>; expose channels and aligned tick records via the OPC UA Information Model per OPC 10040 (OPC Foundation companion specification for IEC 61850). Auto-generate AddressSpace from the channel registry (WBS-4.2). Supports both Client/Server and PubSub profiles.</td><td class="wbs-trace">SDD §8.2 ext., NFR-8</td><td class="wbs-effort">5.0</td></tr>
+          <tr><td class="wbs-id">3.8</td><td><span class="wbs-task-name">MQTT publisher (L2).</span> <code>rumqttc</code>-based publisher; topic hierarchy aligned with OPC UA PubSub conventions; configurable QoS per channel set. Publishes both raw tick records and aggregated phasor-rate summaries.</td><td class="wbs-trace">NFR-8</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">3.9</td><td><span class="wbs-task-name">TimescaleDB sidecar (L3).</span> Standalone process <code>ssiec-svdc-historian</code>; subscribes to L2 MQTT; writes hypertable schema to TimescaleDB. Runs in separate CPU set from SVDC core; failure does not affect L0/L1/L2.</td><td class="wbs-trace">NFR-8</td><td class="wbs-effort">2.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- WBS-4 -->
+    <div class="wbs-section">
+      <div class="wbs-header">
+        <span class="wbs-code">WBS-4</span>
+        <span class="wbs-name">Configuration and Registry</span>
+        <span class="wbs-meta">~7.5 PD · SCD-driven configuration</span>
+      </div>
+      <table class="wbs-table">
+        <thead><tr><th style="width:70px">ID</th><th>Work item</th><th style="width:120px">Trace</th><th style="width:50px">PD</th></tr></thead>
+        <tbody>
+          <tr><td class="wbs-id">4.1</td><td><span class="wbs-task-name">SCL/SCD parser.</span> XML parse (<code>quick-xml</code>); extract LD/LN nodes, dataset definitions, SV multicast MAC + AppID, channel-to-DO mapping. Reject malformed input with line-numbered errors.</td><td class="wbs-trace">FR-9, SDD §15(5)</td><td class="wbs-effort">3.0</td></tr>
+          <tr><td class="wbs-id">4.2</td><td><span class="wbs-task-name">Channel registry runtime.</span> In-memory data structure with dense <code>channel_id</code> indexing; per-MU and per-channel views; thread-safe read.</td><td class="wbs-trace">FR-7, SDD §7.2</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">4.3</td><td><span class="wbs-task-name">Startup config validation.</span> Cross-checks: every SV stream has a registered MU; sample rates consistent within MU; CT/PT ratios in plausible range; no duplicate channel_ids.</td><td class="wbs-trace">FR-7, FR-9</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">4.4</td><td><span class="wbs-task-name">Calibration atomic update.</span> Copy-on-write of the calibration table; producer publishes new pointer with release ordering; readers see either old or new triple, never torn.</td><td class="wbs-trace">FR-7, M4</td><td class="wbs-effort">1.5</td></tr>
+          <tr><td class="wbs-id">4.5</td><td><span class="wbs-task-name">Subscriber channel-set resolution.</span> Resolve subscriber's requested channel names/phases/MUs against the registry; produce a compact channel mask used in read calls.</td><td class="wbs-trace">FR-5, M7</td><td class="wbs-effort">1.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- WBS-5 -->
+    <div class="wbs-section">
+      <div class="wbs-header">
+        <span class="wbs-code">WBS-5</span>
+        <span class="wbs-name">Observability</span>
+        <span class="wbs-meta">~7.5 PD · health, telemetry, audit</span>
+      </div>
+      <table class="wbs-table">
+        <thead><tr><th style="width:70px">ID</th><th>Work item</th><th style="width:120px">Trace</th><th style="width:50px">PD</th></tr></thead>
+        <tbody>
+          <tr><td class="wbs-id">5.1</td><td><span class="wbs-task-name">Per-channel metrics.</span> Counters: samples_received, samples_missing, samples_interpolated, samples_qse_corrected. Atomic updates from hot path; aggregation pull-side.</td><td class="wbs-trace">FR-8, M9</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">5.2</td><td><span class="wbs-task-name">Per-MU metrics.</span> Observed sample rate (windowed), arrival jitter histogram (log-bucketed), last-seen timestamp.</td><td class="wbs-trace">FR-8, M9</td><td class="wbs-effort">1.5</td></tr>
+          <tr><td class="wbs-id">5.3</td><td><span class="wbs-task-name">PTP sync status integration.</span> Read <code>linuxptp</code>'s <code>pmc</code> output or socket; expose offset, mean-path-delay, holdover state.</td><td class="wbs-trace">FR-8, SDD §15(6)</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">5.4</td><td><span class="wbs-task-name">Structured logging.</span> <code>tracing</code> crate with JSON formatter; English-only message fields (NFR-10); per-module log levels via env var.</td><td class="wbs-trace">NFR-10, NFR-8</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">5.5</td><td><span class="wbs-task-name">Write-back audit log.</span> Append-only log of original values overwritten by QSE corrections; rotating files; recoverable across restart.</td><td class="wbs-trace">FR-6, M8</td><td class="wbs-effort">1.5</td></tr>
+          <tr><td class="wbs-id">5.6</td><td><span class="wbs-task-name">Streaming telemetry channel.</span> Server-sent events or long-poll endpoint that delivers metric deltas to the QSE data-validation module without polling pressure.</td><td class="wbs-trace">NFR-8, M9</td><td class="wbs-effort">1.5</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- WBS-6 -->
+    <div class="wbs-section">
+      <div class="wbs-header">
+        <span class="wbs-code">WBS-6</span>
+        <span class="wbs-name">Test Infrastructure</span>
+        <span class="wbs-meta">~14 PD · simulators (including conformance-grade SV Publisher), harnesses</span>
+      </div>
+      <table class="wbs-table">
+        <thead><tr><th style="width:70px">ID</th><th>Work item</th><th style="width:120px">Trace</th><th style="width:50px">PD</th></tr></thead>
+        <tbody>
+          <tr><td class="wbs-id">6.1</td><td><span class="wbs-task-name">SV Publisher reference simulator (<code>ssiec-sv-publisher</code>).</span> <em>Standalone deliverable, packaged independently of SVDC.</em> Publishes IEC 61850-9-2 / 9-2 LE SV streams from synthetic waveforms (configurable amplitude, frequency, phase, harmonics) with strict standard compliance: ASN.1 BER encoding per the 9-2 LE profile, correct ASDU structure, smpCnt/smpSynch management, configurable sample rate (80 or 256 SPC). Ships with IEC 61850-10 conformance test vectors (known input → known SV byte sequence) so third-party implementations can self-verify against it.</td><td class="wbs-trace">SDD §2.1, §10; v0.2 deliverable</td><td class="wbs-effort">4.0</td></tr>
+          <tr><td class="wbs-id">6.2</td><td><span class="wbs-task-name">Impairment injection.</span> Add to simulator: configurable packet loss rate, jitter distribution, magnitude scale error, DC offset, timing offset. Mirrors §10 calibration test scenarios.</td><td class="wbs-trace">SDD §10</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">6.3</td><td><span class="wbs-task-name">PTP grandmaster harness.</span> <code>ptp4l</code> in master mode on a dedicated NIC for the sim environment, with documented setup.</td><td class="wbs-trace">FR-1, SDD §4</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">6.4</td><td><span class="wbs-task-name">Stub QSE.</span> Issues synthetic write-back requests (valid, stale, malformed) at configurable rate; verifies audit log and CB state.</td><td class="wbs-trace">FR-6, SDD §13</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">6.5</td><td><span class="wbs-task-name">Stub subscriber.</span> Consumes via both transports (C ABI and UDS); intentionally stalls one to test non-interference.</td><td class="wbs-trace">FR-5, NFR-6</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">6.6</td><td><span class="wbs-task-name">Benchmark harness.</span> Driver that runs SVDC under configurable load and reports median, p99, p99.9 latency and throughput. HDR-histogram backed.</td><td class="wbs-trace">NFR-2, NFR-3</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">6.7</td><td><span class="wbs-task-name">Vendor MU interoperability test plan.</span> Documented procedure and test cases for verifying SVDC ingest against commercial MUs (SEL, GE Multilin, ABB SAM600, Toshiba CRH classes). Pcap fixtures + expected-decode tables. Enables the Georgia Tech team and partner utilities to validate SVDC against any vendor without SSIEC presence.</td><td class="wbs-trace">SDD §13; v0.2 deliverable</td><td class="wbs-effort">2.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- WBS-7 -->
+    <div class="wbs-section">
+      <div class="wbs-header">
+        <span class="wbs-code">WBS-7</span>
+        <span class="wbs-name">Validation</span>
+        <span class="wbs-meta">~20 PD · all FR/NFR verification</span>
+      </div>
+      <table class="wbs-table">
+        <thead><tr><th style="width:70px">ID</th><th>Work item</th><th style="width:120px">Trace</th><th style="width:50px">PD</th></tr></thead>
+        <tbody>
+          <tr><td class="wbs-id">7.1</td><td><span class="wbs-task-name">Unit tests per module.</span> ≥80% line coverage target across <code>svdc-core</code>, <code>svdc-ingress</code>, <code>svdc-cb</code>, <code>svdc-api</code>. Tarpaulin-based coverage report in CI.</td><td class="wbs-trace">SDD §10</td><td class="wbs-effort">4.0</td></tr>
+          <tr><td class="wbs-id">7.2</td><td><span class="wbs-task-name">Property-based tests — Time Aligner.</span> <code>proptest</code> generators for arbitrary arrival orderings, drop patterns, late arrivals; invariants on completeness flag and per-tick channel coverage.</td><td class="wbs-trace">FR-2, SDD §10.1</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">7.3</td><td><span class="wbs-task-name">Property-based tests — Circular Buffer.</span> Multi-threaded harness with arbitrary reader/writer interleavings; invariants on monotonic cursor, CRC validity, no torn reads.</td><td class="wbs-trace">FR-3, NFR-6</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">7.4</td><td><span class="wbs-task-name">End-to-end integration tests.</span> Sim → SVDC → subscriber; assert tick ordering, completeness flags, calibration application, interpolation correctness, write-back propagation.</td><td class="wbs-trace">All FRs</td><td class="wbs-effort">3.0</td></tr>
+          <tr><td class="wbs-id">7.5</td><td><span class="wbs-task-name">Latency benchmark suite.</span> Reproducible scenario at 32 MU × 8 ch × 80 SPC; histograms of ingest-to-CB latency; p50, p99, p99.9 reporting.</td><td class="wbs-trace">NFR-2</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">7.6</td><td><span class="wbs-task-name">Jitter and throughput benchmark.</span> Stress to 2× design load; verify no record drops, internal queue depth bounded.</td><td class="wbs-trace">NFR-3</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">7.7</td><td><span class="wbs-task-name">24-hour soak test.</span> Continuous run on laboratory hardware; periodic checkpointing of metrics; pass criterion: no degradation, no leaks.</td><td class="wbs-trace">SDD §10.1</td><td class="wbs-effort">1.5</td></tr>
+          <tr><td class="wbs-id">7.8</td><td><span class="wbs-task-name">Write-back correctness verification.</span> Stub QSE issues N corrections; assert all valid corrections applied, all invalid rejected with correct error code, audit log byte-identical to originals.</td><td class="wbs-trace">FR-6</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">7.9</td><td><span class="wbs-task-name">Subscriber non-interference verification.</span> Artificially stall one subscriber; verify other subscribers' p99 latency distribution unchanged within statistical bound.</td><td class="wbs-trace">NFR-6</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">7.10</td><td><span class="wbs-task-name">Final acceptance pass.</span> Execute SDD §10.2 acceptance table; produce signed-off report.</td><td class="wbs-trace">SDD §10.2</td><td class="wbs-effort">1.5</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- WBS-8 -->
+    <div class="wbs-section">
+      <div class="wbs-header">
+        <span class="wbs-code">WBS-8</span>
+        <span class="wbs-name">Documentation and Release</span>
+        <span class="wbs-meta">~10.5 PD · handover deliverables</span>
+      </div>
+      <table class="wbs-table">
+        <thead><tr><th style="width:70px">ID</th><th>Work item</th><th style="width:120px">Trace</th><th style="width:50px">PD</th></tr></thead>
+        <tbody>
+          <tr><td class="wbs-id">8.1</td><td><span class="wbs-task-name">API reference.</span> <code>rustdoc</code> for all public crates; doxygen-style comments on the C ABI header; published to GitHub Pages.</td><td class="wbs-trace">SDD §12</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">8.2</td><td><span class="wbs-task-name">Integration guide.</span> Worked example: a minimal EBP-like consumer subscribes, reads a window, and prints differential-current samples. Cross-language: one in Rust, one in C, one in Python via the C ABI.</td><td class="wbs-trace">SDD §12</td><td class="wbs-effort">2.0</td></tr>
+          <tr><td class="wbs-id">8.3</td><td><span class="wbs-task-name">Performance report.</span> PDF report mirroring SDD §10 acceptance table, with latency histograms styled after paper Figure 8.</td><td class="wbs-trace">SDD §12</td><td class="wbs-effort">1.5</td></tr>
+          <tr><td class="wbs-id">8.4</td><td><span class="wbs-task-name">Operator runbook.</span> Startup procedure, config file template, common-failure diagnostic flowchart.</td><td class="wbs-trace">NFR-8</td><td class="wbs-effort">1.5</td></tr>
+          <tr><td class="wbs-id">8.5</td><td><span class="wbs-task-name">Release packaging.</span> Tarball + <code>.deb</code> (x86_64); systemd unit; sample SCD.</td><td class="wbs-trace">NFR-9</td><td class="wbs-effort">1.0</td></tr>
+          <tr><td class="wbs-id">8.6</td><td><span class="wbs-task-name">Versioning and CHANGELOG.</span> Semver policy; CHANGELOG.md; v0.1.0 tag.</td><td class="wbs-trace">SDD §12</td><td class="wbs-effort">0.5</td></tr>
+          <tr><td class="wbs-id">8.7</td><td><span class="wbs-task-name">Joint paper outline.</span> Draft section structure for CIGRE 2026 / IEEE T-PWRD submission, co-authored with Georgia Tech.</td><td class="wbs-trace">SDD §13</td><td class="wbs-effort">2.0</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout copper">
+      <div class="callout-label">Totals</div>
+      <p style="margin:0">WBS total ≈ <strong>102 person-days</strong> ≈ 20 person-weeks. With two engineers in parallel this fits a 10-week build window, leaving 3 weeks of buffer for integration, soak, and Georgia Tech review cycles within the 13-week schedule. The +13 PD versus v0.1 is concentrated in WBS-3 (L1 OPC UA Server, L2 MQTT, L3 DB sidecar = +9 PD) and WBS-6 (conformance-grade simulator upgrade + vendor interop plan = +4 PD).</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       3. DEPENDENCY MAP
+       ═══════════════════════════════════════════════ -->
+  <section id="s3">
+    <h2><span class="section-num">§ 3</span>Dependency map</h2>
+
+    <p>Phases are sequenced to respect the technical dependencies below. Solid arrows are hard dependencies (downstream cannot start until upstream is functionally complete); dashed arrows are soft dependencies (downstream can start with a stub, hardened against the real upstream later). Diamond markers G0, G3, G6 are the formal Quality Gates with Georgia Tech.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 760 320" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif" font-size="11">
+        <defs>
+          <marker id="dah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#0B1F3A"/>
+          </marker>
+          <marker id="dahs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#6B6F7A"/>
+          </marker>
+        </defs>
+
+        <!-- Phase boxes -->
+        <g>
+          <rect x="20" y="120" width="86" height="60" fill="#EFEADC" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="63" y="142" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">PHASE 0</text>
+          <text x="63" y="160" text-anchor="middle" fill="#0B1F3A" font-weight="600" font-size="11">Foundation</text>
+          <text x="63" y="174" text-anchor="middle" fill="#6B6F7A" font-size="9">W1</text>
+
+          <rect x="146" y="120" width="86" height="60" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="189" y="142" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">PHASE 1</text>
+          <text x="189" y="160" text-anchor="middle" fill="#0B1F3A" font-weight="600" font-size="11">Decoder</text>
+          <text x="189" y="174" text-anchor="middle" fill="#6B6F7A" font-size="9">W2–3</text>
+
+          <rect x="272" y="120" width="86" height="60" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="315" y="142" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">PHASE 2</text>
+          <text x="315" y="160" text-anchor="middle" fill="#0B1F3A" font-weight="600" font-size="11">Align + CB</text>
+          <text x="315" y="174" text-anchor="middle" fill="#6B6F7A" font-size="9">W4–5</text>
+
+          <rect x="398" y="120" width="86" height="60" fill="#EFEADC" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="441" y="142" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">PHASE 3</text>
+          <text x="441" y="160" text-anchor="middle" fill="#0B1F3A" font-weight="600" font-size="11">Sub + WB</text>
+          <text x="441" y="174" text-anchor="middle" fill="#6B6F7A" font-size="9">W6–7</text>
+
+          <rect x="524" y="60" width="86" height="60" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="567" y="82" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">PHASE 4</text>
+          <text x="567" y="100" text-anchor="middle" fill="#0B1F3A" font-weight="600" font-size="11">Calib + Obs</text>
+          <text x="567" y="114" text-anchor="middle" fill="#6B6F7A" font-size="9">W8</text>
+
+          <rect x="524" y="180" width="86" height="60" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="567" y="202" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">PHASE 5</text>
+          <text x="567" y="220" text-anchor="middle" fill="#0B1F3A" font-weight="600" font-size="11">Perf harden</text>
+          <text x="567" y="234" text-anchor="middle" fill="#6B6F7A" font-size="9">W9–10</text>
+
+          <rect x="650" y="120" width="86" height="60" fill="#EFEADC" stroke="#B4541F" stroke-width="2"/>
+          <text x="693" y="142" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">PHASE 6</text>
+          <text x="693" y="160" text-anchor="middle" fill="#0B1F3A" font-weight="600" font-size="11">Accept + Ship</text>
+          <text x="693" y="174" text-anchor="middle" fill="#6B6F7A" font-size="9">W11–12</text>
+        </g>
+
+        <!-- Arrows phase chain -->
+        <line x1="106" y1="150" x2="146" y2="150" stroke="#0B1F3A" stroke-width="1.5" marker-end="url(#dah)"/>
+        <line x1="232" y1="150" x2="272" y2="150" stroke="#0B1F3A" stroke-width="1.5" marker-end="url(#dah)"/>
+        <line x1="358" y1="150" x2="398" y2="150" stroke="#0B1F3A" stroke-width="1.5" marker-end="url(#dah)"/>
+        <line x1="484" y1="135" x2="524" y2="95" stroke="#0B1F3A" stroke-width="1.5" marker-end="url(#dah)"/>
+        <line x1="484" y1="165" x2="524" y2="210" stroke="#0B1F3A" stroke-width="1.5" marker-end="url(#dah)"/>
+        <line x1="610" y1="95" x2="650" y2="135" stroke="#0B1F3A" stroke-width="1.5" marker-end="url(#dah)"/>
+        <line x1="610" y1="210" x2="650" y2="165" stroke="#0B1F3A" stroke-width="1.5" marker-end="url(#dah)"/>
+
+        <!-- Soft dep: Phase 2 -> Phase 5 (perf needs buffers) shown as connecting label -->
+        <path d="M 315 180 Q 420 280 567 240" fill="none" stroke="#6B6F7A" stroke-width="1" stroke-dasharray="3 3" marker-end="url(#dahs)"/>
+        <text x="430" y="295" fill="#6B6F7A" font-size="10" font-style="italic">CB benchmark requires Phase 2 complete</text>
+
+        <!-- Quality gates -->
+        <g>
+          <polygon points="63,40 80,55 63,70 46,55" fill="#B4541F"/>
+          <text x="63" y="59" text-anchor="middle" fill="#F7F4ED" font-weight="600" font-size="11">G0</text>
+          <text x="63" y="22" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">SPEC LOCK</text>
+          <line x1="63" y1="70" x2="63" y2="120" stroke="#B4541F" stroke-width="1" stroke-dasharray="2 2"/>
+
+          <polygon points="441,40 458,55 441,70 424,55" fill="#B4541F"/>
+          <text x="441" y="59" text-anchor="middle" fill="#F7F4ED" font-weight="600" font-size="11">G3</text>
+          <text x="441" y="22" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">MID-PROJECT DEMO</text>
+          <line x1="441" y1="70" x2="441" y2="120" stroke="#B4541F" stroke-width="1" stroke-dasharray="2 2"/>
+
+          <polygon points="693,40 710,55 693,70 676,55" fill="#B4541F"/>
+          <text x="693" y="59" text-anchor="middle" fill="#F7F4ED" font-weight="600" font-size="11">G6</text>
+          <text x="693" y="22" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">v0.1 RELEASE</text>
+          <line x1="693" y1="70" x2="693" y2="120" stroke="#B4541F" stroke-width="1" stroke-dasharray="2 2"/>
+        </g>
+      </svg>
+      <div class="diagram-caption"><span class="fig-num">Figure 1</span> &nbsp; Phase dependency map with Quality Gates</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       4. PHASED EXECUTION PLAN
+       ═══════════════════════════════════════════════ -->
+  <section id="s4">
+    <h2><span class="section-num">§ 4</span>Phased execution plan</h2>
+
+    <p>Each phase below is presented as a self-contained execution card. The phase begins only when the prior phase's exit criteria pass, and ends only when its own exit criteria pass. Within a phase, tasks may be parallelized across engineers but should not span a phase boundary without explicit re-planning.</p>
+
+    <!-- ── PHASE 0 ───────────────────────────────── -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num"><span class="ph-label">Phase</span>0</div>
+        <div>
+          <h3 class="phase-title" style="margin:0">Foundation and Spec Lock</h3>
+          <div class="phase-week">Week 1 · ~5 PD</div>
+        </div>
+        <div class="phase-effort">Gate G0 at end</div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-row">
+          <div class="phase-row-label">Goal</div>
+          <div class="phase-row-content">Repository and development environment are reproducible by anyone. SDD §15 open questions are resolved with the professor and frozen as the spec baseline.</div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">WBS scope</div>
+          <div class="phase-row-content"><span class="wbs-chip">1.1</span><span class="wbs-chip">1.2</span><span class="wbs-chip">1.3</span><span class="wbs-chip">1.4</span><span class="wbs-chip">1.5</span><span class="wbs-chip">1.6</span><span class="wbs-chip">6.1 (skeleton)</span></div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Tasks</div>
+          <div class="phase-row-content">
+            <ul class="task-list">
+              <li>Create GitHub repo under SSIEC organization with Apache-2.0; configure branch protection on <code>main</code>.</li>
+              <li>Set up Cargo workspace per WBS-1.2; commit empty crates with smoke <code>lib.rs</code>.</li>
+              <li>Pin Rust toolchain; add devcontainer.json; verify reproducible clean build on Ubuntu 22.04.</li>
+              <li>Configure GitHub Actions: fmt → clippy → test → optional bench. All green on initial commit.</li>
+              <li>Author CONTRIBUTING.md mandating English-only per NFR-10; add lint script.</li>
+              <li>Open one GitHub Issue per WBS item; assign labels and phase milestones.</li>
+              <li>MU simulator skeleton: command-line tool that emits a single hard-coded SV packet to verify wire format.</li>
+              <li>Submit SDD §15 open questions to Prof. Meliopoulos; conduct spec-lock review session; record decisions in <code>docs/spec-lock-v0.1.md</code>.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Exit criteria</div>
+          <div class="phase-row-content">
+            <ul>
+              <li>CI green; clean clone-to-build under 5 minutes on a stock Ubuntu 22.04 VM.</li>
+              <li>Spec-lock document committed and acknowledged by professor.</li>
+              <li>MU simulator emits a single valid 9-2 LE SV packet captured by <code>tcpdump</code>.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PHASE 1 ───────────────────────────────── -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num"><span class="ph-label">Phase</span>1</div>
+        <div>
+          <h3 class="phase-title" style="margin:0">Decoder Pipeline</h3>
+          <div class="phase-week">Weeks 2–3 · ~10 PD</div>
+        </div>
+        <div class="phase-effort">2 engineers parallel</div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-row">
+          <div class="phase-row-label">Goal</div>
+          <div class="phase-row-content">SVDC receives, decodes, and timestamps SV packets from the simulator. End-to-end round-trip from waveform synthesis to decoded internal record is functional and unit-tested.</div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">WBS scope</div>
+          <div class="phase-row-content"><span class="wbs-chip">2.1</span><span class="wbs-chip">2.2</span><span class="wbs-chip">2.3</span><span class="wbs-chip">2.4</span><span class="wbs-chip">6.1 (full)</span><span class="wbs-chip">6.3</span><span class="wbs-chip">7.1 (M1)</span></div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Tasks</div>
+          <div class="phase-row-content">
+            <ul class="task-list">
+              <li>Implement <code>AF_PACKET</code> binding with <code>recvmmsg</code> batch reception.</li>
+              <li>Hand-roll ASN.1 BER decoder for the 9-2 LE profile; verify against simulator output byte-by-byte.</li>
+              <li>Integrate <code>SO_TIMESTAMPING</code> for hardware timestamps; fall back to software timestamps with a metric.</li>
+              <li>Build SPSC ring between M1 and M2; benchmark single-thread throughput.</li>
+              <li>Complete MU simulator: configurable channels, sample rate, multiple virtual MUs.</li>
+              <li>Generate IEC 61850-10 conformance test vectors as part of <code>ssiec-sv-publisher</code>: known input → known SV byte sequence tables, committed under <code>tests/conformance/</code>.</li>
+              <li>Set up PTP grandmaster harness via <code>ptp4l</code> on the sim host.</li>
+              <li>Unit tests for decoder: malformed input, truncation, oversized ASDU, ASDU count mismatch.</li>
+              <li>Integration test: sim publishes known waveform; SVDC consumes; assert decoded values match waveform sample-by-sample.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Exit criteria</div>
+          <div class="phase-row-content">
+            <ul>
+              <li>Round-trip test passes at 4 MUs × 8 channels × 80 SPC for 60 s with zero decode errors.</li>
+              <li>Hardware timestamp present on ≥99% of decoded packets when NIC supports it.</li>
+              <li>Decoder unit-test coverage ≥80%.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PHASE 2 ───────────────────────────────── -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num"><span class="ph-label">Phase</span>2</div>
+        <div>
+          <h3 class="phase-title" style="margin:0">Alignment and Buffering</h3>
+          <div class="phase-week">Weeks 4–5 · ~14 PD</div>
+        </div>
+        <div class="phase-effort">2 engineers parallel</div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-row">
+          <div class="phase-row-label">Goal</div>
+          <div class="phase-row-content">Decoded samples are assembled into per-tick records and stored in two redundant circular buffers. Loss and jitter are handled by interpolation and surfaced as flags.</div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">WBS scope</div>
+          <div class="phase-row-content"><span class="wbs-chip">2.5</span><span class="wbs-chip">2.6</span><span class="wbs-chip">2.8</span><span class="wbs-chip">2.9</span><span class="wbs-chip">6.2</span><span class="wbs-chip">7.1 (M2/CB)</span><span class="wbs-chip">7.2</span><span class="wbs-chip">7.3</span></div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Tasks</div>
+          <div class="phase-row-content">
+            <ul class="task-list">
+              <li>Implement Time Aligner with sliding window keyed by sample-count tick; configurable deadline.</li>
+              <li>Implement Interpolator with linear and zero-order-hold modes; flag <code>INTERPOLATED</code>.</li>
+              <li>Implement lock-free SPMC dual circular buffer with release/acquire cursor ordering and CRC32 per record.</li>
+              <li>Implement CB failover logic: detect corruption on snapshot, transparent read fallback to sibling, background rebuild.</li>
+              <li>Add packet-loss and jitter injection knobs to MU simulator.</li>
+              <li>Property-based tests for Aligner: arbitrary arrival orderings; invariant on per-tick completeness flag.</li>
+              <li>Property-based tests for CB: concurrent readers/writer; invariant on monotonic cursor and no torn reads.</li>
+              <li>Integration test: inject 5% packet loss; verify interpolated records carry correct flags and adjacent valid values.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Exit criteria</div>
+          <div class="phase-row-content">
+            <ul>
+              <li>5% injected packet loss handled with all gaps interpolated and flagged correctly.</li>
+              <li>Forced CB-A corruption results in transparent failover to CB-B within one read call.</li>
+              <li>Property-based test suite runs ≥10 000 cases per invariant without failure.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PHASE 3 ───────────────────────────────── -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num"><span class="ph-label">Phase</span>3</div>
+        <div>
+          <h3 class="phase-title" style="margin:0">Subscribers and Write-back</h3>
+          <div class="phase-week">Weeks 6–7 · ~12 PD</div>
+        </div>
+        <div class="phase-effort">Gate G3 at end</div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-row">
+          <div class="phase-row-label">Goal</div>
+          <div class="phase-row-content">Multiple subscribers consume the buffers concurrently without interference; the QSE write-back path overwrites compromised samples and preserves originals in the audit log. This phase produces the mid-project demo for Georgia Tech.</div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">WBS scope</div>
+          <div class="phase-row-content"><span class="wbs-chip">3.1</span><span class="wbs-chip">3.2</span><span class="wbs-chip">3.3</span><span class="wbs-chip">3.4</span><span class="wbs-chip">4.5</span><span class="wbs-chip">5.5</span><span class="wbs-chip">6.4</span><span class="wbs-chip">6.5</span><span class="wbs-chip">7.4</span><span class="wbs-chip">7.8</span><span class="wbs-chip">7.9</span></div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Tasks</div>
+          <div class="phase-row-content">
+            <ul class="task-list">
+              <li>Implement in-process C ABI with generated header; smoke test from a C program.</li>
+              <li>Implement UDS subscriber transport with length-prefixed framing.</li>
+              <li>Implement per-subscriber cursor with snapshot read semantics.</li>
+              <li>Implement write-back API: per-element validation, in-place dual-CB update, <code>QSE_CORRECTED</code> flag.</li>
+              <li>Implement append-only audit log for write-back originals; rotation policy.</li>
+              <li>Build stub QSE that issues mix of valid/invalid corrections at configurable rate.</li>
+              <li>Build stub subscriber that can be intentionally stalled to validate non-interference.</li>
+              <li>Write-back correctness test: assert 100% of valid corrections applied, all invalid rejected with explicit error codes, audit log byte-identical to originals.</li>
+              <li>Non-interference test: stall one subscriber; verify other subscribers' p99 latency distribution unchanged.</li>
+              <li>Prepare G3 demo: live SVDC ingesting from 16 simulated MUs with 5 concurrent subscribers and continuous QSE write-back.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Exit criteria</div>
+          <div class="phase-row-content">
+            <ul>
+              <li>10 concurrent subscribers + QSE write-back run without contention at full ingest rate.</li>
+              <li>Write-back correctness test passes 100%.</li>
+              <li>G3 demo recorded and shared with Georgia Tech; sign-off received.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PHASE 4 ───────────────────────────────── -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num"><span class="ph-label">Phase</span>4</div>
+        <div>
+          <h3 class="phase-title" style="margin:0">Calibration, Observability, and Northbound Layers</h3>
+          <div class="phase-week">Weeks 8–9 · ~14 PD</div>
+        </div>
+        <div class="phase-effort">L0+L1+L2 northbound complete</div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-row">
+          <div class="phase-row-label">Goal</div>
+          <div class="phase-row-content">Calibration triples loaded from SCD are applied at runtime and updatable via the management API. The full health/telemetry surface is exposed for both the QSE and external monitors. The layered northbound architecture is online: L1 OPC UA Server exposing the channel registry per OPC 10040, L2 MQTT publisher with PubSub-style topics, and L3 TimescaleDB sidecar persisting historical data — all three failure-isolated from the L0 protection path.</div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">WBS scope</div>
+          <div class="phase-row-content"><span class="wbs-chip">2.7</span><span class="wbs-chip">3.5</span><span class="wbs-chip">3.6</span><span class="wbs-chip">3.7</span><span class="wbs-chip">3.8</span><span class="wbs-chip">3.9</span><span class="wbs-chip">4.1</span><span class="wbs-chip">4.2</span><span class="wbs-chip">4.3</span><span class="wbs-chip">4.4</span><span class="wbs-chip">5.1</span><span class="wbs-chip">5.2</span><span class="wbs-chip">5.3</span><span class="wbs-chip">5.4</span><span class="wbs-chip">5.6</span></div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Tasks · core</div>
+          <div class="phase-row-content">
+            <ul class="task-list">
+              <li>Implement SCL/SCD XML parser; round-trip test against sample SCD from the spec-lock review.</li>
+              <li>Build channel registry runtime data structure; load from SCD.</li>
+              <li>Implement startup config validation with line-numbered error reporting.</li>
+              <li>Implement copy-on-write calibration table for atomic updates.</li>
+              <li>Wire calibration application into M4 between Aligner and CB.</li>
+              <li>Stand up <code>hyper</code> HTTP server; implement <code>GET /health</code>, <code>/channels</code>, <code>/metrics</code>; <code>POST /calibration/{id}</code>.</li>
+              <li>Implement per-channel and per-MU metric counters; jitter histogram.</li>
+              <li>Integrate <code>linuxptp</code> sync status into health surface.</li>
+              <li>Implement structured logging via <code>tracing</code>; English-only formatter.</li>
+              <li>Implement streaming telemetry endpoint for QSE consumption.</li>
+              <li>End-to-end test: POST a new calibration triple; verify next-cycle output reflects the new factor.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Tasks · northbound layers</div>
+          <div class="phase-row-content">
+            <ul class="task-list">
+              <li>Embed <code>open62541</code> as L1 OPC UA Server; generate Information Model AddressSpace automatically from the channel registry per OPC 10040 mapping rules.</li>
+              <li>Implement OPC UA channel value read service; verify with <code>UaExpert</code> client browsing the AddressSpace.</li>
+              <li>Add OPC UA PubSub profile (UDP transport) for periodic publishing of aligned tick records.</li>
+              <li>Implement L2 MQTT publisher (<code>rumqttc</code>); topic hierarchy <code>svdc/{node_id}/{mu_id}/{channel_id}</code>; configurable QoS.</li>
+              <li>Reuse OPC UA encoding for MQTT payload to align with OPC UA PubSub over MQTT convention.</li>
+              <li>Build L3 TimescaleDB sidecar process <code>ssiec-svdc-historian</code>; subscribes to L2 MQTT; writes to hypertable schema.</li>
+              <li>Validate failure isolation: kill L3 (historian); confirm L0/L1/L2 unaffected. Kill L2 (broker); confirm L0/L1 unaffected. Kill L1 (OPC UA); confirm L0 unaffected.</li>
+              <li>Integration test: SCADA-like OPC UA client + cloud-like MQTT subscriber + TimescaleDB query — all three reading consistent data simultaneously.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Exit criteria</div>
+          <div class="phase-row-content">
+            <ul>
+              <li>All §8.4 management endpoints respond with conformant JSON.</li>
+              <li>Calibration update via API reflected in samples within one tick.</li>
+              <li>PTP sync status (offset, holdover) visible in <code>/health</code>.</li>
+              <li>OPC UA Server browseable from <code>UaExpert</code>; channel values match L0 reads.</li>
+              <li>MQTT subscriber receives published tick records at configured rate; no message loss at QoS-1.</li>
+              <li>TimescaleDB sidecar persists historical data; SQL query returns aligned records within last N seconds.</li>
+              <li>Failure isolation verified: each layer can be killed without affecting layers below.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PHASE 5 ───────────────────────────────── -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num"><span class="ph-label">Phase</span>5</div>
+        <div>
+          <h3 class="phase-title" style="margin:0">Performance Hardening</h3>
+          <div class="phase-week">Weeks 10–11 · ~8 PD</div>
+        </div>
+        <div class="phase-effort">NFR-2 / NFR-3 acceptance</div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-row">
+          <div class="phase-row-label">Goal</div>
+          <div class="phase-row-content">SVDC meets the latency, throughput, and determinism targets of NFR-2/NFR-3/NFR-4 on PREEMPT_RT hardware. All hot-path allocations eliminated.</div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">WBS scope</div>
+          <div class="phase-row-content"><span class="wbs-chip">6.6</span><span class="wbs-chip">7.5</span><span class="wbs-chip">7.6</span></div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Tasks</div>
+          <div class="phase-row-content">
+            <ul class="task-list">
+              <li>Validate PREEMPT_RT environment on the lab host; measure baseline kernel latency with <code>cyclictest</code>.</li>
+              <li>Pin ingest, aligner, and CB-write threads to isolated cores via <code>isolcpus</code> + <code>cpuset</code>.</li>
+              <li>Profile under load with <code>perf</code> and <code>heaptrack</code>; eliminate any allocation on hot path.</li>
+              <li>Build benchmark harness emitting HDR-histogram-backed latency report.</li>
+              <li>Latency benchmark: 32 MUs × 8 channels × 80 SPC; report p50, p99, p99.9.</li>
+              <li>Throughput stress: 2× design load; verify queue depths bounded and no record drops.</li>
+              <li>Tune SPSC ring size, recvmmsg batch size, CB <code>N</code>; document final values.</li>
+              <li>If p99 exceeds 500 µs, consider DPDK fallback path (gated on need).</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Exit criteria</div>
+          <div class="phase-row-content">
+            <ul>
+              <li>Median ingest-to-CB latency ≤ 200 µs at design throughput.</li>
+              <li>p99 ingest-to-CB latency ≤ 500 µs.</li>
+              <li>Zero allocations on hot path verified by <code>heaptrack</code> snapshot.</li>
+              <li>2× design throughput sustained for 60 s with no drops.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PHASE 6 ───────────────────────────────── -->
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num"><span class="ph-label">Phase</span>6</div>
+        <div>
+          <h3 class="phase-title" style="margin:0">Acceptance and Handover</h3>
+          <div class="phase-week">Weeks 12–13 · ~14 PD</div>
+        </div>
+        <div class="phase-effort">Gate G6 · v0.1 release</div>
+      </div>
+      <div class="phase-body">
+        <div class="phase-row">
+          <div class="phase-row-label">Goal</div>
+          <div class="phase-row-content">All SDD §10.2 acceptance criteria pass under sustained load. The v0.1 release is packaged with complete documentation and delivered to Georgia Tech for integration with the reference QSE. The conformance-grade SV Publisher and the vendor interoperability test plan ship alongside, so Georgia Tech can validate SVDC independently against any commercial MU.</div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">WBS scope</div>
+          <div class="phase-row-content"><span class="wbs-chip">6.7</span><span class="wbs-chip">7.7</span><span class="wbs-chip">7.10</span><span class="wbs-chip">8.1</span><span class="wbs-chip">8.2</span><span class="wbs-chip">8.3</span><span class="wbs-chip">8.4</span><span class="wbs-chip">8.5</span><span class="wbs-chip">8.6</span><span class="wbs-chip">8.7</span></div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Tasks</div>
+          <div class="phase-row-content">
+            <ul class="task-list">
+              <li>Run 24-hour soak test on lab hardware; checkpoint metrics every 15 min; verify no degradation or leaks.</li>
+              <li>Execute SDD §10.2 acceptance table; produce signed-off report.</li>
+              <li>Publish <code>rustdoc</code> for all public crates and C ABI header to GitHub Pages.</li>
+              <li>Write integration guide with four worked examples: Rust subscriber (L0), C subscriber (L0), Python via C ABI (L0), and an OPC UA client browsing the L1 AddressSpace.</li>
+              <li>Generate performance report (PDF) with histograms styled after paper Figure 8.</li>
+              <li>Write operator runbook: startup, config template, diagnostic flowchart.</li>
+              <li>Package release: SVDC tarball + <code>.deb</code>, <code>ssiec-sv-publisher</code> tarball + <code>.deb</code>, <code>ssiec-svdc-historian</code> tarball + <code>.deb</code>, systemd units, sample SCD.</li>
+              <li>Publish vendor MU interoperability test plan (WBS-6.7) with documented procedure, expected outputs, and pcap fixtures.</li>
+              <li>Tag CHANGELOG.md; finalize semver policy.</li>
+              <li>Draft joint paper outline; circulate to professor for review.</li>
+              <li>Conduct G6 handover session with Georgia Tech: live demo (L0 protection consumer + L1 OPC UA client + L2 MQTT subscriber + L3 TimescaleDB query, all reading the same stream), walk through acceptance report, deliver release artifacts.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="phase-row">
+          <div class="phase-row-label">Exit criteria</div>
+          <div class="phase-row-content">
+            <ul>
+              <li>All SDD §10.2 acceptance criteria pass.</li>
+              <li>24-hour soak completes with no degradation.</li>
+              <li>v0.1.0 published on GitHub with all deliverables including <code>ssiec-sv-publisher</code> and <code>ssiec-svdc-historian</code>.</li>
+              <li>Georgia Tech confirms receipt and ability to consume the API via at least one worked example from each northbound layer (L0 in-process and L1 OPC UA at minimum).</li>
+              <li>Vendor MU interop test plan published and reviewed.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       5. QUALITY GATES
+       ═══════════════════════════════════════════════ -->
+  <section id="s5">
+    <h2><span class="section-num">§ 5</span>Quality gates</h2>
+
+    <p>Three formal Quality Gates structure the engagement with Georgia Tech. Between gates, communication is asynchronous (bi-weekly written status + GitHub PR reviews). Each gate requires explicit sign-off before the next phase begins.</p>
+
+    <table class="gate-table">
+      <thead>
+        <tr><th style="width:60px">Gate</th><th>Name</th><th>Triggered after</th><th>Sign-off requires</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="gate-id">G0</td>
+          <td><span class="gate-name">Spec Lock</span></td>
+          <td>Phase 0</td>
+          <td>Professor's written decisions on the six §15 open questions; SSIEC's commitment to scope baseline. Both committed to <code>docs/spec-lock-v0.1.md</code>.</td>
+        </tr>
+        <tr>
+          <td class="gate-id">G3</td>
+          <td><span class="gate-name">Mid-project Demo</span></td>
+          <td>Phase 3</td>
+          <td>Recorded demo of full data plane with multi-subscriber + write-back. Professor's review comments addressed or logged as deferred. Optional: 30-minute live walkthrough.</td>
+        </tr>
+        <tr>
+          <td class="gate-id">G6</td>
+          <td><span class="gate-name">v0.1 Release</span></td>
+          <td>Phase 6</td>
+          <td>All §10.2 acceptance criteria signed off. Performance report delivered. Georgia Tech confirms ability to integrate with at least one worked example. v0.1.0 GitHub release published.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <div class="callout-label">On gate failure</div>
+      <p style="margin:0">If a gate fails, the affected phase is reopened with a remediation plan committed to the repo. The schedule slips by the remediation duration; downstream phases are re-baselined. Gates are not waived.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       6. EFFORT & RESOURCING
+       ═══════════════════════════════════════════════ -->
+  <section id="s6">
+    <h2><span class="section-num">§ 6</span>Effort and resourcing</h2>
+
+    <h3><span class="subsec-num">6.1</span>Effort summary</h3>
+    <table class="spec-table">
+      <thead><tr><th>WBS</th><th>Category</th><th style="text-align:right">PD</th><th style="text-align:right">Δ vs v0.1</th></tr></thead>
+      <tbody>
+        <tr><td><code>WBS-1</code></td><td>Project Foundation</td><td style="text-align:right">3.5</td><td style="text-align:right;color:var(--muted)">—</td></tr>
+        <tr><td><code>WBS-2</code></td><td>Core Data Plane</td><td style="text-align:right">19.0</td><td style="text-align:right;color:var(--muted)">—</td></tr>
+        <tr><td><code>WBS-3</code></td><td>External Interfaces (layered)</td><td style="text-align:right">20.0</td><td style="text-align:right;color:var(--copper)">+9.0</td></tr>
+        <tr><td><code>WBS-4</code></td><td>Configuration and Registry</td><td style="text-align:right">7.5</td><td style="text-align:right;color:var(--muted)">—</td></tr>
+        <tr><td><code>WBS-5</code></td><td>Observability</td><td style="text-align:right">7.5</td><td style="text-align:right;color:var(--muted)">—</td></tr>
+        <tr><td><code>WBS-6</code></td><td>Test Infrastructure</td><td style="text-align:right">14.0</td><td style="text-align:right;color:var(--copper)">+4.0</td></tr>
+        <tr><td><code>WBS-7</code></td><td>Validation</td><td style="text-align:right">20.0</td><td style="text-align:right;color:var(--muted)">—</td></tr>
+        <tr><td><code>WBS-8</code></td><td>Documentation and Release</td><td style="text-align:right">10.5</td><td style="text-align:right;color:var(--muted)">—</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>v0.1 development</strong></td><td style="text-align:right"><strong>102.0 PD</strong></td><td style="text-align:right;color:var(--copper)"><strong>+13.0</strong></td></tr>
+      </tbody>
+    </table>
+
+    <h3><span class="subsec-num">6.2</span>Suggested team composition</h3>
+    <ul>
+      <li><strong>Lead engineer (Rust + systems):</strong> primary developer; owns WBS-2 and WBS-3. ~50% of total effort.</li>
+      <li><strong>Senior engineer (IEC 61850 + networking):</strong> WBS-2.1–2.3 (decoder + PTP), WBS-4 (SCD parser), WBS-6.1–6.3 (sim + PTP harness). ~30%.</li>
+      <li><strong>Architect / reviewer:</strong> spec-lock negotiation with professor, code review, integration testing, gate sign-offs. ~20%. (Y님이 직접 맡으시면 자연스럽습니다.)</li>
+    </ul>
+    <p>With two engineers in parallel and one part-time architect/reviewer, 102 PD ≈ 10 weeks of build calendar time. The 13-week schedule provides ~3 weeks of buffer absorbed by soak tests, gate review cycles, and contingency.</p>
+
+    <h3><span class="subsec-num">6.3</span>Compute and lab resources</h3>
+    <ul>
+      <li><strong>Development:</strong> developer laptops with Ubuntu 22.04 (native or VM).</li>
+      <li><strong>Performance/soak hardware:</strong> one Linux server with PREEMPT_RT kernel, multi-core CPU (≥8 cores with isolation), Intel NIC supporting hardware timestamping, GPS-disciplined PTP source.</li>
+      <li><strong>CI:</strong> GitHub Actions free tier sufficient for unit/integration tests; self-hosted runner for benchmarks (one shared machine).</li>
+    </ul>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       7. RISK REGISTER
+       ═══════════════════════════════════════════════ -->
+  <section id="s7">
+    <h2><span class="section-num">§ 7</span>Risk register</h2>
+
+    <table class="spec-table">
+      <thead><tr><th>Risk</th><th>Phase</th><th>Likelihood / Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>§15 open questions not resolved in time for spec lock</td>
+          <td>Phase 0</td>
+          <td>Medium / High</td>
+          <td>Pre-circulate written question list one week before the spec-lock session; offer SSIEC's recommended defaults so the professor's input is a yes/no on each rather than open-ended design.</td>
+        </tr>
+        <tr>
+          <td>ASN.1 BER decoder edge cases (vendor-specific 9-2 LE dialects)</td>
+          <td>Phase 1</td>
+          <td>Medium / Medium</td>
+          <td>Build to strict LE profile; isolate vendor quirks in a pluggable adapter layer; collect real-world packet captures from at least two MU vendors during Phase 1.</td>
+        </tr>
+        <tr>
+          <td>Lock-free CB correctness bugs under contention</td>
+          <td>Phase 2</td>
+          <td>Medium / High</td>
+          <td>Heavy property-based testing with <code>loom</code> for memory-ordering verification; review of cursor protocol by independent reviewer before integration.</td>
+        </tr>
+        <tr>
+          <td>Write-back API contract drifts vs Georgia Tech reference QSE</td>
+          <td>Phase 3</td>
+          <td>Medium / Medium</td>
+          <td>Bi-weekly contract check; freeze the C ABI signature after G3; subsequent changes require versioning.</td>
+        </tr>
+        <tr>
+          <td>NFR-2 (≤500 µs p99) infeasible on stock Linux + AF_PACKET</td>
+          <td>Phase 5</td>
+          <td>Low / High</td>
+          <td>PREEMPT_RT from day one; DPDK fallback path designed and ready; benchmark Phase 5 surfaces issues with two weeks of slack remaining.</td>
+        </tr>
+        <tr>
+          <td>Lab hardware procurement delay (PTP NIC, GPS source)</td>
+          <td>Phase 5</td>
+          <td>Medium / Medium</td>
+          <td>Procure during Phase 0; use software-timestamping fallback during Phases 1–4 so development is not blocked.</td>
+        </tr>
+        <tr>
+          <td>Georgia Tech reference QSE availability for G6 integration check</td>
+          <td>Phase 6</td>
+          <td>Low / Medium</td>
+          <td>Stub QSE remains primary; reference QSE used opportunistically; G6 acceptance does not require live QSE integration — Phase 6 worked-example demos suffice.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       8. COMMUNICATION CADENCE
+       ═══════════════════════════════════════════════ -->
+  <section id="s8">
+    <h2><span class="section-num">§ 8</span>Communication cadence</h2>
+
+    <table class="spec-table">
+      <thead><tr><th>Channel</th><th>Cadence</th><th>Participants</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td>Quality Gate session (video)</td><td>G0, G3, G6</td><td>SSIEC lead + Prof. Meliopoulos + designees</td><td>Formal demo, review, sign-off</td></tr>
+        <tr><td>Working sync (video, 30 min)</td><td>Bi-weekly</td><td>SSIEC lead + Prof. designee</td><td>Status, blockers, open questions</td></tr>
+        <tr><td>Written status update</td><td>Weekly</td><td>SSIEC → Prof. + designees (email/Slack)</td><td>Phase progress, exit criteria status, risk updates</td></tr>
+        <tr><td>GitHub PR review</td><td>As needed</td><td>Open to all collaborators</td><td>Code review, design discussion in commit context</td></tr>
+        <tr><td>GitHub Issues / Discussions</td><td>Continuous</td><td>Open</td><td>Async questions, spec clarifications, defect tracking</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout copper">
+      <div class="callout-label">Documentation discipline</div>
+      <p style="margin:0">Every gate review, every spec clarification, every accepted scope change is captured in the repo under <code>docs/decisions/</code> as a dated ADR (Architecture Decision Record). The repo is the single source of truth; no decision exists if it is not in the repo.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       9. MASTER CHECKLIST
+       ═══════════════════════════════════════════════ -->
+  <section id="s9">
+    <h2><span class="section-num">§ 9</span>Appendix · master checklist</h2>
+
+    <p>The full set of work items, in execution order, for use as a project tracking checklist. Each item maps to one WBS row in §2 and is scheduled in one phase in §4.</p>
+
+    <h3><span class="subsec-num">9.1</span>Phase 0 — Foundation</h3>
+    <ul class="task-list">
+      <li>WBS-1.1 · Repository initialization</li>
+      <li>WBS-1.2 · Cargo workspace structure</li>
+      <li>WBS-1.3 · Toolchain and dev environment</li>
+      <li>WBS-1.4 · CI pipeline</li>
+      <li>WBS-1.5 · Coding standards (NFR-10)</li>
+      <li>WBS-1.6 · Issue tracker setup</li>
+      <li>WBS-6.1 (skeleton) · MU simulator emits single SV packet</li>
+      <li>Spec-lock review session with professor</li>
+      <li><strong>Gate G0</strong></li>
+    </ul>
+
+    <h3><span class="subsec-num">9.2</span>Phase 1 — Decoder</h3>
+    <ul class="task-list">
+      <li>WBS-2.1 · AF_PACKET ingest</li>
+      <li>WBS-2.2 · IEC 61850-9-2 LE decoder</li>
+      <li>WBS-2.3 · PTP timestamp extraction</li>
+      <li>WBS-2.4 · SPSC ring M1→M2</li>
+      <li>WBS-6.1 (full) · MU simulator</li>
+      <li>WBS-6.3 · PTP grandmaster harness</li>
+      <li>WBS-7.1 (M1) · Decoder unit tests</li>
+    </ul>
+
+    <h3><span class="subsec-num">9.3</span>Phase 2 — Align + CB</h3>
+    <ul class="task-list">
+      <li>WBS-2.5 · Time Aligner</li>
+      <li>WBS-2.6 · Interpolator</li>
+      <li>WBS-2.8 · Dual circular buffer</li>
+      <li>WBS-2.9 · CB integrity and failover</li>
+      <li>WBS-6.2 · Impairment injection in simulator</li>
+      <li>WBS-7.1 (M2/CB) · Unit tests</li>
+      <li>WBS-7.2 · Property-based tests — Aligner</li>
+      <li>WBS-7.3 · Property-based tests — CB</li>
+    </ul>
+
+    <h3><span class="subsec-num">9.4</span>Phase 3 — Subscribers + Write-back</h3>
+    <ul class="task-list">
+      <li>WBS-3.1 · In-process C ABI subscriber</li>
+      <li>WBS-3.2 · UDS out-of-process subscriber</li>
+      <li>WBS-3.3 · Subscriber cursor management</li>
+      <li>WBS-3.4 · Write-back API</li>
+      <li>WBS-4.5 · Channel-set resolution</li>
+      <li>WBS-5.5 · Write-back audit log</li>
+      <li>WBS-6.4 · Stub QSE</li>
+      <li>WBS-6.5 · Stub subscriber</li>
+      <li>WBS-7.4 · End-to-end integration tests</li>
+      <li>WBS-7.8 · Write-back correctness</li>
+      <li>WBS-7.9 · Subscriber non-interference</li>
+      <li><strong>Gate G3</strong></li>
+    </ul>
+
+    <h3><span class="subsec-num">9.5</span>Phase 4 — Calibration + Observability + Northbound layers</h3>
+    <ul class="task-list">
+      <li>WBS-2.7 · Calibration application</li>
+      <li>WBS-3.5 · HTTP/JSON management server</li>
+      <li>WBS-3.6 · Management routes</li>
+      <li>WBS-3.7 · OPC UA Server (L1)</li>
+      <li>WBS-3.8 · MQTT publisher (L2)</li>
+      <li>WBS-3.9 · TimescaleDB sidecar (L3)</li>
+      <li>WBS-4.1 · SCL/SCD parser</li>
+      <li>WBS-4.2 · Channel registry runtime</li>
+      <li>WBS-4.3 · Startup config validation</li>
+      <li>WBS-4.4 · Calibration atomic update</li>
+      <li>WBS-5.1 · Per-channel metrics</li>
+      <li>WBS-5.2 · Per-MU metrics</li>
+      <li>WBS-5.3 · PTP sync status integration</li>
+      <li>WBS-5.4 · Structured logging</li>
+      <li>WBS-5.6 · Streaming telemetry endpoint</li>
+      <li>Failure isolation verification across all four layers</li>
+    </ul>
+
+    <h3><span class="subsec-num">9.6</span>Phase 5 — Performance Hardening</h3>
+    <ul class="task-list">
+      <li>WBS-6.6 · Benchmark harness</li>
+      <li>WBS-7.5 · Latency benchmark suite</li>
+      <li>WBS-7.6 · Jitter / throughput benchmark</li>
+      <li>PREEMPT_RT validation, CPU pinning, allocation audit</li>
+    </ul>
+
+    <h3><span class="subsec-num">9.7</span>Phase 6 — Acceptance + Handover</h3>
+    <ul class="task-list">
+      <li>WBS-6.7 · Vendor MU interoperability test plan publish</li>
+      <li>WBS-7.7 · 24-hour soak test</li>
+      <li>WBS-7.10 · Final acceptance pass</li>
+      <li>WBS-8.1 · API reference</li>
+      <li>WBS-8.2 · Integration guide (4 worked examples incl. OPC UA client)</li>
+      <li>WBS-8.3 · Performance report</li>
+      <li>WBS-8.4 · Operator runbook</li>
+      <li>WBS-8.5 · Release packaging (SVDC + ssiec-sv-publisher + ssiec-svdc-historian)</li>
+      <li>WBS-8.6 · Versioning and CHANGELOG</li>
+      <li>WBS-8.7 · Joint paper outline</li>
+      <li><strong>Gate G6 · v0.1.0 release</strong></li>
+    </ul>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════ -->
+  <footer class="doc-footer">
+    <span>Shinsung Industrial Electric Co., Ltd. (SSIEC) <span class="mark">·</span> 신성산전</span>
+    <span>SVDC Implementation Plan v0.2 <span class="mark">·</span> Draft for Georgia Tech review</span>
+  </footer>
+
+</div>
+</body>
+</html>

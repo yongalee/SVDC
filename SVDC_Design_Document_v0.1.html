@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVDC — Software Design Document v0.1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0B1F3A;
+    --navy-soft: #1B3556;
+    --copper: #B4541F;
+    --copper-soft: #D4773F;
+    --paper: #F7F4ED;
+    --paper-warm: #FAF8F3;
+    --ink: #16181D;
+    --ink-soft: #3A3F4A;
+    --muted: #6B6F7A;
+    --rule: #D8D2C4;
+    --rule-soft: #E8E3D5;
+    --accent-bg: #EFEADC;
+    --code-bg: #1B2438;
+    --code-ink: #E8E3D5;
+    --warn: #8B4513;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* ── Page Frame ─────────────────────────────── */
+  .page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 56px 120px;
+  }
+
+  /* ── Document Header ────────────────────────── */
+  .doc-header {
+    border-bottom: 2px solid var(--navy);
+    padding: 64px 0 28px;
+    margin-bottom: 56px;
+    position: relative;
+  }
+  .doc-header::before {
+    content: "";
+    position: absolute;
+    top: 64px;
+    left: -56px;
+    width: 32px;
+    height: 2px;
+    background: var(--copper);
+  }
+  .doc-stamp {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--copper);
+    margin-bottom: 18px;
+    font-weight: 500;
+  }
+  .doc-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 52px;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+    color: var(--navy);
+    font-variation-settings: "opsz" 96;
+  }
+  .doc-subtitle {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink-soft);
+    font-weight: 400;
+    margin: 0 0 32px;
+    font-variation-settings: "opsz" 32;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px 40px;
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule-soft);
+  }
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .meta-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .meta-value {
+    font-size: 14px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ── Section Headings ───────────────────────── */
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 32px;
+    letter-spacing: -0.015em;
+    color: var(--navy);
+    margin: 72px 0 8px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-variation-settings: "opsz" 48;
+    position: relative;
+  }
+  h2 .section-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--copper);
+    margin-right: 16px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+    position: relative;
+    top: -4px;
+  }
+  h3 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 21px;
+    color: var(--navy-soft);
+    margin: 40px 0 10px;
+    font-variation-settings: "opsz" 32;
+  }
+  h3 .subsec-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--copper);
+    margin-right: 10px;
+    font-weight: 500;
+  }
+  h4 {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--navy);
+    margin: 28px 0 6px;
+    letter-spacing: 0;
+  }
+
+  /* ── Body Text ──────────────────────────────── */
+  p {
+    margin: 14px 0;
+    color: var(--ink-soft);
+  }
+  p strong, li strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  em {
+    color: var(--ink);
+  }
+
+  /* ── Abstract Box ───────────────────────────── */
+  .abstract {
+    background: var(--accent-bg);
+    border-left: 3px solid var(--copper);
+    padding: 28px 32px;
+    margin: 40px 0 0;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  .abstract-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--copper);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+  .abstract p:first-of-type { margin-top: 0; }
+  .abstract p:last-of-type { margin-bottom: 0; }
+
+  /* ── TOC ────────────────────────────────────── */
+  .toc {
+    background: transparent;
+    border: 1px solid var(--rule);
+    padding: 24px 32px;
+    margin: 48px 0;
+  }
+  .toc-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--copper);
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+  .toc ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    columns: 2;
+    column-gap: 40px;
+  }
+  .toc li {
+    padding: 4px 0;
+    font-size: 14px;
+    break-inside: avoid;
+  }
+  .toc a {
+    color: var(--ink-soft);
+    text-decoration: none;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    transition: color 0.15s;
+  }
+  .toc a:hover { color: var(--copper); }
+  .toc-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+    min-width: 22px;
+  }
+
+  /* ── Lists ──────────────────────────────────── */
+  ul, ol {
+    padding-left: 24px;
+    color: var(--ink-soft);
+  }
+  li { margin: 6px 0; }
+
+  /* ── Requirements Tables ────────────────────── */
+  .req-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  .req-table th {
+    text-align: left;
+    padding: 12px 14px;
+    background: var(--navy);
+    color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .req-table td {
+    padding: 14px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    color: var(--ink-soft);
+  }
+  .req-table tr:last-child td { border-bottom: none; }
+  .req-id {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--copper);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .req-name {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ── Code Blocks ────────────────────────────── */
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 20px 24px;
+    border-radius: 0;
+    overflow-x: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 20px 0;
+    border-left: 3px solid var(--copper);
+  }
+  code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.9em;
+    background: var(--accent-bg);
+    padding: 1px 6px;
+    color: var(--navy);
+    border-radius: 2px;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+  .code-comment { color: #8B95A8; font-style: italic; }
+  .code-keyword { color: #D4773F; }
+  .code-string { color: #A8C4A2; }
+  .code-type { color: #C8B4E8; }
+
+  /* ── Diagrams ───────────────────────────────── */
+  .diagram {
+    margin: 32px 0;
+    padding: 32px 24px;
+    background: var(--paper-warm);
+    border: 1px solid var(--rule);
+  }
+  .diagram-caption {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 16px;
+    text-align: center;
+  }
+  .diagram-caption .fig-num {
+    color: var(--copper);
+    font-weight: 500;
+  }
+  svg { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+
+  /* ── Callouts ───────────────────────────────── */
+  .callout {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--navy);
+    padding: 16px 22px;
+    margin: 24px 0;
+    background: var(--paper-warm);
+    font-size: 14.5px;
+  }
+  .callout-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--navy);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .callout.copper { border-left-color: var(--copper); }
+  .callout.copper .callout-label { color: var(--copper); }
+
+  /* ── Spec Tables (generic) ──────────────────── */
+  .spec-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 14px;
+  }
+  .spec-table th, .spec-table td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  .spec-table th {
+    color: var(--navy);
+    font-weight: 600;
+    border-bottom: 1.5px solid var(--navy);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .spec-table td { color: var(--ink-soft); }
+  .spec-table td code { font-size: 12.5px; }
+
+  /* ── Module Cards ───────────────────────────── */
+  .module {
+    border: 1px solid var(--rule);
+    padding: 22px 26px;
+    margin: 24px 0;
+    background: var(--paper-warm);
+    position: relative;
+  }
+  .module-id {
+    position: absolute;
+    top: -10px;
+    left: 22px;
+    background: var(--paper);
+    padding: 0 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--copper);
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+  .module h4 { margin-top: 0; }
+
+  /* ── Milestone Timeline ─────────────────────── */
+  .timeline {
+    margin: 28px 0;
+    font-size: 13.5px;
+  }
+  .ms-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 280px;
+    gap: 16px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--rule-soft);
+  }
+  .ms-row:last-child { border-bottom: none; }
+  .ms-id {
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--copper);
+    font-weight: 500;
+    font-size: 12px;
+  }
+  .ms-name { color: var(--ink); font-weight: 500; }
+  .ms-bar-wrap {
+    background: var(--rule-soft);
+    height: 8px;
+    position: relative;
+    border-radius: 0;
+  }
+  .ms-bar {
+    background: var(--navy);
+    height: 100%;
+    position: absolute;
+  }
+  .ms-bar.copper { background: var(--copper); }
+
+  /* ── Footer ─────────────────────────────────── */
+  .doc-footer {
+    margin-top: 96px;
+    padding-top: 32px;
+    border-top: 2px solid var(--navy);
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.06em;
+  }
+  .doc-footer .mark {
+    color: var(--copper);
+    font-weight: 500;
+  }
+
+  /* ── References ─────────────────────────────── */
+  .refs {
+    font-size: 13.5px;
+    counter-reset: ref;
+    padding-left: 0;
+    list-style: none;
+  }
+  .refs li {
+    counter-increment: ref;
+    padding-left: 32px;
+    position: relative;
+    margin: 12px 0;
+    color: var(--ink-soft);
+  }
+  .refs li::before {
+    content: "[" counter(ref) "]";
+    position: absolute;
+    left: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--copper);
+    font-weight: 500;
+  }
+
+  /* ── Responsive ─────────────────────────────── */
+  @media (max-width: 720px) {
+    .page { padding: 0 24px 80px; }
+    .doc-title { font-size: 36px; }
+    .toc ol { columns: 1; }
+    .meta-grid { grid-template-columns: 1fr; }
+    .ms-row { grid-template-columns: 1fr; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ═══════════════════════════════════════════════
+       DOCUMENT HEADER
+       ═══════════════════════════════════════════════ -->
+  <header class="doc-header">
+    <div class="doc-stamp">Software Design Document · v0.1 · Draft</div>
+    <h1 class="doc-title">SV Data Concentrator</h1>
+    <p class="doc-subtitle">A reference implementation for the a²SDP process bus</p>
+
+    <div class="meta-grid">
+      <div class="meta-item">
+        <span class="meta-label">Project</span>
+        <span class="meta-value">SVDC for a²SDP</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Originating Organization</span>
+        <span class="meta-value">Shinsung Industrial Electric Co., Ltd. (신성산전 · SSIEC)</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Intended Recipient</span>
+        <span class="meta-value">Prof. A. P. Sakis Meliopoulos · Georgia Tech</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Reference Paper</span>
+        <span class="meta-value">CIGRE 2024 · Paper ID 10427 (B5 / PS1)</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Document Status</span>
+        <span class="meta-value">Draft for review</span>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Date</span>
+        <span class="meta-value">May 2026</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════
+       ABSTRACT
+       ═══════════════════════════════════════════════ -->
+  <div class="abstract">
+    <div class="abstract-label">Abstract</div>
+    <p>This document specifies the software design for a Sampled Value Data Concentrator (SVDC), the central data-plane component of an a²SDP local node as described in <em>Protection and Control of Active Distribution Systems</em> (Meliopoulos et al., CIGRE 2024, Paper ID 10427). The proposed implementation captures IEC 61850-9-2 Sampled Value (SV) streams from multiple Merging Units, time-aligns them under PTP-disciplined timestamps, buffers them in dual redundant circular buffers, and exposes a pull-based subscriber API to all node-local applications including Estimation-Based Protection (EBP) relays, the Phasor Computation Module, the Transient Recorder, and the Fault Locator. The design further realizes the write-back path required for self-healing replacement of compromised SVs identified by the node-level Quasi-dynamic State Estimator (QSE).</p>
+    <p>The work is offered by Shinsung Industrial Electric (SSIEC) as a software contribution to the a²SDP research programme, intended for use at Prof. Meliopoulos's existing US partner utility deployments (Southern Company, Avista, Dominion). SSIEC's role is that of an external software contributor; the deliverable is the SVDC implementation itself, packaged for installation and operation by the Georgia Tech team.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       TOC
+       ═══════════════════════════════════════════════ -->
+  <nav class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#s1"><span class="toc-num">1</span>Background and motivation</a></li>
+      <li><a href="#s2"><span class="toc-num">2</span>Scope</a></li>
+      <li><a href="#s3"><span class="toc-num">3</span>Functional requirements</a></li>
+      <li><a href="#s4"><span class="toc-num">4</span>Non-functional requirements</a></li>
+      <li><a href="#s5"><span class="toc-num">5</span>System architecture</a></li>
+      <li><a href="#s6"><span class="toc-num">6</span>Component design</a></li>
+      <li><a href="#s7"><span class="toc-num">7</span>Data model</a></li>
+      <li><a href="#s8"><span class="toc-num">8</span>External interfaces</a></li>
+      <li><a href="#s9"><span class="toc-num">9</span>Technology stack</a></li>
+      <li><a href="#s10"><span class="toc-num">10</span>Testing &amp; validation</a></li>
+      <li><a href="#s11"><span class="toc-num">11</span>Project plan</a></li>
+      <li><a href="#s12"><span class="toc-num">12</span>Deliverables</a></li>
+      <li><a href="#s13"><span class="toc-num">13</span>Collaboration model</a></li>
+      <li><a href="#s14"><span class="toc-num">14</span>Risks &amp; mitigation</a></li>
+      <li><a href="#s15"><span class="toc-num">15</span>Open questions</a></li>
+      <li><a href="#s16"><span class="toc-num">16</span>References</a></li>
+    </ol>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════
+       1. BACKGROUND
+       ═══════════════════════════════════════════════ -->
+  <section id="s1">
+    <h2><span class="section-num">§ 1</span>Background and motivation</h2>
+
+    <h3><span class="subsec-num">1.1</span>The a²SDP local node</h3>
+    <p>The a²SDP architecture partitions an Active Distribution System into sections, each managed by a <em>local node</em> consisting of a GPS-disciplined PTP grandmaster, a 1 Gbps Ethernet switch, a multicore compute platform, and an uninterruptible power supply [1]. The node ingests Sampled Values (SV) from dispersed Merging Units (MUs) over dual single-mode fiber, runs a population of Estimation-Based Protection (EBP) relays — one per protection zone — and synthesizes a node-level Quasi-dynamic State Estimate (QSE) that is forwarded to the master node via IEEE C37.118.</p>
+
+    <h3><span class="subsec-num">1.2</span>The role of the SVDC</h3>
+    <p>The SVDC sits between the MU population (south) and the application population (north). It absorbs the asynchronous arrival of SV packets — synchronized in <em>timestamp</em> to better than one microsecond, but received with up to two milliseconds of variable latency owing to fiber length, queueing, and switch traversal — and presents to every application a coherent, time-aligned, gap-free SV stream organized in dual redundant circular buffers. This decoupling is the foundation on which all node-local applications operate.</p>
+
+    <h3><span class="subsec-num">1.3</span>Why a clean reference implementation matters</h3>
+    <p>In existing field deployments the SVDC is typically vendor-bundled with proprietary protection platforms, which complicates the integration of new applications, the addition of new MU vendors, and the introduction of the self-healing write-back path described in [1]. An open, independent SVDC implementation aligned strictly to the a²SDP specification offers three benefits to the research programme:</p>
+    <ul>
+      <li>It removes vendor-coupling from the data plane, enabling new applications and new MU vendors to be onboarded against a stable specification.</li>
+      <li>It provides a reference against which factory and field test procedures (per [1, §10]) can be standardized across pilot sites.</li>
+      <li>It serves as a clean, independently maintained substrate that the Georgia Tech team can deploy at any current or future a²SDP partner utility site without negotiating with an incumbent vendor's protection platform.</li>
+    </ul>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       2. SCOPE
+       ═══════════════════════════════════════════════ -->
+  <section id="s2">
+    <h2><span class="section-num">§ 2</span>Scope</h2>
+
+    <h3><span class="subsec-num">2.1</span>In scope</h3>
+    <ul>
+      <li>Ingestion of IEC 61850-9-2 (LE profile) Sampled Value streams over Ethernet, with PTP-disciplined timestamp interpretation.</li>
+      <li>Time alignment of SVs across an arbitrary number of MUs registered to the node.</li>
+      <li>Dual redundant circular buffer management.</li>
+      <li>Interpolation of occasional lost samples per [1, §7(f)].</li>
+      <li>Pull-based subscriber API for node-local applications (EBP relays, Transient Recorder, Phasor Computation Module, Fault Locator).</li>
+      <li>Write-back API enabling the QSE to overwrite compromised SVs with state-estimated replacements per [1, §7] and Figure 4.</li>
+      <li>Health and diagnostic surfaces required by the factory and field test procedures of [1, §10].</li>
+      <li>A reference MU simulator sufficient for end-to-end functional verification in the absence of physical MUs.</li>
+    </ul>
+
+    <h3><span class="subsec-num">2.2</span>Out of scope</h3>
+    <ul>
+      <li>The EBP relay engine itself (consumer of SVDC data).</li>
+      <li>The QSE algorithm itself (consumer and write-back producer).</li>
+      <li>The PTP grandmaster and slave clock implementations (assumed provided by hardware or by <code>linuxptp</code>).</li>
+      <li>The MU hardware and its analog front-end calibration.</li>
+      <li>Network switch configuration and VLAN/multicast provisioning.</li>
+      <li>The master-node Phasor Data Concentrator (a distinct component receiving IEEE C37.118 streams).</li>
+    </ul>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       3. FUNCTIONAL REQUIREMENTS
+       ═══════════════════════════════════════════════ -->
+  <section id="s3">
+    <h2><span class="section-num">§ 3</span>Functional requirements</h2>
+
+    <p>The functional surface of the SVDC is derived directly from [1, §3, §6, §7]. Each requirement below is traceable to a paper-level statement.</p>
+
+    <table class="req-table">
+      <thead>
+        <tr><th style="width:80px">ID</th><th>Requirement</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="req-id">FR-1</td>
+          <td><span class="req-name">SV packet ingestion.</span> The SVDC shall subscribe to IEC 61850-9-2 SV multicast groups on the process-bus interface and decode all configured ASDUs.</td>
+        </tr>
+        <tr>
+          <td class="req-id">FR-2</td>
+          <td><span class="req-name">Time alignment.</span> The SVDC shall group decoded samples by their PTP-disciplined timestamp into per-tick records covering all registered MU channels.</td>
+        </tr>
+        <tr>
+          <td class="req-id">FR-3</td>
+          <td><span class="req-name">Dual redundant circular buffers.</span> The SVDC shall maintain two independent circular buffers (CB-A, CB-B), each holding the most recent <code>N</code> aligned records, where <code>N</code> is configurable and shall default to a window sufficient for at least 64 power-frequency cycles.</td>
+        </tr>
+        <tr>
+          <td class="req-id">FR-4</td>
+          <td><span class="req-name">Gap interpolation.</span> When an expected sample from a registered MU channel fails to arrive within the alignment deadline, the SVDC shall insert an interpolated value derived from the temporally adjacent valid samples and flag the record as <code>INTERPOLATED</code>.</td>
+        </tr>
+        <tr>
+          <td class="req-id">FR-5</td>
+          <td><span class="req-name">Concurrent subscribers.</span> The SVDC shall support concurrent read access by an arbitrary number of subscribing applications, each selecting an independent channel set and a sliding time window, without blocking the ingest path.</td>
+        </tr>
+        <tr>
+          <td class="req-id">FR-6</td>
+          <td><span class="req-name">Self-healing write-back.</span> The SVDC shall accept overwrite requests from the QSE that replace identified compromised samples with estimated values, preserving the original samples in an audit log and flagging the affected records as <code>QSE_CORRECTED</code>.</td>
+        </tr>
+        <tr>
+          <td class="req-id">FR-7</td>
+          <td><span class="req-name">Channel registry.</span> The SVDC shall maintain a runtime registry of MUs and their channels, including phase identity, instrument transformer ratio, polarity, and applied calibration factors per [1, §10].</td>
+        </tr>
+        <tr>
+          <td class="req-id">FR-8</td>
+          <td><span class="req-name">Health surfaces.</span> The SVDC shall expose, per channel and per MU, observed sample rate, observed arrival jitter, missing-sample count, and last applied calibration factor.</td>
+        </tr>
+        <tr>
+          <td class="req-id">FR-9</td>
+          <td><span class="req-name">Configuration via SCD.</span> The SVDC shall accept its MU and channel configuration from an IEC 61850 SCL file (SCD) and shall not require recompilation for configuration changes.</td>
+        </tr>
+        <tr>
+          <td class="req-id">FR-10</td>
+          <td><span class="req-name">Determinism.</span> The SVDC shall guarantee that every successfully ingested SV is visible to subscribers within a bounded latency from its arrival at the process-bus interface (see NFR-2).</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       4. NON-FUNCTIONAL REQUIREMENTS
+       ═══════════════════════════════════════════════ -->
+  <section id="s4">
+    <h2><span class="section-num">§ 4</span>Non-functional requirements</h2>
+
+    <table class="req-table">
+      <thead>
+        <tr><th style="width:80px">ID</th><th>Target</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="req-id">NFR-1</td>
+          <td><span class="req-name">Timestamp accuracy.</span> Honour the &lt;1 µs PTP-disciplined synchronization established by the merging units; the SVDC itself shall add no timestamp distortion exceeding 100 ns end-to-end.</td>
+        </tr>
+        <tr>
+          <td class="req-id">NFR-2</td>
+          <td><span class="req-name">Internal latency.</span> Median latency from packet reception on the NIC to availability in a circular buffer slot shall not exceed 200 µs at full load; 99th-percentile shall not exceed 500 µs. This budget sits well inside the &lt;2 ms total SV latency reported in [1, §3].</td>
+        </tr>
+        <tr>
+          <td class="req-id">NFR-3</td>
+          <td><span class="req-name">Throughput.</span> Sustain the full sample-rate output of up to 32 MUs publishing 80 samples/cycle (60 Hz) on each of 8 analog channels, with headroom of ≥2× for burst handling.</td>
+        </tr>
+        <tr>
+          <td class="req-id">NFR-4</td>
+          <td><span class="req-name">Memory residency.</span> All hot-path buffers shall be statically allocated and pre-touched at startup; no allocation, no GC, no page-faulting in the ingest or alignment paths.</td>
+        </tr>
+        <tr>
+          <td class="req-id">NFR-5</td>
+          <td><span class="req-name">CPU isolation.</span> The ingest and alignment threads shall be pinnable to dedicated cores via <code>cpuset</code>/<code>isolcpus</code>; the SVDC shall expose configuration for this.</td>
+        </tr>
+        <tr>
+          <td class="req-id">NFR-6</td>
+          <td><span class="req-name">Subscriber non-interference.</span> A slow or stalled subscriber shall not impede ingest or any other subscriber. Read consistency is per-snapshot; back-pressure is not propagated to the ingest path.</td>
+        </tr>
+        <tr>
+          <td class="req-id">NFR-7</td>
+          <td><span class="req-name">Recoverability.</span> Loss of one circular buffer shall not interrupt service; the surviving buffer continues to satisfy subscribers while the failed buffer is rebuilt.</td>
+        </tr>
+        <tr>
+          <td class="req-id">NFR-8</td>
+          <td><span class="req-name">Observability.</span> All counters and health metrics shall be exposed via a structured (JSON-over-HTTP) endpoint for both the QSE and external monitoring.</td>
+        </tr>
+        <tr>
+          <td class="req-id">NFR-9</td>
+          <td><span class="req-name">Portability.</span> The SVDC shall build and run on Ubuntu 22.04 LTS or later with the PREEMPT_RT patchset, and the build shall produce no platform-specific binaries beyond the kernel driver layer.</td>
+        </tr>
+        <tr>
+          <td class="req-id">NFR-10</td>
+          <td><span class="req-name">Language convention.</span> All user-facing artefacts shall be in English without exception: CLI option names and help text, log messages, error messages, HTTP/JSON field names and response payloads, configuration-file keys, source-code comments, identifier names, commit messages, and operator documentation. This convention supports international code review with the Georgia Tech team, multi-utility pilot deployment, and unambiguous integration with the reference QSE.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       5. SYSTEM ARCHITECTURE
+       ═══════════════════════════════════════════════ -->
+  <section id="s5">
+    <h2><span class="section-num">§ 5</span>System architecture</h2>
+
+    <h3><span class="subsec-num">5.1</span>Context</h3>
+    <p>Figure 1 places the SVDC in the local-node context defined by [1, Figures 2 and 4]. Southbound it terminates SV streams from the MU population. Northbound it serves EBP relays, the Phasor Computation Module (which feeds the Virtual Phasor Data Concentrator and onward to the master node via IEEE C37.118), the Transient Recorder, and the Fault Locator. The QSE both subscribes (for its inputs) and writes back (for self-healing corrections).</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 760 420" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif" font-size="12">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#0B1F3A"/>
+          </marker>
+          <marker id="ahc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#B4541F"/>
+          </marker>
+        </defs>
+
+        <!-- MU column -->
+        <g>
+          <rect x="20" y="60" width="120" height="40" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="80" y="85" text-anchor="middle" fill="#0B1F3A" font-weight="500">MU 1</text>
+          <rect x="20" y="120" width="120" height="40" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="80" y="145" text-anchor="middle" fill="#0B1F3A" font-weight="500">MU 2</text>
+          <text x="80" y="190" text-anchor="middle" fill="#6B6F7A" font-size="18">⋮</text>
+          <rect x="20" y="200" width="120" height="40" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="80" y="225" text-anchor="middle" fill="#0B1F3A" font-weight="500">MU n</text>
+          <text x="80" y="30" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.5">MERGING UNITS</text>
+        </g>
+
+        <!-- Process Bus -->
+        <g>
+          <rect x="180" y="80" width="60" height="180" fill="#0B1F3A"/>
+          <text x="210" y="170" text-anchor="middle" fill="#F7F4ED" font-size="10" font-family="IBM Plex Mono, monospace" letter-spacing="1.5" transform="rotate(-90 210 170)">PROCESS BUS · 1 GbE</text>
+        </g>
+
+        <!-- SVDC -->
+        <g>
+          <rect x="290" y="80" width="180" height="180" fill="#EFEADC" stroke="#B4541F" stroke-width="2"/>
+          <text x="380" y="110" text-anchor="middle" fill="#0B1F3A" font-weight="600" font-size="16">SVDC</text>
+          <line x1="310" y1="125" x2="450" y2="125" stroke="#B4541F" stroke-width="0.8"/>
+          <text x="380" y="148" text-anchor="middle" fill="#3A3F4A" font-size="11">Ingest → Align</text>
+          <text x="380" y="170" text-anchor="middle" fill="#3A3F4A" font-size="11">CB-A · CB-B</text>
+          <text x="380" y="192" text-anchor="middle" fill="#3A3F4A" font-size="11">Interpolate</text>
+          <text x="380" y="214" text-anchor="middle" fill="#3A3F4A" font-size="11">Subscribe / Write-back</text>
+          <text x="380" y="245" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="9" letter-spacing="1.2">THIS DOCUMENT</text>
+        </g>
+
+        <!-- Apps -->
+        <g>
+          <rect x="520" y="55" width="220" height="32" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="630" y="76" text-anchor="middle" fill="#0B1F3A" font-weight="500">EBP Relays  (1..N zones)</text>
+          <rect x="520" y="98" width="220" height="32" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="630" y="119" text-anchor="middle" fill="#0B1F3A" font-weight="500">Phasor Computation → VPDC</text>
+          <rect x="520" y="141" width="220" height="32" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="630" y="162" text-anchor="middle" fill="#0B1F3A" font-weight="500">Transient Recorder</text>
+          <rect x="520" y="184" width="220" height="32" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+          <text x="630" y="205" text-anchor="middle" fill="#0B1F3A" font-weight="500">Fault Locator</text>
+          <rect x="520" y="227" width="220" height="32" fill="#FAF8F3" stroke="#B4541F" stroke-width="1.5"/>
+          <text x="630" y="248" text-anchor="middle" fill="#B4541F" font-weight="600">QSE  (subscriber + write-back)</text>
+          <text x="630" y="30" text-anchor="middle" fill="#B4541F" font-family="IBM Plex Mono, monospace" font-size="10" letter-spacing="1.5">NODE APPLICATIONS</text>
+        </g>
+
+        <!-- arrows -->
+        <line x1="140" y1="80" x2="180" y2="100" stroke="#0B1F3A" marker-end="url(#ah)"/>
+        <line x1="140" y1="140" x2="180" y2="160" stroke="#0B1F3A" marker-end="url(#ah)"/>
+        <line x1="140" y1="220" x2="180" y2="220" stroke="#0B1F3A" marker-end="url(#ah)"/>
+
+        <line x1="240" y1="170" x2="290" y2="170" stroke="#0B1F3A" stroke-width="1.5" marker-end="url(#ah)"/>
+
+        <line x1="470" y1="120" x2="520" y2="71" stroke="#0B1F3A" marker-end="url(#ah)"/>
+        <line x1="470" y1="140" x2="520" y2="114" stroke="#0B1F3A" marker-end="url(#ah)"/>
+        <line x1="470" y1="170" x2="520" y2="157" stroke="#0B1F3A" marker-end="url(#ah)"/>
+        <line x1="470" y1="200" x2="520" y2="200" stroke="#0B1F3A" marker-end="url(#ah)"/>
+        <line x1="470" y1="220" x2="520" y2="243" stroke="#0B1F3A" marker-end="url(#ah)"/>
+
+        <!-- write-back arrow (curved, copper) -->
+        <path d="M 520 245 Q 400 360 290 250" fill="none" stroke="#B4541F" stroke-width="1.8" stroke-dasharray="5 3" marker-end="url(#ahc)"/>
+        <text x="380" y="380" text-anchor="middle" fill="#B4541F" font-size="11" font-style="italic">write-back: QSE-estimated SV replaces compromised SV</text>
+
+        <!-- legend -->
+        <text x="80" y="280" fill="#6B6F7A" font-size="10">south: SV publish</text>
+        <text x="630" y="280" fill="#6B6F7A" font-size="10">north: pull API + write-back</text>
+      </svg>
+      <div class="diagram-caption"><span class="fig-num">Figure 1</span> &nbsp; SVDC in the a²SDP local-node context</div>
+    </div>
+
+    <h3><span class="subsec-num">5.2</span>Internal module decomposition</h3>
+    <p>The SVDC decomposes into eight cohesive modules with sharply scoped responsibilities. The ingest and alignment paths are lock-free and pinned to isolated cores; the subscriber and write-back paths use snapshot semantics on the circular buffers and require no mutexes on the hot path.</p>
+
+    <div class="diagram">
+      <svg viewBox="0 0 760 460" xmlns="http://www.w3.org/2000/svg" font-family="IBM Plex Sans, sans-serif" font-size="11">
+        <defs>
+          <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#0B1F3A"/>
+          </marker>
+        </defs>
+
+        <!-- Ingest -->
+        <rect x="40" y="40" width="160" height="60" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+        <text x="120" y="65" text-anchor="middle" fill="#0B1F3A" font-weight="600">M1 · Ingress</text>
+        <text x="120" y="84" text-anchor="middle" fill="#6B6F7A" font-size="10">SV decode · PTP timestamp</text>
+
+        <!-- Aligner -->
+        <rect x="240" y="40" width="160" height="60" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+        <text x="320" y="65" text-anchor="middle" fill="#0B1F3A" font-weight="600">M2 · Time Aligner</text>
+        <text x="320" y="84" text-anchor="middle" fill="#6B6F7A" font-size="10">per-tick record assembly</text>
+
+        <!-- Interpolator -->
+        <rect x="440" y="40" width="160" height="60" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+        <text x="520" y="65" text-anchor="middle" fill="#0B1F3A" font-weight="600">M3 · Interpolator</text>
+        <text x="520" y="84" text-anchor="middle" fill="#6B6F7A" font-size="10">gap fill on alignment deadline</text>
+
+        <!-- Calibration -->
+        <rect x="640" y="40" width="100" height="60" fill="#FAF8F3" stroke="#B4541F" stroke-width="1.5"/>
+        <text x="690" y="65" text-anchor="middle" fill="#B4541F" font-weight="600">M4 · Calib</text>
+        <text x="690" y="84" text-anchor="middle" fill="#6B6F7A" font-size="10">scale + offset + φ</text>
+
+        <!-- CBs -->
+        <rect x="180" y="170" width="180" height="80" fill="#EFEADC" stroke="#0B1F3A" stroke-width="1.5"/>
+        <text x="270" y="200" text-anchor="middle" fill="#0B1F3A" font-weight="600">M5 · Circular Buffer A</text>
+        <text x="270" y="220" text-anchor="middle" fill="#6B6F7A" font-size="10">N records · lock-free SPMC</text>
+        <text x="270" y="238" text-anchor="middle" fill="#6B6F7A" font-size="10">snapshot reads</text>
+
+        <rect x="400" y="170" width="180" height="80" fill="#EFEADC" stroke="#0B1F3A" stroke-width="1.5"/>
+        <text x="490" y="200" text-anchor="middle" fill="#0B1F3A" font-weight="600">M6 · Circular Buffer B</text>
+        <text x="490" y="220" text-anchor="middle" fill="#6B6F7A" font-size="10">redundant mirror of A</text>
+        <text x="490" y="238" text-anchor="middle" fill="#6B6F7A" font-size="10">failover-only reads</text>
+
+        <!-- Subscriber API -->
+        <rect x="40" y="320" width="220" height="60" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+        <text x="150" y="345" text-anchor="middle" fill="#0B1F3A" font-weight="600">M7 · Subscriber API</text>
+        <text x="150" y="364" text-anchor="middle" fill="#6B6F7A" font-size="10">pull-based; per-app cursor</text>
+
+        <!-- Write-back -->
+        <rect x="290" y="320" width="180" height="60" fill="#FAF8F3" stroke="#B4541F" stroke-width="1.5"/>
+        <text x="380" y="345" text-anchor="middle" fill="#B4541F" font-weight="600">M8 · Write-back</text>
+        <text x="380" y="364" text-anchor="middle" fill="#6B6F7A" font-size="10">QSE overwrite + audit log</text>
+
+        <!-- Health -->
+        <rect x="500" y="320" width="180" height="60" fill="#FAF8F3" stroke="#0B1F3A" stroke-width="1.2"/>
+        <text x="590" y="345" text-anchor="middle" fill="#0B1F3A" font-weight="600">M9 · Health / Diag</text>
+        <text x="590" y="364" text-anchor="middle" fill="#6B6F7A" font-size="10">counters · JSON endpoint</text>
+
+        <!-- arrows ingest chain -->
+        <line x1="200" y1="70" x2="240" y2="70" stroke="#0B1F3A" marker-end="url(#ah2)"/>
+        <line x1="400" y1="70" x2="440" y2="70" stroke="#0B1F3A" marker-end="url(#ah2)"/>
+        <line x1="600" y1="70" x2="640" y2="70" stroke="#0B1F3A" marker-end="url(#ah2)"/>
+
+        <!-- M3 / M4 -> CBs -->
+        <line x1="520" y1="100" x2="270" y2="170" stroke="#0B1F3A" marker-end="url(#ah2)"/>
+        <line x1="690" y1="100" x2="490" y2="170" stroke="#0B1F3A" marker-end="url(#ah2)"/>
+
+        <!-- CBs -> subscribers -->
+        <line x1="270" y1="250" x2="150" y2="320" stroke="#0B1F3A" marker-end="url(#ah2)"/>
+        <line x1="490" y1="250" x2="380" y2="320" stroke="#0B1F3A" marker-end="url(#ah2)"/>
+
+        <!-- Write-back into CBs -->
+        <line x1="380" y1="320" x2="270" y2="250" stroke="#B4541F" stroke-dasharray="4 3" marker-end="url(#ah2)"/>
+        <line x1="380" y1="320" x2="490" y2="250" stroke="#B4541F" stroke-dasharray="4 3" marker-end="url(#ah2)"/>
+
+        <!-- Health observes all -->
+        <line x1="590" y1="320" x2="490" y2="250" stroke="#6B6F7A" stroke-dasharray="2 3"/>
+        <line x1="590" y1="320" x2="690" y2="100" stroke="#6B6F7A" stroke-dasharray="2 3"/>
+
+        <text x="380" y="430" text-anchor="middle" fill="#6B6F7A" font-size="10" font-style="italic">solid: hot path · dashed copper: QSE write-back · dotted: telemetry</text>
+      </svg>
+      <div class="diagram-caption"><span class="fig-num">Figure 2</span> &nbsp; Internal module decomposition</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       6. COMPONENT DESIGN
+       ═══════════════════════════════════════════════ -->
+  <section id="s6">
+    <h2><span class="section-num">§ 6</span>Component design</h2>
+
+    <div class="module">
+      <span class="module-id">M1 · Ingress</span>
+      <h4>SV reception and decoding</h4>
+      <p>Bound to the process-bus NIC via <code>AF_PACKET</code> (Linux) with a kernel-bypass option for DPDK in a later iteration. Decodes IEC 61850-9-2 LE ASDUs into a fixed-layout internal record. Extracts the PTP-disciplined sample count and converts to a 64-bit nanosecond UTC timestamp using the node's reference clock. No per-packet allocation: a pre-allocated pool of record slots is recycled in a SPSC ring to M2.</p>
+    </div>
+
+    <div class="module">
+      <span class="module-id">M2 · Time Aligner</span>
+      <h4>Per-tick record assembly</h4>
+      <p>Maintains a sliding alignment window keyed by sample-count tick. Per registered MU channel, places the decoded sample into the appropriate tick slot. When all expected channels have reported for a given tick, OR when the alignment deadline (configurable, default 1.5 ms past the tick's nominal time) expires, the completed tick record is forwarded to M3.</p>
+    </div>
+
+    <div class="module">
+      <span class="module-id">M3 · Interpolator</span>
+      <h4>Gap fill</h4>
+      <p>For tick records that exit the aligner with any missing channel, the missing values are filled by linear interpolation between the most recent valid sample preceding the gap and the first valid sample following the gap (when available; otherwise by zero-order hold). The affected sample is flagged <code>INTERPOLATED</code> with the gap length recorded for downstream visibility.</p>
+    </div>
+
+    <div class="module">
+      <span class="module-id">M4 · Calibration</span>
+      <h4>Channel calibration application</h4>
+      <p>Applies the per-channel calibration triple <code>(scale, offset, φ)</code> derived from the procedures of [1, §10]. Magnitude correction is multiplicative, DC offset correction is additive, and timing correction φ is realized via fractional-sample re-interpolation across the aligned window. Calibration factors are updated atomically through the management interface; the application path reads them via a versioned snapshot.</p>
+    </div>
+
+    <div class="module">
+      <span class="module-id">M5 / M6 · Dual Circular Buffers</span>
+      <h4>Lock-free SPMC ring storage</h4>
+      <p>Two independent circular buffers, each holding <code>N</code> fully-aligned, calibrated tick records. The producer (M4) writes a record by reserving the next slot, populating it, and incrementing the published cursor with release semantics; readers (M7) take a snapshot of the cursor with acquire semantics and walk backward. CB-A is the primary; CB-B receives the same write stream and is structurally identical. On detected corruption of CB-A (e.g., checksum mismatch on snapshot), reads transparently fall over to CB-B while CB-A is rebuilt from CB-B's contents.</p>
+    </div>
+
+    <div class="module">
+      <span class="module-id">M7 · Subscriber API</span>
+      <h4>Pull-based application access</h4>
+      <p>Each subscriber registers with a channel set and receives a cursor. Read calls return either (a) the most recent <code>k</code> records covering that channel set, or (b) all records since the subscriber's last cursor position. Records are zero-copy where the subscriber is in-process; cross-process subscribers receive serialized records over a UNIX domain socket. A slow subscriber's cursor falls behind without affecting any other party.</p>
+    </div>
+
+    <div class="module">
+      <span class="module-id">M8 · Write-back</span>
+      <h4>QSE-driven self-healing path</h4>
+      <p>Accepts overwrite requests of the form <code>(channel_id, tick_id, estimated_value, qse_quality)</code>. The target record's original value is copied to the audit log, the slot is updated in place in both CB-A and CB-B, and the record flag is set to <code>QSE_CORRECTED</code>. The write-back path is rate-limited and reject-fast: if the requested tick has already aged out of the buffer, the request is rejected with an explicit error. Subscribers reading a corrected record see the new value and the corrected flag; the original is preserved in the audit log for offline analysis.</p>
+    </div>
+
+    <div class="module">
+      <span class="module-id">M9 · Health &amp; Diagnostics</span>
+      <h4>Telemetry surface</h4>
+      <p>Per-MU and per-channel metrics: observed sample rate, arrival jitter histogram, missing-sample count, interpolation count, QSE-correction count, PTP synchronization status, applied calibration triple. Exposed over a structured JSON-over-HTTP endpoint and via a streaming subscription for the QSE's data-validation module. These surfaces directly support the test procedures of [1, §10].</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       7. DATA MODEL
+       ═══════════════════════════════════════════════ -->
+  <section id="s7">
+    <h2><span class="section-num">§ 7</span>Data model</h2>
+
+    <h3><span class="subsec-num">7.1</span>The aligned tick record</h3>
+    <p>The internal record assembled by M2 and stored in M5/M6 is laid out for cache-line alignment and for fast subscriber walks. The wire-domain SV format is decoded into this canonical representation once on ingest.</p>
+
+<pre><code><span class="code-keyword">struct</span> <span class="code-type">TickRecord</span> {
+    <span class="code-type">u64</span>     tick_id;          <span class="code-comment">// monotonic per-node tick counter</span>
+    <span class="code-type">u64</span>     ts_utc_ns;        <span class="code-comment">// PTP-disciplined UTC nanoseconds</span>
+    <span class="code-type">u16</span>     n_channels;       <span class="code-comment">// number of populated channels</span>
+    <span class="code-type">u16</span>     flags;            <span class="code-comment">// COMPLETE | INTERPOLATED | QSE_CORRECTED | DEGRADED</span>
+    <span class="code-type">u32</span>     crc;              <span class="code-comment">// integrity check across samples[]</span>
+    <span class="code-type">Sample</span>  samples[MAX_CH];  <span class="code-comment">// indexed by channel_id in channel registry</span>
+};
+
+<span class="code-keyword">struct</span> <span class="code-type">Sample</span> {
+    <span class="code-type">i32</span>     value_q;          <span class="code-comment">// calibrated value, Q-format scaled to channel unit</span>
+    <span class="code-type">u8</span>      quality;          <span class="code-comment">// IEC 61850 quality bits</span>
+    <span class="code-type">u8</span>      origin;           <span class="code-comment">// LIVE | INTERPOLATED | QSE_ESTIMATED</span>
+    <span class="code-type">u16</span>     reserved;
+};</code></pre>
+
+    <h3><span class="subsec-num">7.2</span>Channel registry</h3>
+    <p>The runtime channel registry is loaded from the SCD file at startup and exposes:</p>
+
+    <table class="spec-table">
+      <thead>
+        <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>channel_id</code></td><td>u16</td><td>Dense index used into <code>samples[]</code></td></tr>
+        <tr><td><code>mu_id</code></td><td>u16</td><td>Owning MU (MAC + AppID)</td></tr>
+        <tr><td><code>phase</code></td><td>enum</td><td>A · B · C · N · ground</td></tr>
+        <tr><td><code>quantity</code></td><td>enum</td><td>voltage · current</td></tr>
+        <tr><td><code>ct_pt_ratio</code></td><td>f64</td><td>Instrument transformer ratio</td></tr>
+        <tr><td><code>polarity</code></td><td>±1</td><td>Polarity convention</td></tr>
+        <tr><td><code>calib</code></td><td>{scale, offset, φ_ns}</td><td>Calibration triple per [1, §10]</td></tr>
+        <tr><td><code>nominal_sps</code></td><td>u32</td><td>Expected samples per second</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       8. EXTERNAL INTERFACES
+       ═══════════════════════════════════════════════ -->
+  <section id="s8">
+    <h2><span class="section-num">§ 8</span>External interfaces</h2>
+
+    <h3><span class="subsec-num">8.1</span>Southbound — SV ingest</h3>
+    <p>IEC 61850-9-2 LE multicast over Ethernet. The SVDC subscribes to the multicast MAC addresses listed in the SCD; no application-level handshake. PTP (IEEE 1588 / IEC 61588) timestamps are assumed disciplined by an external <code>linuxptp</code> instance and consumed via <code>SO_TIMESTAMPING</code>.</p>
+
+    <h3><span class="subsec-num">8.2</span>Northbound — Subscriber API</h3>
+    <p>Two transport bindings, identical semantics:</p>
+    <ul>
+      <li><strong>In-process (C ABI):</strong> zero-copy access for performance-critical consumers (EBP relays, Phasor Computation Module).</li>
+      <li><strong>Out-of-process (UNIX domain socket, length-prefixed framing):</strong> for consumers in separate processes or other languages.</li>
+    </ul>
+
+<pre><code><span class="code-comment">// In-process API sketch</span>
+<span class="code-type">SvdcCursor</span>  svdc_subscribe(<span class="code-type">const</span> <span class="code-type">ChannelSet</span>* cs);
+<span class="code-type">int</span>         svdc_read_latest(<span class="code-type">SvdcCursor</span>, <span class="code-type">size_t</span> k, <span class="code-type">TickRecord</span>** out);
+<span class="code-type">int</span>         svdc_read_since(<span class="code-type">SvdcCursor</span>, <span class="code-type">TickRecord</span>** out, <span class="code-type">size_t</span>* n_out);
+<span class="code-type">void</span>        svdc_release(<span class="code-type">SvdcCursor</span>, <span class="code-type">TickRecord</span>**);
+<span class="code-type">void</span>        svdc_unsubscribe(<span class="code-type">SvdcCursor</span>);</code></pre>
+
+    <h3><span class="subsec-num">8.3</span>Write-back — QSE correction</h3>
+
+<pre><code><span class="code-keyword">struct</span> <span class="code-type">QseCorrection</span> {
+    <span class="code-type">u16</span>  channel_id;
+    <span class="code-type">u64</span>  tick_id;        <span class="code-comment">// must lie within the current CB window</span>
+    <span class="code-type">i32</span>  estimated_value_q;
+    <span class="code-type">u8</span>   qse_quality;
+};
+
+<span class="code-type">int</span> svdc_writeback(<span class="code-type">const</span> <span class="code-type">QseCorrection</span>* batch, <span class="code-type">size_t</span> n);
+<span class="code-comment">// returns 0 on success; per-element error codes via out-parameter</span></code></pre>
+
+    <h3><span class="subsec-num">8.4</span>Management &amp; telemetry</h3>
+    <p>HTTP/JSON endpoint on a configurable port: <code>GET /health</code>, <code>GET /channels</code>, <code>GET /metrics</code>, <code>POST /calibration/{channel_id}</code>. The calibration endpoint is the runtime surface for the field-monitoring procedure of [1, §10] (Figure 11 in the paper).</p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       9. TECHNOLOGY STACK
+       ═══════════════════════════════════════════════ -->
+  <section id="s9">
+    <h2><span class="section-num">§ 9</span>Technology stack</h2>
+
+    <table class="spec-table">
+      <thead><tr><th>Layer</th><th>Choice</th><th>Rationale</th></tr></thead>
+      <tbody>
+        <tr><td>Implementation language</td><td>Rust (stable)</td><td>Memory safety without GC; deterministic latency; mature ecosystem for low-level networking; FFI-clean C ABI for in-process subscribers</td></tr>
+        <tr><td>Operating system</td><td>Ubuntu 22.04 LTS + PREEMPT_RT</td><td>Aligns with typical local-node hardware; PREEMPT_RT supports NFR-2/4</td></tr>
+        <tr><td>SV decode</td><td>Hand-rolled ASN.1 BER decoder for the 9-2 LE subset</td><td>The 9-2 LE profile is tightly constrained; a full ASN.1 stack is unnecessary and harms determinism</td></tr>
+        <tr><td>PTP</td><td><code>linuxptp</code> (external)</td><td>Standard, well-tested; consumed via <code>SO_TIMESTAMPING</code></td></tr>
+        <tr><td>Networking</td><td><code>AF_PACKET</code> with optional DPDK</td><td>AF_PACKET adequate for spec throughput; DPDK reserved for future high-channel-count deployments</td></tr>
+        <tr><td>IPC</td><td>UNIX domain sockets · shared memory for zero-copy</td><td>Lowest-latency local IPC on Linux</td></tr>
+        <tr><td>Telemetry</td><td>JSON over HTTP via <code>hyper</code></td><td>Universal; trivially consumable by node QSE and external monitors</td></tr>
+        <tr><td>Configuration</td><td>IEC 61850 SCL (SCD) parser</td><td>Standard-conforming input; no proprietary config format</td></tr>
+        <tr><td>Build</td><td>Cargo workspace · CMake for the C ABI shim</td><td>Reproducible; CI-friendly</td></tr>
+        <tr><td>License</td><td>Apache-2.0 (proposed)</td><td>Permissive, compatible with academic and commercial downstream use; final choice deferred to §13</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <div class="callout-label">Note on Rust</div>
+      <p style="margin:0">A Kotlin/JVM reference implementation is feasible on the strength of SSIEC's existing IEC 61850 codebase, but JVM pause behaviour conflicts with NFR-2/4. Rust is recommended for the production-grade reference; a Kotlin port of the subscriber API can be supplied for consumers already on the JVM.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       10. TESTING
+       ═══════════════════════════════════════════════ -->
+  <section id="s10">
+    <h2><span class="section-num">§ 10</span>Testing &amp; validation</h2>
+
+    <h3><span class="subsec-num">10.1</span>Test layers</h3>
+    <ul>
+      <li><strong>Unit tests</strong> on every module, with a property-based suite for M2 (Time Aligner) and M5/M6 (CBs).</li>
+      <li><strong>MU simulator harness</strong> that synthesizes SV streams from an arbitrary number of virtual MUs, with configurable jitter, loss rate, and constant timing/magnitude/DC-offset injection. This directly mirrors the laboratory setup of [1, §10] (paper Figures 7, 9).</li>
+      <li><strong>Loopback integration tests</strong> exercising ingest → alignment → CB → subscriber, with assertions on tick completeness, ordering, and per-record flags.</li>
+      <li><strong>Latency &amp; jitter benchmarks</strong> against NFR-2/3, with histograms produced in the style of paper Figure 8.</li>
+      <li><strong>QSE write-back tests</strong> driven by a stub QSE, verifying audit-log preservation, flag correctness, and rejection of out-of-window corrections.</li>
+      <li><strong>Long-running soak</strong> (≥ 24 h) on the laboratory hardware, equivalent in intent to the 18.8-minute synchronization soak of paper Figure 8 but extended in duration.</li>
+    </ul>
+
+    <h3><span class="subsec-num">10.2</span>Acceptance criteria</h3>
+    <table class="spec-table">
+      <thead><tr><th>Criterion</th><th>Threshold</th></tr></thead>
+      <tbody>
+        <tr><td>Median ingest-to-CB latency</td><td>≤ 200 µs at design throughput</td></tr>
+        <tr><td>99th-percentile ingest-to-CB latency</td><td>≤ 500 µs at design throughput</td></tr>
+        <tr><td>Internal timestamp distortion</td><td>≤ 100 ns end-to-end</td></tr>
+        <tr><td>Zero allocations in hot path</td><td>verified with <code>perf</code> / <code>heaptrack</code></td></tr>
+        <tr><td>Subscriber non-interference</td><td>artificially stalled subscriber ⇒ no change in other subscribers' latency distribution</td></tr>
+        <tr><td>Write-back correctness</td><td>100% of valid QSE corrections applied; audit log byte-identical to originals</td></tr>
+        <tr><td>Loss recovery</td><td>≤ 5% injected packet loss handled with no record drops downstream of the interpolator</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       11. PROJECT PLAN
+       ═══════════════════════════════════════════════ -->
+  <section id="s11">
+    <h2><span class="section-num">§ 11</span>Project plan</h2>
+
+    <p>A twelve-week plan from project start to a v0.1 deliverable suitable for integration testing at Georgia Tech. Weekly cadence is one demo per milestone, recorded for asynchronous review.</p>
+
+    <div class="timeline">
+      <div class="ms-row">
+        <span class="ms-id">M0</span>
+        <span class="ms-name">SCD parser, channel registry, MU simulator skeleton</span>
+        <div class="ms-bar-wrap"><div class="ms-bar copper" style="left:0%; width:16.7%"></div></div>
+      </div>
+      <div class="ms-row">
+        <span class="ms-id">M1</span>
+        <span class="ms-name">Ingress + SV decoder + PTP timestamp extraction</span>
+        <div class="ms-bar-wrap"><div class="ms-bar" style="left:8%; width:25%"></div></div>
+      </div>
+      <div class="ms-row">
+        <span class="ms-id">M2</span>
+        <span class="ms-name">Time aligner with property-based tests</span>
+        <div class="ms-bar-wrap"><div class="ms-bar" style="left:25%; width:16.7%"></div></div>
+      </div>
+      <div class="ms-row">
+        <span class="ms-id">M3</span>
+        <span class="ms-name">Dual circular buffers + lock-free SPMC reads</span>
+        <div class="ms-bar-wrap"><div class="ms-bar" style="left:33%; width:16.7%"></div></div>
+      </div>
+      <div class="ms-row">
+        <span class="ms-id">M4</span>
+        <span class="ms-name">Interpolator + calibration</span>
+        <div class="ms-bar-wrap"><div class="ms-bar" style="left:42%; width:16.7%"></div></div>
+      </div>
+      <div class="ms-row">
+        <span class="ms-id">M5</span>
+        <span class="ms-name">Subscriber API (in-proc + UDS)</span>
+        <div class="ms-bar-wrap"><div class="ms-bar" style="left:50%; width:16.7%"></div></div>
+      </div>
+      <div class="ms-row">
+        <span class="ms-id">M6</span>
+        <span class="ms-name">Write-back + audit log</span>
+        <div class="ms-bar-wrap"><div class="ms-bar" style="left:58%; width:16.7%"></div></div>
+      </div>
+      <div class="ms-row">
+        <span class="ms-id">M7</span>
+        <span class="ms-name">Health/telemetry + management endpoints</span>
+        <div class="ms-bar-wrap"><div class="ms-bar" style="left:67%; width:16.7%"></div></div>
+      </div>
+      <div class="ms-row">
+        <span class="ms-id">M8</span>
+        <span class="ms-name">Latency benchmarks + 24h soak + acceptance pass</span>
+        <div class="ms-bar-wrap"><div class="ms-bar copper" style="left:83%; width:16.7%"></div></div>
+      </div>
+    </div>
+
+    <p style="font-size:13px; color:var(--muted); margin-top:18px">Copper bars mark milestones with a deliverable handover to Georgia Tech for review: M0 (spec lock + simulator) and M8 (v0.1 release).</p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       12. DELIVERABLES
+       ═══════════════════════════════════════════════ -->
+  <section id="s12">
+    <h2><span class="section-num">§ 12</span>Deliverables</h2>
+
+    <ul>
+      <li><strong>Source repository</strong> on GitHub under the proposed Apache-2.0 license, with SSIEC and the Georgia Tech a²SDP programme jointly listed as authors.</li>
+      <li><strong>SVDC binary</strong> built for Ubuntu 22.04 (x86_64, optional ARM64).</li>
+      <li><strong>MU simulator</strong> driving an arbitrary number of virtual MUs with configurable impairment injection.</li>
+      <li><strong>Conformance test suite</strong> covering all FRs and NFRs, runnable as <code>cargo test</code>.</li>
+      <li><strong>Performance benchmark report</strong> in PDF, including latency histograms in the style of paper Figure 8.</li>
+      <li><strong>Integration guide</strong> showing how an EBP relay (or QSE) consumes the SVDC API, with a worked example.</li>
+      <li><strong>This design document</strong>, maintained as <code>docs/design.html</code>, versioned with the source.</li>
+    </ul>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       13. COLLABORATION
+       ═══════════════════════════════════════════════ -->
+  <section id="s13">
+    <h2><span class="section-num">§ 13</span>Collaboration model</h2>
+
+    <p>The proposed collaboration is asymmetric and explicit:</p>
+    <ul>
+      <li><strong>SSIEC contributes:</strong> the SVDC implementation, the conformance-grade SV Publisher reference simulator (<code>ssiec-sv-publisher</code>), the test suite, and ongoing engineering support for integration at the Georgia Tech US partner utility sites.</li>
+      <li><strong>Georgia Tech contributes:</strong> the a²SDP specification authority (acceptance review on FR/NFR interpretation), access to a reference QSE for integration testing, and the option to host the repository under the a²SDP programme's organization.</li>
+      <li><strong>IP and licensing:</strong> Apache-2.0 source; both parties retain freedom to use, extend, and redistribute. Patentable inventions arising from the implementation work (e.g., a novel lock-free interleaving scheme) are owned by the inventing party with a no-cost cross-license to the other.</li>
+      <li><strong>Cadence:</strong> bi-weekly working sync (video); milestone-gated demo reviews; asynchronous code review on GitHub.</li>
+      <li><strong>Publication path:</strong> a joint paper at CIGRE 2026 (Paris Session) is proposed as the natural venue for the integration results, with optional submission to IEEE Transactions on Power Delivery for the architectural treatment.</li>
+    </ul>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       14. RISKS
+       ═══════════════════════════════════════════════ -->
+  <section id="s14">
+    <h2><span class="section-num">§ 14</span>Risks &amp; mitigation</h2>
+
+    <table class="spec-table">
+      <thead><tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Spec ambiguity in CB sizing, interpolation policy, or write-back semantics</td>
+          <td>Re-work; misalignment with research intent</td>
+          <td>M0 deliverable explicitly includes a spec-lock review with the professor before M1 starts</td>
+        </tr>
+        <tr>
+          <td>NFR-2 latency budget infeasible on stock Linux</td>
+          <td>Failure of acceptance criterion</td>
+          <td>PREEMPT_RT from day one; DPDK fallback path designed in §9; benchmark M8 catches early</td>
+        </tr>
+        <tr>
+          <td>MU vendor incompatibilities (9-2 LE dialect variants)</td>
+          <td>Field integration friction</td>
+          <td>Decoder built to the strict LE profile; vendor-specific quirks isolated in a pluggable adapter layer</td>
+        </tr>
+        <tr>
+          <td>QSE integration surface drifts</td>
+          <td>Write-back API mismatch</td>
+          <td>Stub QSE on SSIEC side; bi-weekly contract check against the Georgia Tech reference QSE</td>
+        </tr>
+        <tr>
+          <td>License conflict with downstream commercial use by SSIEC's switchgear products</td>
+          <td>Blocks productization</td>
+          <td>Apache-2.0 selected for permissive downstream use; reaffirmed at M0 spec lock</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       15. OPEN QUESTIONS
+       ═══════════════════════════════════════════════ -->
+  <section id="s15">
+    <h2><span class="section-num">§ 15</span>Open questions for the spec-lock review</h2>
+
+    <ol>
+      <li>What is the intended default value of <code>N</code> (records held per CB), and the constraints that drive it? The paper specifies "<em>N most recent values</em>" without numeric bound.</li>
+      <li>What sample rate is canonical for the reference deployment — 80 SPC (protection) or 256 SPC (measurement) per 60 Hz cycle? Different sample rates have downstream consequences for the Phasor Computation Module.</li>
+      <li>For interpolation, is linear sufficient, or is a higher-order method expected (e.g., the quadratic fractional sample integration mentioned in [1, §7] for the Standard-PMU algorithm)?</li>
+      <li>Should the write-back path be authenticated/authorized at the API level (e.g., only the local QSE may write), or is process-level isolation considered sufficient?</li>
+      <li>Is there an existing reference SCD schema for an a²SDP node that the SVDC should consume, or should one be defined as part of M0?</li>
+      <li>What is the preferred mechanism for clock-holdover behaviour reporting from <code>linuxptp</code> into the SVDC's health surface?</li>
+    </ol>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       16. REFERENCES
+       ═══════════════════════════════════════════════ -->
+  <section id="s16">
+    <h2><span class="section-num">§ 16</span>References</h2>
+
+    <ol class="refs">
+      <li>S. Meliopoulos, G. Cokkinides, G. Wilson, K. Wilhelm, R. Rye, "Protection and Control of Active Distribution Systems," <em>CIGRE 2024 Paris Session</em>, Paper ID 10427, B5 / PS1.</li>
+      <li>IEC 61850-9-2:2011 + AMD1:2020, <em>Communication networks and systems for power utility automation — Part 9-2: Specific communication service mapping (SCSM) — Sampled values over ISO/IEC 8802-3</em>.</li>
+      <li>IEC 61850-9-2 LE, UCA International Users Group, <em>Implementation Guideline for Digital Interface to Instrument Transformers Using IEC 61850-9-2</em>, 2004.</li>
+      <li>IEEE Std 1588-2019 / IEC 61588:2021, <em>Precision Clock Synchronization Protocol for Networked Measurement and Control Systems</em>.</li>
+      <li>IEEE Std C37.118.1-2011 / .2-2011, <em>Synchrophasor Measurements and Data Transfer for Power Systems</em>.</li>
+      <li>A. P. Meliopoulos et al., "Dynamic State Estimation Based Protection: Status and Promise," <em>IEEE Transactions on Power Delivery</em>, vol. 32, no. 1, pp. 320–328, Feb. 2017.</li>
+      <li>H. F. Albinali and A. P. Meliopoulos, "Resilient Protection System through Centralized Substation Protection," <em>IEEE Transactions on Power Delivery</em>, vol. 33, no. 3, pp. 1418–1427, Jun. 2018.</li>
+    </ol>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════
+       FOOTER
+       ═══════════════════════════════════════════════ -->
+  <footer class="doc-footer">
+    <span>Shinsung Industrial Electric Co., Ltd. (SSIEC) <span class="mark">·</span> 신성산전</span>
+    <span>SVDC SDD v0.1 <span class="mark">·</span> Draft for Georgia Tech review</span>
+  </footer>
+
+</div>
+</body>
+</html>

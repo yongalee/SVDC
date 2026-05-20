@@ -1,0 +1,15 @@
+[package]
+name = "svdc-bin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "SVDC daemon binary: ingests SV streams, hosts circular buffers, serves subscribers."
+
+[[bin]]
+name = "svdc"
+path = "src/main.rs"
+
+[dependencies]
+svdc-core = { path = "../svdc-core" }
