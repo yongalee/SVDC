@@ -1,9 +1,17 @@
 # ADR-0002 — Embedded Web-based UI and Monitoring Dashboard
 
-- **Status:** accepted
+- **Status:** superseded by [ADR-0004](0004-ui-stack.md) (2026-05-21)
 - **Date:** 2026-05-21
 - **Deciders:** SSIEC SVDC team, Google Antigravity Agent
 - **WBS Code:** WBS-1.7 (UI/UX Design and Monitoring)
+
+> **Superseded.** The tech-stack choices in this ADR (WebSocket, Chart.js,
+> Vanilla JS, glassmorphism) were made before the canonical UI Design
+> Document (`docs/SVDC_UI_Design_Document_v0.1.html`) was added. The
+> design document overrides several of those choices. See ADR-0004 for
+> the current Operator Console stack. The Strict-Isolation principle
+> (web server on a separate thread pool, no allocation on hot path) is
+> preserved.
 
 ## Context
 
