@@ -7,6 +7,10 @@ authors.workspace = true
 rust-version.workspace = true
 description = "Conformance-grade IEC 61850-9-2 / 9-2 LE Sampled Value publisher reference simulator. Standalone tool for verifying SV Subscriber implementations against the standard and against commercial Merging Units. See IP §2 WBS-6.1."
 
+[lib]
+name = "ssiec_sv_publisher"
+path = "src/lib.rs"
+
 [[bin]]
 name = "ssiec-sv-publisher"
 path = "src/main.rs"
