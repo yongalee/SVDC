@@ -60,7 +60,7 @@ Phase 0 task checklist (from IP §9.1):
 - [x] WBS-1.5 Coding standards (`CONTRIBUTING.md`)
 - [x] WBS-1.3 Toolchain pin (`rust-toolchain.toml`) — dev container deferred until a Linux-only dep lands
 - [x] WBS-1.4 CI pipeline (`.github/workflows/ci.yml`: fmt, clippy, test on Ubuntu+Windows, NFR-10 lint)
-- [ ] WBS-1.6 Issue tracker setup — templates/labels declared in repo; awaits `gh label create` (or web-UI) application on GitHub
+- [x] WBS-1.6 Issue tracker setup — 23 labels applied to remote, PR/issue templates in `.github/`, main branch protected (PR + 5 status checks required), Phase 0 seed issues filed (#1 #2 #3)
 - [ ] WBS-6.1 (skeleton) `ssiec-sv-publisher` emits one valid SV packet
 - [ ] **Spec-lock review session with Prof. Meliopoulos → Gate G0**
 
