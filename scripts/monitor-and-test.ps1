@@ -28,7 +28,17 @@ Write-Host "Active branch is: $branch (tracking $remoteBranch)"
 
 # 2. Check for remote commits
 $localCommit = git rev-parse HEAD
-$remoteCommit = git rev-parse $remoteBranch
+
+# Check if the remote branch exists on the fetch origin
+$remoteBranchExists = $false
+git rev-parse --verify $remoteBranch 2>$null
+if ($LASTEXITCODE -eq 0) {
+    $remoteBranchExists = $true
+    $remoteCommit = git rev-parse $remoteBranch
+} else {
+    Write-Host "Remote tracking branch $remoteBranch does not exist yet. Skipping pull."
+    $remoteCommit = $localCommit
+}
 
 Write-Host "Local commit : $localCommit"
 Write-Host "Remote commit: $remoteCommit"
