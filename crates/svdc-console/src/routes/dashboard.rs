@@ -213,15 +213,15 @@ async fn dashboard_page() -> Html<String> {
                      " {
 
                      // SVG Grid Waveform Display
-                     div class="flex-1 w-full bg-[#1e1e1a] rounded-lg border border-[#2d2d2a] p-2 relative overflow-hidden" {
+                     div class="flex-1 w-full bg-chart-bg rounded-lg border border-border-color p-2 relative overflow-hidden" {
 
                           // Responsive inline SVG
                           svg viewBox="0 0 800 250" class="w-full h-auto block" style="background: transparent;" {
                               // Grid lines
-                              line x1="0" y1="125" x2="800" y2="125" stroke="#3d3d3a" stroke-dasharray="4" {}
-                              line x1="200" y1="0" x2="200" y2="250" stroke="#2d2d2a" stroke-dasharray="2" {}
-                              line x1="400" y1="0" x2="400" y2="250" stroke="#2d2d2a" stroke-dasharray="2" {}
-                              line x1="600" y1="0" x2="600" y2="250" stroke="#2d2d2a" stroke-dasharray="2" {}
+                              line x1="0" y1="125" x2="800" y2="125" class="stroke-grid-primary" stroke-dasharray="4" {}
+                              line x1="200" y1="0" x2="200" y2="250" class="stroke-grid-secondary" stroke-dasharray="2" {}
+                              line x1="400" y1="0" x2="400" y2="250" class="stroke-grid-secondary" stroke-dasharray="2" {}
+                              line x1="600" y1="0" x2="600" y2="250" class="stroke-grid-secondary" stroke-dasharray="2" {}
 
                               // Voltage Waves: Va (Red), Vb (Green), Vc (Blue)
                               path ":d"="points.reduce((acc, p, idx) => { const x = (idx / (maxPoints - 1)) * 800; const y = 125 - (p.v1 * scaleY); return acc + (idx === 0 ? 'M' : 'L') + ' ' + x + ' ' + y; }, '')" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" {}
@@ -269,7 +269,7 @@ async fn dashboard_page() -> Html<String> {
                     }
                     h2 class="card-title" { "System Diagnostic Log Stream" }
                 }
-                div class="card-body mt-4 font-mono text-xs text-text-secondary bg-[#1c1c1a] border border-border-color p-4 rounded-lg h-48 overflow-y-auto flex flex-col gap-1.5" {
+                div class="card-body mt-4 font-mono text-xs text-text-secondary bg-[#0f172a] border border-border-color p-4 rounded-lg h-48 overflow-y-auto flex flex-col gap-1.5" {
                     div {
                         span class="text-[#888880]" { "[09:20:07]" }
                         span class="text-accent-green font-semibold" { " [INFO] " }

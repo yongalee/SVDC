@@ -226,7 +226,7 @@ async fn config_page() -> Html<String> {
                             div class="flex items-center justify-center w-full" {
                                 label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border-color rounded-lg cursor-pointer bg-bg-secondary hover:bg-bg-primary hover:border-accent-blue transition-all" {
                                     div class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4" {
-                                        svg class="w-8 h-8 text-accent-blue mb-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                                        svg class="w-6 h-6 text-accent-blue mb-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
                                             path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" {}
                                         }
                                         p class="mb-1 text-xs text-text-primary font-medium" { "Click to select SCL/SCD file" }
