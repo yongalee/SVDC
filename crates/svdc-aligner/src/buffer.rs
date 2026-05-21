@@ -65,10 +65,11 @@ impl TickBuffer {
         self.inner.lock().expect("tick buffer poisoned").pop_front()
     }
 
-    /// Snapshot the newest `n` ticks, newest first.
+    /// Snapshot the newest `n` ticks, newest first. Clones into the
+    /// returned `Vec`; for hot-path callers, prefer [`Self::pop`].
     pub fn recent(&self, n: usize) -> Vec<TickRecord> {
         let g = self.inner.lock().expect("tick buffer poisoned");
-        g.iter().rev().take(n).copied().collect()
+        g.iter().rev().take(n).cloned().collect()
     }
 
     /// Current count.
@@ -101,10 +102,7 @@ mod tests {
     use super::*;
 
     fn tick(id: u64, ts: u64) -> TickRecord {
-        TickRecord {
-            tick_id: id,
-            ts_utc_ns: ts,
-        }
+        TickRecord::empty(id, ts)
     }
 
     #[test]
