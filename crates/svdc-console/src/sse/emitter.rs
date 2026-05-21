@@ -4,7 +4,7 @@
    NFR-10: English-only comments and identifiers
 */
 
-use crate::sse::{DashboardMetrics, SsePayload, WaveformSample};
+use crate::sse::{DashboardMetrics, QseLog, SsePayload, WaveformSample};
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::broadcast;
@@ -39,7 +39,9 @@ pub fn broadcast_event(payload: &SsePayload) {
 async fn run_simulation(tx: broadcast::Sender<String>) {
     let mut interval_10hz = time::interval(Duration::from_millis(100));
     let mut last_metrics_time = Instant::now();
+    let mut last_qse_time = Instant::now();
     let mut last_ticks_emitted: u64 = 0;
+    let mut qse_seq: u64 = 0;
     let mut angle: f32 = 0.0;
 
     // Simulated constants
@@ -142,8 +144,154 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
                 let _ = tx.send(json_str);
             }
         }
+
+        // 3. Mock QSE audit-log row every ~7 s. Phase 0 keeps
+        //    /monitoring's "QSE Write-Back Action Audit Logs"
+        //    table non-empty during demos. Real wiring lands
+        //    when the QSE write-back path is built (ADR-0020).
+        if last_qse_time.elapsed() >= Duration::from_secs(7) {
+            last_qse_time = Instant::now();
+            qse_seq = qse_seq.wrapping_add(1);
+            let qse_event = SsePayload::Qse(mock_qse_log(qse_seq, now_ms));
+            if let Ok(json_str) = serde_json::to_string(&qse_event) {
+                let _ = tx.send(json_str);
+            }
+        }
     }
+}
+
+/// Deterministic per-sequence mock QSE log row. Cycles through a
+/// small fixture of operations + results so the demo table shows
+/// variety. Replace with the real event source when QSE write-back
+/// lands (ADR-0020).
+fn mock_qse_log(seq: u64, now_ms: u64) -> QseLog {
+    let fixtures: &[(&str, &str, &str, &str, &str, &str)] = &[
+        (
+            "WBS-9.6a",
+            "set_calibration",
+            "MU-01 / ch4",
+            "console:127.0.0.1",
+            "applied",
+            "green",
+        ),
+        (
+            "WBS-2.9",
+            "tamper_injected",
+            "tick_buffer / synthetic",
+            "operator:demo",
+            "degraded",
+            "amber",
+        ),
+        (
+            "WBS-9.4a",
+            "northbound_state_change",
+            "Layer L1 (OPC UA)",
+            "console:127.0.0.1",
+            "applied",
+            "green",
+        ),
+        (
+            "WBS-2.9",
+            "integrity_sweep",
+            "tick_buffer",
+            "scheduler",
+            "applied",
+            "green",
+        ),
+        (
+            "WBS-9.6a",
+            "scd_upload",
+            "AA1J1Q01A1 sample SCD",
+            "console:127.0.0.1",
+            "applied",
+            "green",
+        ),
+        (
+            "ADR-0020",
+            "qse_writeback",
+            "MU-01 / ch4 — placeholder",
+            "qse:planned",
+            "rejected",
+            "red",
+        ),
+    ];
+    let pick = fixtures[(seq as usize) % fixtures.len()];
+    QseLog {
+        timestamp: iso8601_from_unix_ms(now_ms),
+        wbs: pick.0.to_string(),
+        operation: pick.1.to_string(),
+        target: pick.2.to_string(),
+        operator: pick.3.to_string(),
+        result: pick.4.to_string(),
+        result_color: pick.5.to_string(),
+    }
+}
+
+/// Cheap ISO-8601 (UTC) formatter, no `chrono` dependency: just
+/// good enough for the mock audit-log row.
+fn iso8601_from_unix_ms(unix_ms: u64) -> String {
+    let secs = (unix_ms / 1000) as i64;
+    let millis = (unix_ms % 1000) as u32;
+    // Convert seconds since epoch to (y, m, d, h, m, s) using the
+    // civil-from-days algorithm.
+    let z = secs.div_euclid(86_400) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let year = if m <= 2 { y + 1 } else { y };
+    let secs_of_day = secs.rem_euclid(86_400) as u32;
+    let h = secs_of_day / 3600;
+    let mi = (secs_of_day / 60) % 60;
+    let s = secs_of_day % 60;
+    format!("{year:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{millis:03}Z")
 }
 
 // Custom type-alias for Instant to ensure standard library compilation
 type Instant = std::time::Instant;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn iso8601_formatter_matches_known_epoch() {
+        // Unix epoch + 0 ms = 1970-01-01T00:00:00.000Z
+        assert_eq!(iso8601_from_unix_ms(0), "1970-01-01T00:00:00.000Z");
+        // 86_400_000 ms = exactly one day after epoch.
+        assert_eq!(iso8601_from_unix_ms(86_400_000), "1970-01-02T00:00:00.000Z");
+        // 1_700_000_000_000 ms = 2023-11-14T22:13:20.000 UTC (well-known
+        // round number used in many docs as the "modern" timestamp).
+        assert_eq!(
+            iso8601_from_unix_ms(1_700_000_000_000),
+            "2023-11-14T22:13:20.000Z"
+        );
+        // Sanity: every output ends with the Z + 3-digit millis.
+        let s = iso8601_from_unix_ms(1_700_000_000_123);
+        assert!(s.ends_with(".123Z"), "got {s}");
+    }
+
+    #[test]
+    fn mock_qse_log_cycles_through_fixtures() {
+        let a = mock_qse_log(0, 1_700_000_000_000);
+        let b = mock_qse_log(1, 1_700_000_000_000);
+        assert_ne!(a.operation, b.operation);
+        // Same seq + same time → identical (determinism)
+        let c = mock_qse_log(0, 1_700_000_000_000);
+        assert_eq!(a.operation, c.operation);
+    }
+
+    #[test]
+    fn qse_log_round_trips_as_json_with_event_type_tag() {
+        let log = mock_qse_log(0, 1_700_000_000_000);
+        let payload = SsePayload::Qse(log);
+        let json = serde_json::to_string(&payload).unwrap();
+        assert!(json.contains(r#""event_type":"Qse""#));
+        assert!(json.contains(r#""result_color":"green""#));
+        assert!(json.contains(r#""operation":"set_calibration""#));
+    }
+}
