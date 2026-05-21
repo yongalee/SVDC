@@ -318,3 +318,31 @@ button:disabled { opacity: 0.55; cursor: progress; }
 
 .layer-detail h2 { margin: 12px 0 4px; }
 .layer-detail .layer-state { margin: 12px 0 16px; }
+
+/* Per-channel calibration table */
+.calibration-table th, .calibration-table td { padding: 8px 12px; }
+.calibration-table tbody tr.saved {
+    background-color: rgba(22, 163, 74, 0.10);
+    transition: background-color 0.4s ease;
+}
+.calibration-table tbody tr.reset {
+    background-color: rgba(154, 160, 166, 0.10);
+    transition: background-color 0.4s ease;
+}
+.cal-input {
+    width: 92px;
+    padding: 4px 6px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-card);
+    color: var(--text-body);
+}
+.cal-input:focus { outline: 2px solid rgba(37, 99, 235, 0.4); outline-offset: -1px; }
+
+/* Configuration screen section grouping */
+.config-section { margin-bottom: 32px; }
+.config-section-head { margin-bottom: 12px; }
+.config-section-head h2, .config-section-head h3 { margin: 0 0 4px; color: var(--text-strong); }
+.config-section-head h3 { font-size: 14px; }
