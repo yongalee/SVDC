@@ -152,8 +152,15 @@ this into a per-MU scrolling buffer.
 | `i1`/`i2`/`i3` | f32    | Per-phase current, amperes (post-calibration)      |
 | `i0`           | f32    | Neutral current; ≈ 0 in balanced 3-phase           |
 
-PR E migrates this from the in-emitter mock waveform to the
-actual `TickRecord::live_samples()` of the latest tick.
+As of PR E, the emitter prefers the latest `TickRecord` in the
+shared `TickBuffer`: it reads `live_samples()[0..8]` and maps
+them to the wire fields using the publisher's channel order
+(`Ia Ib Ic In Va Vb Vc Vn`). Currents scale by 0.001 A/LSB,
+voltages by 0.01 V/LSB to produce engineering units. `mu_id`
+is sourced from the first observed svID (PR D's `seen_mus`).
+When the buffer is empty (no producer attached), the emitter
+falls back to a synthetic sinusoid so the polar diagram never
+sits blank.
 
 ## Actionable for Simulator Agents
 
