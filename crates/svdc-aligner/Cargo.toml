@@ -1,0 +1,15 @@
+[package]
+name = "svdc-aligner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "Time aligner (M2): bins IngressFrames into PTP-aligned ticks, interpolates gaps, applies calibration, and stages results in the dual circular buffer that northbound layers consume."
+
+[dependencies]
+svdc-core = { path = "../svdc-core" }
+svdc-ingress = { path = "../svdc-ingress" }
+
+[dev-dependencies]
+ssiec-sv-publisher = { path = "../ssiec-sv-publisher" }
