@@ -103,20 +103,37 @@ es.onmessage = (evt) => {
     const m = p.data;
     set('tile-ptp',
         (m.ptp_offset_ns ?? 0) + ' ns',
-        m.ptp_sync_status,
+        m.ptp_sync_status + ' · mock until Phase 5',
         ptpLevel(m.ptp_offset_ns));
+    // Buffer tile carries the live integrity verdict in its
+    // secondary line so the operator sees CRC failures at a
+    // glance.
+    const violations = m.integrity_violations ?? 0;
+    const bufferSecondary = (violations === 0)
+        ? 'integrity ok · CRC verified'
+        : ('degraded · ' + violations + ' integrity violation(s)');
+    const bufferLevel = (violations > 0)
+        ? 'fault'
+        : ((m.buffer_saturation < 70) ? 'healthy'
+            : (m.buffer_saturation < 90 ? 'degraded' : 'fault'));
     set('tile-buffer',
         (m.buffer_saturation ?? 0).toFixed(1) + '%',
-        null,
-        (m.buffer_saturation < 70) ? 'healthy' : (m.buffer_saturation < 90 ? 'degraded' : 'fault'));
+        bufferSecondary,
+        bufferLevel);
+    const muSecondary = m.live_feed_active
+        ? 'live UDP feed · auto-registration in PR D'
+        : ((m.active_mus > 0) ? 'in-process demo loop active'
+                              : 'no producer attached');
     set('tile-mus',
         String(m.active_mus ?? 0),
-        null,
+        muSecondary,
         (m.active_mus > 0) ? 'healthy' : 'unknown');
     set('tile-throughput',
         (m.sps_rate ?? 0).toLocaleString() + ' Hz',
-        null,
-        'healthy');
+        (m.sps_rate > 0)
+            ? ('live ' + (m.sps_rate ?? 0).toLocaleString() + ' ticks/s')
+            : 'idle · waiting for producer',
+        (m.sps_rate > 0) ? 'healthy' : 'unknown');
   }
 };
 es.onerror = () => {
