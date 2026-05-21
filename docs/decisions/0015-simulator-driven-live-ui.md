@@ -152,10 +152,10 @@ TickBuffer is non-empty.
 
 ### 5. The simulator owns its own dummy data
 
-The user is explicit:
-*"시뮬레이터는 연결정보 뿐만 아니라, dummy 데이터도 갖고 있을 수 있도록 해줘"*
-— "The simulator should carry not just connection info but also
-dummy data."
+The user requirement is explicit: the simulator should carry not
+just connection metadata (APPID, MAC, svID, VLAN) but also the
+synthetic waveform data — no external file or external pipeline
+should be needed to make it emit a usable SV stream.
 
 The existing `WaveformConfig` (PR #42) already provides
 configurable three-phase sinusoid + harmonics + power-factor lag
