@@ -316,6 +316,7 @@ button:disabled { opacity: 0.55; cursor: progress; }
 .state-on  { background-color: rgba(22, 163, 74, 0.14); color: var(--status-ok);   border: 1px solid rgba(22, 163, 74, 0.3); }
 .state-off { background-color: rgba(154, 160, 166, 0.14); color: var(--status-unknown); border: 1px solid rgba(154, 160, 166, 0.3); }
 .state-planned { background-color: rgba(251, 191, 36, 0.14); color: #b45309; border: 1px solid rgba(251, 191, 36, 0.32); }
+.state-stub    { background-color: rgba(99, 102, 241, 0.14); color: #4338ca; border: 1px solid rgba(99, 102, 241, 0.32); }
 
 /* Northbound index — added in PR I */
 .layer-table .col-status { width: 160px; }

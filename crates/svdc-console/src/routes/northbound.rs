@@ -109,7 +109,7 @@ impl Layer {
     pub fn endpoint(self) -> &'static str {
         match self {
             Layer::L0 => "svdc-bin --enable-l0-demo",
-            Layer::L1 => "opc.tcp://<host>:4840/svdc/server (planned)",
+            Layer::L1 => "svdc-bin --enable-opcua 127.0.0.1:4840",
             Layer::L2 => "mqtt://<broker>:1883/svdc/... (planned)",
             Layer::L3 => "postgres://<host>:5432/svdc_historian (planned)",
         }
@@ -119,8 +119,8 @@ impl Layer {
     /// pages so the badge text is in one place.
     pub fn maturity(self) -> Maturity {
         match self {
-            Layer::L0 => Maturity::Wired,
-            Layer::L1 | Layer::L2 | Layer::L3 => Maturity::Planned { phase: 4 },
+            Layer::L0 | Layer::L1 => Maturity::Wired,
+            Layer::L2 | Layer::L3 => Maturity::Planned { phase: 4 },
         }
     }
 
@@ -128,7 +128,7 @@ impl Layer {
     pub fn adr(self) -> Option<&'static str> {
         match self {
             Layer::L0 => Some("ADR-0010 (subscriber API), ADR-0016 (simulators)"),
-            Layer::L1 => Some("ADR-0017 (planned)"),
+            Layer::L1 => Some("ADR-0017 (server library + address space)"),
             Layer::L2 => None,
             Layer::L3 => None,
         }
@@ -158,24 +158,58 @@ pub enum Maturity {
     },
 }
 
-/// Live counters for the L0 demo, read from the shared
-/// [`DataPipeline`] each render.
+/// Live counters for a wired layer, read from the shared
+/// [`DataPipeline`] each render. Two flavours today: L0 (the
+/// in-process subscriber demo) and L1 (the OPC UA server, stubbed
+/// in PR L and wired for real in PR L+).
 #[derive(Debug, Clone, Copy)]
-struct L0Status {
-    /// Whether the subscriber task is currently running.
+struct LiveStatus {
+    /// Whether the corresponding daemon task is currently running.
     active: bool,
-    /// Highest tick_id consumed since start.
+    /// Highest tick_id observed by the layer. Zero before the
+    /// first activity or when the task is not running.
     last_tick_id: u64,
-    /// Total ticks consumed since start.
-    total_ticks: u64,
+    /// Total work units the layer has completed since boot. For
+    /// L0 this is ticks drained; for L1 it is OPC UA publishes.
+    total_count: u64,
+    /// True when the layer reports `active = true` but
+    /// `total_count = 0` — i.e. enabled but not yet emitting.
+    /// PR L's L1 stub sits here permanently; PR L+'s real server
+    /// will flip to `is_stub = false` after the first publish.
+    is_stub: bool,
 }
 
-impl L0Status {
-    fn from_pipeline(p: &DataPipeline) -> Self {
+impl LiveStatus {
+    fn l0_from_pipeline(p: &DataPipeline) -> Self {
+        // L0 has no stub mode — when it's active, it's actually
+        // draining. Counter delay before first read is a normal
+        // "no traffic yet" condition, not a half-implementation.
         Self {
             active: p.l0_demo_active(),
             last_tick_id: p.l0_demo_last_tick_id(),
-            total_ticks: p.l0_demo_total_ticks(),
+            total_count: p.l0_demo_total_ticks(),
+            is_stub: false,
+        }
+    }
+
+    fn l1_from_pipeline(p: &DataPipeline) -> Self {
+        let active = p.l1_opcua_active();
+        let publishes = p.l1_opcua_total_publishes();
+        Self {
+            active,
+            last_tick_id: p.l1_opcua_last_tick_id(),
+            total_count: publishes,
+            is_stub: active && publishes == 0,
+        }
+    }
+
+    /// Layer-agnostic accessor used by `north_index` so the table
+    /// row picks the right counters for each layer.
+    fn for_layer(layer: Layer, p: &DataPipeline) -> Option<Self> {
+        match layer {
+            Layer::L0 => Some(Self::l0_from_pipeline(p)),
+            Layer::L1 => Some(Self::l1_from_pipeline(p)),
+            Layer::L2 | Layer::L3 => None,
         }
     }
 }
@@ -190,7 +224,6 @@ pub fn router() -> Router {
 
 async fn north_index() -> impl IntoResponse {
     let pipeline = crate::dataplane::global();
-    let l0 = L0Status::from_pipeline(pipeline.as_ref());
 
     layout(
         Section::Northbound,
@@ -201,9 +234,10 @@ async fn north_index() -> impl IntoResponse {
                     h2 { "Northbound application layers" }
                     p.muted {
                         "Four adapters fan SV-aligned telemetry out of the \
-                         SVDC core (SDD §8.2). Today only L0 is wired; the \
-                         others ship as Phase 4 stubs. Click a row for the \
-                         per-layer detail page."
+                         SVDC core (SDD §8.2). L0 (in-process subscriber) \
+                         and L1 (OPC UA server) are wired; L2 and L3 ship as \
+                         Phase 4 stubs. Click a row for the per-layer detail \
+                         page."
                     }
                 }
                 table.layer-table {
@@ -219,6 +253,7 @@ async fn north_index() -> impl IntoResponse {
                     tbody {
                         @for layer in Layer::all().iter().copied() {
                             @let href = format!("/north/{}", layer.code());
+                            @let status = LiveStatus::for_layer(layer, pipeline.as_ref());
                             tr.layer-row data-layer=(layer.code()) data-href=(href) {
                                 td.mono.col-code {
                                     span.layer-tag { (layer.code()) }
@@ -231,10 +266,10 @@ async fn north_index() -> impl IntoResponse {
                                     code { (layer.endpoint()) }
                                 }
                                 td.col-status {
-                                    (status_badge(layer, l0))
+                                    (status_badge(layer, status))
                                 }
                                 td.col-detail.mono.small {
-                                    (live_summary(layer, l0))
+                                    (live_summary(layer, status))
                                 }
                             }
                         }
@@ -243,10 +278,12 @@ async fn north_index() -> impl IntoResponse {
             }
             section.placeholder {
                 p.muted {
-                    "L0 counters are live — they reflect the running \
-                     subscriber task spawned by "
+                    "L0 / L1 counters are live — they reflect the running \
+                     daemon tasks spawned by "
                     code { "--enable-l0-demo" }
-                    ". L1, L2, and L3 do not yet have adapter modules; their \
+                    " / "
+                    code { "--enable-opcua" }
+                    ". L2 and L3 do not yet have adapter modules; their \
                      detail pages summarise what will land in Phase 4."
                 }
             }
@@ -256,16 +293,18 @@ async fn north_index() -> impl IntoResponse {
 }
 
 /// Render the maturity / runtime-state badge for a layer.
-fn status_badge(layer: Layer, l0: L0Status) -> Markup {
-    match layer.maturity() {
-        Maturity::Wired => {
-            if l0.active {
-                html! { span.state-badge.state-on { "Wired · running" } }
-            } else {
-                html! { span.state-badge.state-off { "Wired · not started" } }
-            }
-        }
-        Maturity::Planned { phase } => html! {
+fn status_badge(layer: Layer, status: Option<LiveStatus>) -> Markup {
+    match (layer.maturity(), status) {
+        (Maturity::Wired, Some(s)) if s.is_stub => html! {
+            span.state-badge.state-stub { "Wired · stub mode" }
+        },
+        (Maturity::Wired, Some(s)) if s.active => html! {
+            span.state-badge.state-on { "Wired · running" }
+        },
+        (Maturity::Wired, _) => html! {
+            span.state-badge.state-off { "Wired · not started" }
+        },
+        (Maturity::Planned { phase }, _) => html! {
             span.state-badge.state-planned {
                 "Planned (Phase " (phase) ")"
             }
@@ -273,29 +312,46 @@ fn status_badge(layer: Layer, l0: L0Status) -> Markup {
     }
 }
 
-/// One-cell "live" summary on the index row. L0 shows the cursor;
-/// planned layers show an em-dash so the table stays aligned.
-fn live_summary(layer: Layer, l0: L0Status) -> Markup {
-    match layer {
-        Layer::L0 if l0.active => html! {
-            "tick_id=" (l0.last_tick_id) " · "
-            (l0.total_ticks) " drained"
+/// One-cell "live" summary on the index row. Wired layers show
+/// their cursor; stub mode shows the stub label; planned layers
+/// show an em-dash so the table stays aligned.
+fn live_summary(layer: Layer, status: Option<LiveStatus>) -> Markup {
+    match (layer, status) {
+        (_, Some(s)) if s.is_stub => html! {
+            span.muted { "stub · no publishes" }
         },
-        Layer::L0 => html! { span.muted { "idle" } },
+        (_, Some(s)) if s.active => html! {
+            "tick_id=" (s.last_tick_id) " · "
+            (s.total_count) " " (work_unit_label(layer))
+        },
+        (Layer::L0 | Layer::L1, _) => html! { span.muted { "idle" } },
         _ => html! { span.muted { "—" } },
+    }
+}
+
+/// Per-layer label for the running counter. L0 drains ticks; L1
+/// publishes OPC UA variable updates. Keeping the label in one
+/// place makes the live cell explain itself without a legend.
+fn work_unit_label(layer: Layer) -> &'static str {
+    match layer {
+        Layer::L0 => "drained",
+        Layer::L1 => "published",
+        Layer::L2 | Layer::L3 => "",
     }
 }
 
 async fn north_layer(Path(layer_code): Path<String>) -> impl IntoResponse {
     let pipeline = crate::dataplane::global();
-    let l0 = L0Status::from_pipeline(pipeline.as_ref());
 
     match Layer::from_str(&layer_code) {
-        Some(layer) => layout(
-            Section::Northbound,
-            &format!("{} — {}", layer.code(), layer.name()),
-            layer_detail_body(layer, l0),
-        ),
+        Some(layer) => {
+            let status = LiveStatus::for_layer(layer, pipeline.as_ref());
+            layout(
+                Section::Northbound,
+                &format!("{} — {}", layer.code(), layer.name()),
+                layer_detail_body(layer, status),
+            )
+        }
         None => layout(
             Section::Northbound,
             "Unknown layer",
@@ -310,9 +366,17 @@ async fn north_layer(Path(layer_code): Path<String>) -> impl IntoResponse {
     }
 }
 
-fn layer_detail_body(layer: Layer, l0: L0Status) -> Markup {
+fn layer_detail_body(layer: Layer, status: Option<LiveStatus>) -> Markup {
     let detail = match layer.maturity() {
-        Maturity::Wired => wired_l0_body(layer, l0),
+        Maturity::Wired => wired_body(
+            layer,
+            status.unwrap_or(LiveStatus {
+                active: false,
+                last_tick_id: 0,
+                total_count: 0,
+                is_stub: false,
+            }),
+        ),
         Maturity::Planned { phase } => planned_body(layer, phase),
     };
     html! {
@@ -333,14 +397,15 @@ fn layer_detail_body(layer: Layer, l0: L0Status) -> Markup {
     }
 }
 
-/// Detail body for L0 — pulls real counters from the dataplane.
-fn wired_l0_body(layer: Layer, l0: L0Status) -> Markup {
+/// Detail body for any Wired layer — pulls real counters from the
+/// dataplane. Activation hint adapts per layer.
+fn wired_body(layer: Layer, status: LiveStatus) -> Markup {
     html! {
         table.layer-table {
             tbody {
                 tr {
                     th { "Status" }
-                    td { (status_badge(layer, l0)) }
+                    td { (status_badge(layer, Some(status))) }
                 }
                 tr {
                     th { "Protocol" }
@@ -351,18 +416,18 @@ fn wired_l0_body(layer: Layer, l0: L0Status) -> Markup {
                     td.mono { code { (layer.endpoint()) } }
                 }
                 tr {
-                    th { "Last tick_id consumed" }
+                    th { (last_tick_label(layer)) }
                     td.mono {
-                        @if l0.active {
-                            (l0.last_tick_id)
+                        @if status.active && !status.is_stub {
+                            (status.last_tick_id)
                         } @else {
                             span.muted { "—" }
                         }
                     }
                 }
                 tr {
-                    th { "Total ticks drained" }
-                    td.mono { (l0.total_ticks) }
+                    th { (total_count_label(layer)) }
+                    td.mono { (status.total_count) }
                 }
                 tr {
                     th { "ADR" }
@@ -370,27 +435,80 @@ fn wired_l0_body(layer: Layer, l0: L0Status) -> Markup {
                 }
             }
         }
-        @if !l0.active {
+        @if status.is_stub {
             section.placeholder {
-                h3 { "How to enable L0" }
+                h3 { "Stub mode" }
                 p.muted {
-                    "The L0 reference subscriber is enabled at daemon boot. \
-                     Start svdc-bin with the demo flag to observe live ticks \
-                     on this page and on stdout:"
+                    "The L1 OPC UA server task is enabled but no real OPC UA \
+                     stack is running yet (PR L lands the CLI flag + UI; PR L+ \
+                     lands the server itself). See "
+                    code { "docs/decisions/0017-l1-opcua-server.md" }
+                    " §1 follow-up for the openssl-sys / async-opcua library \
+                     evaluation that gates the real server."
                 }
-                pre.codeblock { code {
-                    "cargo run --release -p svdc-bin -- \\\n"
-                    "    --ingress-udp 239.0.0.1:9100 \\\n"
-                    "    --enable-l0-demo"
-                } }
+            }
+        } @else if !status.active {
+            section.placeholder {
+                h3 { (activation_header(layer)) }
+                p.muted { (activation_hint(layer)) }
+                pre.codeblock { code { (activation_cmd(layer)) } }
                 p.muted {
-                    "Pair with a southbound simulator on the same multicast \
-                     group (see "
-                    a href="/north" { "docs/northbound-simulators.md" }
-                    "). Counters above refresh on page reload."
+                    "Counters above refresh on page reload."
                 }
             }
         }
+    }
+}
+
+fn last_tick_label(layer: Layer) -> &'static str {
+    match layer {
+        Layer::L0 => "Last tick_id consumed",
+        Layer::L1 => "Last tick_id published",
+        Layer::L2 | Layer::L3 => "Last tick_id",
+    }
+}
+
+fn total_count_label(layer: Layer) -> &'static str {
+    match layer {
+        Layer::L0 => "Total ticks drained",
+        Layer::L1 => "Total publishes",
+        Layer::L2 | Layer::L3 => "Total",
+    }
+}
+
+fn activation_header(layer: Layer) -> &'static str {
+    match layer {
+        Layer::L0 => "How to enable L0",
+        Layer::L1 => "How to enable L1",
+        Layer::L2 | Layer::L3 => "How to enable",
+    }
+}
+
+fn activation_hint(layer: Layer) -> &'static str {
+    match layer {
+        Layer::L0 => {
+            "The L0 reference subscriber is enabled at daemon boot. Start \
+             svdc-bin with the demo flag to observe live ticks on this page \
+             and on stdout:"
+        }
+        Layer::L1 => {
+            "The L1 OPC UA server is enabled at daemon boot. Start svdc-bin \
+             with --enable-opcua to claim the layer; the underlying server \
+             implementation ships in PR L+ (see ADR-0017 §1):"
+        }
+        Layer::L2 | Layer::L3 => "Not yet implemented.",
+    }
+}
+
+fn activation_cmd(layer: Layer) -> &'static str {
+    match layer {
+        Layer::L0 => {
+            "cargo run --release -p svdc-bin -- \\\n    --ingress-udp 239.0.0.1:9100 \\\n    --enable-l0-demo"
+        }
+        Layer::L1 => {
+            "cargo run --release -p svdc-bin -- \\\n    --ingress-udp 239.0.0.1:9100 \\\n    --enable-opcua 127.0.0.1:4840"
+        }
+        Layer::L2 | Layer::L3 => "(no command yet)",
     }
 }
 
@@ -486,89 +604,114 @@ mod tests {
         assert_eq!(eps.len(), 4, "endpoints must be distinct");
     }
 
-    #[test]
-    fn only_l0_is_wired() {
-        assert_eq!(Layer::L0.maturity(), Maturity::Wired);
-        for l in [Layer::L1, Layer::L2, Layer::L3] {
-            assert!(matches!(l.maturity(), Maturity::Planned { phase: 4 }));
+    fn live(active: bool, last_tick_id: u64, total_count: u64, is_stub: bool) -> LiveStatus {
+        LiveStatus {
+            active,
+            last_tick_id,
+            total_count,
+            is_stub,
         }
     }
 
     #[test]
-    fn status_badge_reflects_l0_runtime_state() {
-        let running = L0Status {
-            active: true,
-            last_tick_id: 123,
-            total_ticks: 456,
-        };
-        let idle = L0Status {
-            active: false,
-            last_tick_id: 0,
-            total_ticks: 0,
-        };
-        let on = status_badge(Layer::L0, running).into_string();
+    fn l0_and_l1_are_wired_l2_l3_are_planned() {
+        for w in [Layer::L0, Layer::L1] {
+            assert_eq!(w.maturity(), Maturity::Wired);
+        }
+        for p in [Layer::L2, Layer::L3] {
+            assert!(matches!(p.maturity(), Maturity::Planned { phase: 4 }));
+        }
+    }
+
+    #[test]
+    fn status_badge_reflects_wired_runtime_state() {
+        let running = live(true, 123, 456, false);
+        let idle = live(false, 0, 0, false);
+        let stub = live(true, 0, 0, true);
+
+        let on = status_badge(Layer::L0, Some(running)).into_string();
         assert!(on.contains("Wired"));
         assert!(on.contains("running"));
-        let off = status_badge(Layer::L0, idle).into_string();
+
+        let off = status_badge(Layer::L0, Some(idle)).into_string();
         assert!(off.contains("Wired"));
         assert!(off.contains("not started"));
-        let planned = status_badge(Layer::L1, idle).into_string();
+
+        let stub_html = status_badge(Layer::L1, Some(stub)).into_string();
+        assert!(stub_html.contains("stub mode"));
+        assert!(!stub_html.contains("running"));
+
+        let planned = status_badge(Layer::L2, None).into_string();
         assert!(planned.contains("Planned"));
         assert!(planned.contains("Phase 4"));
     }
 
     #[test]
-    fn live_summary_shows_tick_id_when_l0_active() {
-        let running = L0Status {
-            active: true,
-            last_tick_id: 999,
-            total_ticks: 4800,
-        };
-        let s = live_summary(Layer::L0, running).into_string();
-        assert!(s.contains("999"));
-        assert!(s.contains("4800"));
-        assert!(s.contains("drained"));
+    fn live_summary_per_layer_uses_correct_work_unit() {
+        let running_l0 = live(true, 999, 4800, false);
+        let summary_l0 = live_summary(Layer::L0, Some(running_l0)).into_string();
+        assert!(summary_l0.contains("4800"));
+        assert!(summary_l0.contains("drained"));
+
+        let running_l1 = live(true, 480, 48, false);
+        let summary_l1 = live_summary(Layer::L1, Some(running_l1)).into_string();
+        assert!(summary_l1.contains("48"));
+        assert!(summary_l1.contains("published"));
     }
 
     #[test]
     fn live_summary_for_planned_layers_is_em_dash() {
-        let idle = L0Status {
-            active: false,
-            last_tick_id: 0,
-            total_ticks: 0,
-        };
-        for l in [Layer::L1, Layer::L2, Layer::L3] {
-            let s = live_summary(l, idle).into_string();
+        for l in [Layer::L2, Layer::L3] {
+            let s = live_summary(l, None).into_string();
             assert!(s.contains("—"), "layer {} missing em-dash", l.code());
         }
     }
 
     #[test]
-    fn wired_l0_body_shows_activation_command() {
-        let idle = L0Status {
-            active: false,
-            last_tick_id: 0,
-            total_ticks: 0,
-        };
-        let body = wired_l0_body(Layer::L0, idle).into_string();
+    fn live_summary_stub_mode_is_clear_about_no_publishes() {
+        let stub = live(true, 0, 0, true);
+        let s = live_summary(Layer::L1, Some(stub)).into_string();
+        assert!(s.contains("stub"));
+        assert!(s.contains("no publishes"));
+    }
+
+    #[test]
+    fn wired_body_shows_l0_activation_command_when_idle() {
+        let idle = live(false, 0, 0, false);
+        let body = wired_body(Layer::L0, idle).into_string();
         assert!(body.contains("--enable-l0-demo"));
         assert!(body.contains("How to enable"));
     }
 
     #[test]
-    fn wired_l0_body_hides_activation_help_when_running() {
-        let running = L0Status {
-            active: true,
-            last_tick_id: 1,
-            total_ticks: 1,
-        };
-        let body = wired_l0_body(Layer::L0, running).into_string();
+    fn wired_body_shows_l1_activation_command_when_idle() {
+        let idle = live(false, 0, 0, false);
+        let body = wired_body(Layer::L1, idle).into_string();
+        assert!(body.contains("--enable-opcua"));
+        assert!(body.contains("How to enable"));
+    }
+
+    #[test]
+    fn wired_body_hides_activation_help_when_running() {
+        let running = live(true, 1, 1, false);
+        let body = wired_body(Layer::L0, running).into_string();
+        assert!(!body.contains("How to enable"));
+    }
+
+    #[test]
+    fn wired_body_shows_stub_disclosure_for_l1_in_stub_mode() {
+        let stub = live(true, 0, 0, true);
+        let body = wired_body(Layer::L1, stub).into_string();
+        assert!(body.contains("Stub mode"));
+        assert!(body.contains("PR L+"));
+        assert!(body.contains("openssl-sys"));
+        // Activation help is suppressed while stub disclosure is shown.
         assert!(!body.contains("How to enable"));
     }
 
     #[test]
     fn planned_body_does_not_pretend_to_be_active() {
-        let body = planned_body(Layer::L1, 4).into_string();
+        let body = planned_body(Layer::L2, 4).into_string();
         assert!(body.contains("Planned"));
         assert!(body.contains("Phase 4"));
         assert!(!body.contains("running"));
