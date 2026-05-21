@@ -205,7 +205,8 @@ async fn dashboard_page() -> Html<String> {
                                 span x-text="metrics.ptp_sync_status" { "Locked" }
                             }
                         }
-                        table class="text-[10px] w-full font-mono mt-2 border-none" {
+                        table class="text-[10px] w-full font-mono mt-2 border-none" style="table-layout: fixed;" {
+                            colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-0 text-text-secondary border-none" { "PTP Offset:" }
@@ -242,7 +243,8 @@ async fn dashboard_page() -> Html<String> {
                                  x-bind:style="'width: ' + metrics.buffer_saturation + '%'"
                                  style="width: 2.4%" {}
                         }
-                        table class="text-[10px] w-full font-mono mt-2 border-none" {
+                        table class="text-[10px] w-full font-mono mt-2 border-none" style="table-layout: fixed;" {
+                            colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-0 text-text-secondary border-none" { "Ring Capacity:" }
@@ -276,7 +278,8 @@ async fn dashboard_page() -> Html<String> {
                                 span x-text="qse.status" { "ACTIVE" }
                             }
                         }
-                        table class="text-[10px] w-full font-mono mt-2 border-none" {
+                        table class="text-[10px] w-full font-mono mt-2 border-none" style="table-layout: fixed;" {
+                            colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-0 text-text-secondary border-none" { "Corrections Injected:" }
@@ -322,7 +325,8 @@ async fn dashboard_page() -> Html<String> {
                                 "L3 DB"
                             }
                         }
-                        table class="text-[10px] w-full font-mono mt-2 border-none" {
+                        table class="text-[10px] w-full font-mono mt-2 border-none" style="table-layout: fixed;" {
+                            colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-0 text-text-secondary border-none" { "Active Applications:" }
