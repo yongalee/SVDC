@@ -174,7 +174,7 @@ async fn northbound_page() -> Html<String> {
                                           a.endpoint.toLowerCase().includes(query);
                     const statusStr = a.active ? 'active' : 'inactive';
                     const matchesStatus = this.statusFilter === 'all' || statusStr === this.statusFilter;
-                    return matchesSearch && matchesStatus;
+                    return matchesSearch ? matchesStatus : false;
                 }});
             }}
         }}",
@@ -220,11 +220,11 @@ async fn northbound_page() -> Html<String> {
 
             // High-Density Data Grid
             div class="bg-bg-secondary rounded-lg border border-border-color p-2 overflow-x-auto shadow-sm" {
-                table class="industrial-grid" {
+                 table class="industrial-grid" {
                     thead {
                         tr {
                             th class="w-12 text-center" {
-                                input type="checkbox" x-on:click="toggleSelectAll()" x-bind:checked="selectedAdapters.length === filteredAdapters().length && filteredAdapters().length > 0";
+                                input type="checkbox" x-on:click="toggleSelectAll()" x-bind:checked="filteredAdapters().length > 0 ? selectedAdapters.length === filteredAdapters().length : false";
                             }
                             th class="text-center" { "Layer ID" }
                             th class="text-center" { "Protocol Name" }
@@ -240,7 +240,7 @@ async fn northbound_page() -> Html<String> {
                         template x-for="a in filteredAdapters()" x-bind:key="a.id" {
                             tr class="cursor-pointer hover:bg-bg-surface"
                                x-bind:class="selectedAdapters.includes(a.id) ? 'row-selected' : ''"
-                               x-on:click="if (!$event.target.closest('input') && !$event.target.closest('a') && !$event.target.closest('.switch-container')) window.location.href = '/north/' + a.id.toLowerCase()" {
+                               x-on:click="if ($event.target.closest('input') || $event.target.closest('a') || $event.target.closest('.switch-container')) return; window.location.href = '/north/' + a.id.toLowerCase()" {
                                 td class="text-center" {
                                     input type="checkbox" x-bind:value="a.id" x-model="selectedAdapters";
                                 }

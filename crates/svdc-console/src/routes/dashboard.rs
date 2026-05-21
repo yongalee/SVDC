@@ -545,23 +545,23 @@ async fn dashboard_page() -> Html<String> {
                             h2 class="card-title" { "Process Bus Ingestion & Redundant PRP/HSR Routing Topology" }
                         }
                         div class="card-body mt-4 overflow-x-auto" {
-                            table class="industrial-grid text-[10px] w-full" {
+                             table class="industrial-grid text-[10px] w-full" {
                                 thead {
                                     tr {
-                                        th class="text-left" { "MU ID & Feed Location" }
-                                        th class="text-left font-mono" { "MAC & IP Connection" }
+                                        th class="text-center" { "MU ID & Feed Location" }
+                                        th class="text-center font-mono" { "MAC & IP Connection" }
                                         th class="text-center" { "PRP LAN A" }
                                         th class="text-center" { "PRP LAN B" }
-                                        th class="text-right" { "Out-of-Seq" }
-                                        th class="text-right" { "Duplicates Discarded" }
-                                        th class="text-right" { "Sync Offset" }
+                                        th class="text-center" { "Out-of-Seq" }
+                                        th class="text-center" { "Duplicates Discarded" }
+                                        th class="text-center" { "Sync Offset" }
                                         th class="text-center" { "Alignment State" }
                                     }
                                 }
                                 tbody {
                                     tr class="cursor-pointer hover:bg-bg-surface" onclick="window.location.href='/south/mus/MU-01'" {
-                                        td class="font-semibold text-text-primary" { "MU-01 (Feeder Line A)" }
-                                        td class="font-mono text-xs text-text-secondary" {
+                                        td class="font-semibold text-text-primary text-center" { "MU-01 (Feeder Line A)" }
+                                        td class="font-mono text-xs text-text-secondary text-center" {
                                             div { "00:0a:35:01:02:01" }
                                             div class="text-[9px] text-text-muted" { "192.168.1.101" }
                                         }
@@ -571,9 +571,9 @@ async fn dashboard_page() -> Html<String> {
                                         td class="text-center" {
                                             span class="inline-block w-2.5 h-2.5 rounded-full bg-accent-green" x-bind:class="prp.mu01_lan_b ? 'bg-accent-green' : 'bg-accent-red'" {}
                                         }
-                                        td class="text-right font-mono font-semibold" x-text="prp.mu01_errors" { "0" }
-                                        td class="text-right font-mono font-semibold text-accent-blue" x-text="prp.mu01_discards" { "12" }
-                                        td class="text-right font-mono text-accent-green" { "+12 ns" }
+                                        td class="text-center font-mono font-semibold" x-text="prp.mu01_errors" { "0" }
+                                        td class="text-center font-mono font-semibold text-accent-blue" x-text="prp.mu01_discards" { "12" }
+                                        td class="text-center font-mono text-accent-green" { "+12 ns" }
                                         td class="text-center" {
                                             span class="status-badge status-badge-healthy px-1.5 py-0.5" {
                                                 span class="status-dot-pulse" {}
@@ -582,8 +582,8 @@ async fn dashboard_page() -> Html<String> {
                                         }
                                     }
                                     tr class="cursor-pointer hover:bg-bg-surface" onclick="window.location.href='/south/mus/MU-02'" {
-                                        td class="font-semibold text-text-primary" { "MU-02 (Feeder Line B)" }
-                                        td class="font-mono text-xs text-text-secondary" {
+                                        td class="font-semibold text-text-primary text-center" { "MU-02 (Feeder Line B)" }
+                                        td class="font-mono text-xs text-text-secondary text-center" {
                                             div { "00:0a:35:01:02:02" }
                                             div class="text-[9px] text-text-muted" { "192.168.1.102" }
                                         }
@@ -593,9 +593,9 @@ async fn dashboard_page() -> Html<String> {
                                         td class="text-center" {
                                             span class="inline-block w-2.5 h-2.5 rounded-full bg-accent-red" x-bind:class="prp.mu02_lan_b ? 'bg-accent-green' : 'bg-accent-red'" {}
                                         }
-                                        td class="text-right font-mono font-semibold text-accent-yellow" x-text="prp.mu02_errors" { "2" }
-                                        td class="text-right font-mono font-semibold text-text-muted" x-text="prp.mu02_discards" { "0" }
-                                        td class="text-right font-mono text-accent-yellow" { "+18 ns" }
+                                        td class="text-center font-mono font-semibold text-accent-yellow" x-text="prp.mu02_errors" { "2" }
+                                        td class="text-center font-mono font-semibold text-text-muted" x-text="prp.mu02_discards" { "0" }
+                                        td class="text-center font-mono text-accent-yellow" { "+18 ns" }
                                         td class="text-center" {
                                             span class="status-badge status-badge-degraded px-1.5 py-0.5" {
                                                 span class="status-dot-pulse" {}
@@ -604,8 +604,8 @@ async fn dashboard_page() -> Html<String> {
                                         }
                                     }
                                     tr class="cursor-pointer hover:bg-bg-surface" onclick="window.location.href='/south/mus/MU-03'" {
-                                        td class="font-semibold text-text-primary" { "MU-03 (Busbar Coupling)" }
-                                        td class="font-mono text-xs text-text-secondary" {
+                                        td class="font-semibold text-text-primary text-center" { "MU-03 (Busbar Coupling)" }
+                                        td class="font-mono text-xs text-text-secondary text-center" {
                                             div { "00:0a:35:01:02:03" }
                                             div class="text-[9px] text-text-muted" { "192.168.1.103" }
                                         }
@@ -615,9 +615,9 @@ async fn dashboard_page() -> Html<String> {
                                         td class="text-center" {
                                             span class="inline-block w-2.5 h-2.5 rounded-full bg-accent-red" x-bind:class="prp.mu03_lan_b ? 'bg-accent-green' : 'bg-accent-red'" {}
                                         }
-                                        td class="text-right font-mono font-semibold text-text-muted" x-text="prp.mu03_errors" { "0" }
-                                        td class="text-right font-mono font-semibold text-text-muted" x-text="prp.mu03_discards" { "0" }
-                                        td class="text-right font-mono text-accent-red" { "--" }
+                                        td class="text-center font-mono font-semibold text-text-muted" x-text="prp.mu03_errors" { "0" }
+                                        td class="text-center font-mono font-semibold text-text-muted" x-text="prp.mu03_discards" { "0" }
+                                        td class="text-center font-mono text-accent-red" { "--" }
                                         td class="text-center" {
                                             span class="status-badge status-badge-fault px-1.5 py-0.5" {
                                                 "DISCONNECTED"

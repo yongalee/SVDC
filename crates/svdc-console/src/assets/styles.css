@@ -828,7 +828,7 @@ tbody tr:hover {
     letter-spacing: 0.05em;
     padding: 0.5rem 0.75rem;
     border-bottom: 2px solid var(--border-color);
-    text-align: left;
+    text-align: center;
     position: sticky;
     top: 0;
     z-index: 10;
@@ -839,6 +839,7 @@ tbody tr:hover {
     border-bottom: 1px solid var(--border-color);
     color: var(--text-primary);
     vertical-align: middle;
+    text-align: center;
 }
 
 .industrial-grid tbody tr:last-child td {

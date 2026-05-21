@@ -48,7 +48,7 @@ async fn mus_list_page() -> Html<String> {
                                           m.ip.includes(query) ||
                                           m.mac.toLowerCase().includes(query);
                     const matchesStatus = this.statusFilter === 'all' || m.status.toLowerCase() === this.statusFilter;
-                    return matchesSearch && matchesStatus;
+                    return matchesSearch ? matchesStatus : false;
                 });
             },
             pingMu(id) {
@@ -132,11 +132,11 @@ async fn mus_list_page() -> Html<String> {
 
             // High-Density Data Grid
             div class="bg-bg-secondary rounded-lg border border-border-color p-2 overflow-x-auto shadow-sm" {
-                table class="industrial-grid" {
+                 table class="industrial-grid" {
                     thead {
                         tr {
                             th class="w-12 text-center" {
-                                input type="checkbox" x-on:click="toggleSelectAll()" x-bind:checked="selectedMus.length === filteredMus().length && filteredMus().length > 0";
+                                input type="checkbox" x-on:click="toggleSelectAll()" x-bind:checked="filteredMus().length > 0 ? selectedMus.length === filteredMus().length : false";
                             }
                             th class="text-center" { "MU ID" }
                             th class="text-center" { "Status" }
@@ -153,7 +153,7 @@ async fn mus_list_page() -> Html<String> {
                         template x-for="mu in filteredMus()" x-bind:key="mu.id" {
                             tr class="cursor-pointer hover:bg-bg-surface"
                                x-bind:class="selectedMus.includes(mu.id) ? 'row-selected' : ''"
-                               x-on:click="if (!$event.target.closest('input') && !$event.target.closest('button') && !$event.target.closest('a')) window.location.href = '/south/mus/' + mu.id" {
+                               x-on:click="if ($event.target.closest('input') || $event.target.closest('button') || $event.target.closest('a')) return; window.location.href = '/south/mus/' + mu.id" {
                                 td class="text-center" {
                                     input type="checkbox" x-bind:value="mu.id" x-model="selectedMus";
                                 }
