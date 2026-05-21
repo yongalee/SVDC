@@ -361,8 +361,8 @@ async fn dashboard_page() -> Html<String> {
 
                         div class="card-body mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 items-start" {
                             // Polar Diagram Canvas
-                            div class="flex flex-col items-center justify-center p-3 bg-chart-bg rounded-lg border border-border-color relative" {
-                                svg viewBox="0 0 200 200" class="w-full max-w-[220px] h-auto block" style="background: transparent;" {
+                            div class="flex flex-col items-center justify-center p-2 bg-chart-bg rounded-lg border border-border-color relative" {
+                                svg viewBox="0 0 200 200" class="w-full max-w-[120px] h-auto block" style="background: transparent;" {
                                     // Concentric grid circles: 30V/1.5A, 60V/3A, 90V/4.5A, 120V/6A (radius 20, 40, 60, 80 centered at 100, 100)
                                     circle cx="100" cy="100" r="20" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
                                     circle cx="100" cy="100" r="40" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
