@@ -23,9 +23,9 @@ pub fn layout(title: &str, active_nav: &str, content: Markup) -> Markup {
                 title { (title) " | SVDC Operator Console" }
 
                 // Embedded static assets (HTMX & AlpineJS)
-                script src="/assets/htmx.min.js" {}
-                script src="/assets/alpine.min.js" defer {}
-                link rel="stylesheet" href="/assets/styles.css";
+                script src="/assets/htmx.min.js?v=1" {}
+                script src="/assets/alpine.min.js?v=1" defer {}
+                link rel="stylesheet" href="/assets/styles.css?v=2";
 
                 // Premium typography (Inter for interface, JetBrains Mono for system metrics)
                 link rel="preconnect" href="https://fonts.googleapis.com";
