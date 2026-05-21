@@ -49,9 +49,7 @@ raise an issue and surface the disagreement to the professor; do not silently ch
 - **No mutex on hot path.** Coordination via release/acquire ordering on cursors and
   versioned snapshots. NFR-2, NFR-6.
 
-## Current state: Phase 0 (Foundation and Spec Lock)
-
-We are at the very beginning. This starter pack itself constitutes the initial commit.
+## Current state: Phase 0 closed; Phase 3/4 UI in progress
 
 Phase 0 task checklist (from IP §9.1):
 
@@ -60,11 +58,29 @@ Phase 0 task checklist (from IP §9.1):
 - [x] WBS-1.5 Coding standards (`CONTRIBUTING.md`)
 - [x] WBS-1.3 Toolchain pin (`rust-toolchain.toml`) — dev container deferred until a Linux-only dep lands
 - [x] WBS-1.4 CI pipeline (`.github/workflows/ci.yml`: fmt, clippy, test on Ubuntu+Windows, NFR-10 lint)
-- [x] WBS-1.6 Issue tracker setup — 23 labels applied to remote, PR/issue templates in `.github/`, main branch protected (PR + 5 status checks required), Phase 0 seed issues filed (#1 #2 #3)
+- [x] WBS-1.6 Issue tracker setup — labels applied, PR/issue templates in `.github/`, main branch protected (PR + 5 status checks required)
 - [x] WBS-6.1 (skeleton) `ssiec-sv-publisher` emits one valid SV packet (PR #8, dissected by Wireshark)
-- [x] **Gate G0 — Spec-lock provisionally closed on SSIEC defaults (2026-05-21).** Tagged `spec-lock-v0.1-provisional`. Professor ratification deferred per ADR-0006; the `spec-lock-v0.1` tag is reserved for that future sign-off.
+- [x] **Gate G0 — Spec-lock provisionally closed on SSIEC defaults (2026-05-21).** Tagged `spec-lock-v0.1-provisional`. Professor ratification deferred per ADR-0006.
 
-See `docs/decisions/0001-dual-agent-workflow.md` for the Claude Code ↔ Antigravity protocol, and `docs/decisions/0006-provisional-spec-lock-defaults.md` for the provisional-acceptance rationale.
+WBS-9 Operator Console progress (per `docs/dual-agent/wbs-9-ui-handoff.md`):
+
+| Sub-WBS | Lane | Status |
+|---|---|---|
+| 9.1a base layout, sidebar, top bar | Claude | ✅ PR #31 |
+| 9.1b crate scaffold + rust-embed | Antigravity | ✅ PR #30 |
+| 9.2a Dashboard tiles + SSE contract | Claude | ✅ PR #31 |
+| 9.2b SSE emitter (mock) | Antigravity | ✅ PR #30 |
+| 9.3a MU detail + 8-channel SVG oscilloscope | Claude | ✅ PR #32 |
+| 9.3b MU list cards | Antigravity | open (consume `GET /api/config/channels`) |
+| 9.4a Northbound shell + enable/disable API | Claude | ✅ PR #32 |
+| 9.4b L0–L3 layer detail cards | Antigravity | open |
+| 9.5a Latency histogram + p50/p99 | Claude | Phase 5 (depends on benchmark data) |
+| 9.5b PTP/CB charts + audit log | Antigravity | Phase 5 |
+| 9.6a SCD validator + channel registry + calibration | Claude | ✅ PRs #33 #34 #35 |
+| 9.6b Configuration form (HTMX upgrade) | Antigravity | open (target endpoints stable per ADR-0007) |
+| 9.7 Playwright E2E suite | Antigravity | open (Phase 6) |
+
+See `docs/decisions/0001-dual-agent-workflow.md` for the Claude Code ↔ Antigravity protocol; `0006-provisional-spec-lock-defaults.md` for the spec-lock; `0007-scd-as-immutable-input.md` for the IEC 61850 SCD vs operational state split that any further config-screen work must respect.
 
 **Phase 1 (WBS-2 Core Data Plane) is unblocked.** Work proceeds against the
 provisional values listed in `docs/spec-lock-v0.1.md`. Any later professor
