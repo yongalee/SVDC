@@ -4,12 +4,7 @@
    NFR-10: English-only comments and identifiers
 */
 
-use axum::{
-    response::Html,
-    routing::get,
-    extract::Path,
-    Router,
-};
+use axum::{extract::Path, response::Html, routing::get, Router};
 use maud::html;
 
 use crate::templates::base;
@@ -110,7 +105,7 @@ async fn mus_list_page() -> Html<String> {
                         button class="filter-chip" x-bind:class="statusFilter === 'disconnected' ? 'active' : ''" x-on:click="statusFilter = 'disconnected'" { "Disconnected" }
                     }
                 }
-                
+
                 div class="search-box w-full md:w-64" style="max-width: 300px;" {
                     input type="text" placeholder="Search by ID, IP, MAC..." class="w-full text-xs" x-model="searchQuery";
                 }
@@ -294,7 +289,7 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
             }}
         }}", id, initial_status, initial_mac, initial_ip, id.replace("-", "_")))
         class="screen-layout flex flex-col gap-6 relative" {
-            
+
             // Toast Notification
             div class="fixed bottom-6 right-6 bg-accent-green text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-2 text-xs font-semibold z-50 transition-all duration-300 transform"
                  x-show="showToast"
@@ -339,10 +334,10 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
 
             // Multi-column Editor Panel
             div class="grid grid-cols-1 lg:grid-cols-12 gap-6" {
-                
+
                 // Left & Center Column (Settings Form)
                 div class="lg:col-span-9 flex flex-col gap-6" {
-                    
+
                     // IEC 61850 Ingestion parameters
                     div class="glass-card shadow-md" {
                         div class="card-header border-b border-border-color pb-3" {
@@ -423,12 +418,12 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                             h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "3. 3-Phase Calibration Magnitude & Angle Offsets" }
                         }
                         div class="card-body mt-3 flex flex-col gap-3" {
-                            
+
                             // Voltage calibration parameters
                             div class="border-b border-border-color pb-2.5" {
                                 h4 class="text-xs font-bold text-accent-blue uppercase mb-1.5" { "Voltage Channels (Va, Vb, Vc)" }
                                 div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[10px]" {
-                                    
+
                                     // Va
                                     div class="bg-bg-secondary p-2 rounded border border-border-color flex flex-col gap-1.5" {
                                         span class="font-bold text-accent-red" { "Phase A Voltage (Va)" }
@@ -493,7 +488,7 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                             div {
                                 h4 class="text-xs font-bold text-accent-yellow uppercase mb-1.5" { "Current Channels (Ia, Ib, Ic)" }
                                 div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[10px]" {
-                                    
+
                                     // Ia
                                     div class="bg-bg-secondary p-2 rounded border border-border-color flex flex-col gap-1.5" {
                                         span class="font-bold text-[#d97706]" { "Phase A Current (Ia)" }
@@ -561,7 +556,7 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
 
                 // Right Column (Visualizations & Operations)
                 div class="lg:col-span-3 flex flex-col gap-6" {
-                    
+
                     // Waveform panel
                     div class="glass-card shadow-md" {
                         div class="card-header border-b border-border-color pb-3" {
@@ -573,19 +568,19 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                 svg viewBox="0 0 240 60" class="waveform-svg" {
                                     // Zero line grid
                                     line x1="0" y1="30" x2="240" y2="30" stroke="#cbd5e1" stroke-width="0.3" stroke-dasharray="2" {}
-                                    
+
                                     // Dynamic Phase Paths (Voltage sine waves Va, Vb, Vc)
                                     path x-bind:d="getWaveformPath(rms_va, angle_va, 0)"
                                          fill="none" stroke="#ef4444" stroke-width="0.5" stroke-linecap="round" {}
-                                         
+
                                     path x-bind:d="getWaveformPath(rms_vb, angle_vb, 120)"
                                          fill="none" stroke="#22c55e" stroke-width="0.5" stroke-linecap="round" {}
-                                         
+
                                     path x-bind:d="getWaveformPath(rms_vc, angle_vc, 240)"
                                          fill="none" stroke="#3b82f6" stroke-width="0.5" stroke-linecap="round" {}
                                 }
                             }
-                            
+
                             // Waveform Legend
                             div class="flex justify-center gap-4 text-[10px] font-semibold w-full border-t border-border-color pt-2" {
                                 div class="flex items-center gap-1.5" {
@@ -615,7 +610,7 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                 strong { "IEC 61850-9-2" }
                                 " standards, this action is audited under quasi-dynamic state estimator write-back controls."
                             }
-                            
+
                             // Progress bar
                             div class="w-full flex flex-col gap-1.5" x-show="saving" x-transition {
                                 div class="flex justify-between text-[10px]" {
