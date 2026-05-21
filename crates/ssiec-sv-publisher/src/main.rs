@@ -1,63 +1,173 @@
 //! ssiec-sv-publisher
 //!
-//! Phase 0 entry point: emit one valid IEC 61850-9-2 LE Sampled Value
-//! frame to one of three sinks:
+//! IEC 61850-9-2 LE Sampled Value emitter. Three sinks:
 //!
-//! - `hex`         (default) — pretty hex dump to stdout
-//! - `pcap <path>`           — write a libpcap file Wireshark can dissect
-//! - `udp <addr:port>`       — UDP unicast of the L2 frame payload
+//! - `hex`         (default) — pretty hex dump of one frame to stdout
+//! - `pcap <path>`           — libpcap file Wireshark can dissect
+//! - `udp <addr:port>`       — UDP datagrams of the L2 frame payload
+//!
+//! Phase 1 extends `pcap` and `udp` to **continuous emission**: the same
+//! [`WaveformConfig`](ssiec_sv_publisher::WaveformConfig) drives an
+//! incrementing `smp_cnt` so consumers see a real 3-phase waveform rather
+//! than the Phase 0 single-sample snapshot.
 //!
 //! See `docs/decisions/0003-sv-encoder-design.md` for design rationale
 //! and issue #2 for the WBS-6.1 work item.
 
-use std::io::{self, Write};
+use std::io;
 use std::net::UdpSocket;
 use std::process::ExitCode;
+use std::time::{Duration, Instant};
 
 use ssiec_sv_publisher::{
-    encode_frame, write_hex_dump, write_pcap, AsduFields, FrameParams, SampleData, DEFAULT_APPID,
-    MAX_FRAME_BYTES,
+    encode_frame, write_hex_dump, AsduFields, FrameParams, PcapWriter, SampleData, WaveformConfig,
+    DEFAULT_APPID, MAX_FRAME_BYTES,
 };
 
+/// Default svID used by the demo CLI; real deployments source this from
+/// the SCD.
+const DEMO_SV_ID: &str = "SVDC_DEMO_01";
+
+/// Default confRev for the demo CLI.
+const DEMO_CONF_REV: u32 = 1;
+
+/// Default smpSynch = 2 (global, as if PTP-locked).
+const DEMO_SMP_SYNCH: u8 = 2;
+
 fn print_help(program: &str) {
-    println!("ssiec-sv-publisher — Phase 0 IEC 61850-9-2 LE single-packet emitter");
+    println!("ssiec-sv-publisher — IEC 61850-9-2 LE Sampled Value emitter");
     println!();
     println!("USAGE:");
     println!("    {program} [hex]");
-    println!("    {program} pcap <path>");
-    println!("    {program} udp  <addr:port>");
+    println!("    {program} pcap <path> [options]");
+    println!("    {program} udp  <addr:port> [options]");
     println!("    {program} --help");
     println!();
     println!("MODES:");
-    println!("    hex     Default. Write a hex+ASCII dump of the encoded frame to stdout.");
-    println!("    pcap    Write a single-record libpcap file. Open in Wireshark to see");
-    println!("            the frame dissected as `IEC 61850-9-2 Sampled Values`.");
-    println!("    udp     Send the L2 frame payload (after the Ethernet header) over UDP");
-    println!("            to the given address. Useful on Windows where raw L2 emission");
-    println!("            needs Npcap and admin privileges.");
+    println!("    hex     Default. Write a hex+ASCII dump of one nominal frame to stdout.");
+    println!("    pcap    Write a libpcap file. Single frame by default; pass --frames N");
+    println!("            to capture a continuous stream Wireshark can scroll through.");
+    println!("    udp     Send the L2 frame payload (after the Ethernet header) over UDP.");
+    println!("            Single shot by default; pass --frames or --duration for a stream.");
+    println!();
+    println!("OPTIONS (pcap and udp):");
+    println!("    --frames N           Emit N frames with incrementing smp_cnt (default: 1).");
+    println!("    --duration SECONDS   udp only: emit for SECONDS at --rate (default: 0).");
+    println!("    --rate HZ            Sample rate in Hz (default: 4800 = 80 SPC × 60 Hz).");
+    println!("    --frequency HZ       Fundamental frequency (default: 60).");
+    println!("    --harmonics 3,5,7    Voltage harmonics, 5% amplitude each (default: none).");
     println!();
     println!("EXAMPLES:");
-    println!("    {program}                       # hex dump to stdout");
-    println!("    {program} pcap sv-demo.pcap     # open in Wireshark");
-    println!("    {program} udp  239.0.0.1:102    # multicast unicast demo");
+    println!("    {program}                                  # hex dump of one frame");
+    println!("    {program} pcap one.pcap                    # Phase 0 single-frame pcap");
+    println!("    {program} pcap stream.pcap --frames 4800   # 1 second @ 4800 Hz");
+    println!("    {program} pcap thd.pcap --frames 400 --harmonics 3,5  # with THD");
+    println!("    {program} udp 239.0.0.1:102 --duration 5   # 5 seconds of UDP at 4800 Hz");
 }
 
-fn build_demo_frame(buf: &mut [u8; MAX_FRAME_BYTES]) -> usize {
+/// Options that apply to `pcap` and `udp` continuous modes.
+#[derive(Debug, Clone)]
+struct StreamOpts {
+    /// Number of frames; for `udp` with `--duration`, derived from rate.
+    frames: u32,
+    /// Sample rate driving timestamps and (for `udp`) inter-frame sleep.
+    sample_rate: u32,
+    /// Fundamental frequency for the waveform synthesiser.
+    frequency: f32,
+    /// Voltage harmonics (each 5% amplitude).
+    harmonics: Vec<u32>,
+    /// `udp` only: cap by duration instead of by frame count.
+    duration: Option<Duration>,
+}
+
+impl Default for StreamOpts {
+    fn default() -> Self {
+        Self {
+            frames: 1,
+            sample_rate: 4800,
+            frequency: 60.0,
+            harmonics: Vec::new(),
+            duration: None,
+        }
+    }
+}
+
+impl StreamOpts {
+    fn to_waveform(&self) -> WaveformConfig {
+        WaveformConfig {
+            sample_rate: self.sample_rate,
+            frequency: self.frequency,
+            voltage_harmonics: self.harmonics.iter().map(|n| (*n, 0.05)).collect(),
+            ..WaveformConfig::default()
+        }
+    }
+}
+
+fn parse_stream_opts(rest: &mut impl Iterator<Item = String>) -> Result<StreamOpts, String> {
+    let mut opts = StreamOpts::default();
+    while let Some(arg) = rest.next() {
+        match arg.as_str() {
+            "--frames" => {
+                let v = rest.next().ok_or("--frames needs a value")?;
+                opts.frames = v.parse().map_err(|_| format!("invalid --frames: {v}"))?;
+            }
+            "--duration" => {
+                let v = rest.next().ok_or("--duration needs a value")?;
+                let secs: f64 = v.parse().map_err(|_| format!("invalid --duration: {v}"))?;
+                opts.duration = Some(Duration::from_secs_f64(secs));
+            }
+            "--rate" => {
+                let v = rest.next().ok_or("--rate needs a value")?;
+                opts.sample_rate = v.parse().map_err(|_| format!("invalid --rate: {v}"))?;
+            }
+            "--frequency" => {
+                let v = rest.next().ok_or("--frequency needs a value")?;
+                opts.frequency = v.parse().map_err(|_| format!("invalid --frequency: {v}"))?;
+            }
+            "--harmonics" => {
+                let v = rest.next().ok_or("--harmonics needs a value")?;
+                for tok in v.split(',') {
+                    let n: u32 = tok
+                        .trim()
+                        .parse()
+                        .map_err(|_| format!("invalid harmonic order: {tok}"))?;
+                    opts.harmonics.push(n);
+                }
+            }
+            other => return Err(format!("unknown option: {other}")),
+        }
+    }
+    if opts.sample_rate == 0 {
+        return Err("--rate must be positive".into());
+    }
+    if opts.frequency <= 0.0 {
+        return Err("--frequency must be positive".into());
+    }
+    Ok(opts)
+}
+
+fn build_frame(
+    waveform: &WaveformConfig,
+    smp_cnt: u32,
+    smp_rate_field: u16,
+    buf: &mut [u8; MAX_FRAME_BYTES],
+) -> usize {
+    let samples = waveform.sample(smp_cnt);
     let asdu = AsduFields {
-        sv_id: "SVDC_DEMO_01",
-        smp_cnt: 0,
-        conf_rev: 1,
-        smp_synch: 2,
-        smp_rate: 4800,
-        samples: SampleData::NOMINAL_3PH,
+        sv_id: DEMO_SV_ID,
+        smp_cnt: smp_cnt as u16, // wraps each 65536 samples; Phase 2 resets per second
+        conf_rev: DEMO_CONF_REV,
+        smp_synch: DEMO_SMP_SYNCH,
+        smp_rate: smp_rate_field,
+        samples,
     };
-    encode_frame(&FrameParams::DEMO, &asdu, buf).expect("encode demo frame")
+    encode_frame(&FrameParams::DEMO, &asdu, buf).expect("encode frame")
 }
 
-fn print_summary(frame: &[u8]) {
+fn print_summary(frame: &[u8], opts: Option<&StreamOpts>) {
     println!();
-    println!("Phase 0 demo frame (WBS-6.1):");
-    println!("  total bytes : {}", frame.len());
+    println!("ssiec-sv-publisher summary:");
+    println!("  frame bytes : {}", frame.len());
     println!(
         "  dst MAC     : {:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
         frame[0], frame[1], frame[2], frame[3], frame[4], frame[5]
@@ -68,40 +178,125 @@ fn print_summary(frame: &[u8]) {
     );
     println!("  ethertype   : 0x{:02X}{:02X}", frame[12], frame[13]);
     println!("  APPID       : 0x{:04X}", DEFAULT_APPID);
-    println!("  svID        : SVDC_DEMO_01");
-    println!("  smpRate     : 4800 (80 SPC * 60 Hz)");
-    println!("  channels    : Ia Ib Ic In Va Vb Vc Vn (nominal, balanced 3-phase)");
+    println!("  svID        : {DEMO_SV_ID}");
+    println!("  channels    : Ia Ib Ic In Va Vb Vc Vn");
+    if let Some(o) = opts {
+        println!("  sample rate : {} Hz", o.sample_rate);
+        println!("  fundamental : {:.3} Hz", o.frequency);
+        if !o.harmonics.is_empty() {
+            println!("  harmonics   : {:?} (5% each)", o.harmonics);
+        }
+    } else {
+        println!("  smpRate     : 4800 (80 SPC * 60 Hz)");
+    }
 }
 
-fn run_hex(frame: &[u8]) -> io::Result<()> {
+fn run_hex() -> io::Result<()> {
+    let mut buf = [0u8; MAX_FRAME_BYTES];
+    let asdu = AsduFields {
+        sv_id: DEMO_SV_ID,
+        smp_cnt: 0,
+        conf_rev: DEMO_CONF_REV,
+        smp_synch: DEMO_SMP_SYNCH,
+        smp_rate: 4800,
+        samples: SampleData::NOMINAL_3PH,
+    };
+    let n = encode_frame(&FrameParams::DEMO, &asdu, &mut buf).expect("encode demo frame");
+    let frame = &buf[..n];
     let stdout = io::stdout();
     let mut lock = stdout.lock();
     write_hex_dump(&mut lock, frame)?;
     drop(lock);
-    print_summary(frame);
+    print_summary(frame, None);
     Ok(())
 }
 
-fn run_pcap(frame: &[u8], path: &str) -> io::Result<()> {
-    let mut file = std::fs::File::create(path)?;
-    write_pcap(&mut file, frame)?;
-    file.flush()?;
-    println!("Wrote {} bytes of pcap to {path}", 24 + 16 + frame.len());
-    println!("Open in Wireshark:");
-    println!("    wireshark {path}");
-    println!("The frame dissects as `IEC 61850-9-2 Sampled Values`.");
-    print_summary(frame);
+fn run_pcap(path: &str, opts: &StreamOpts) -> io::Result<()> {
+    let file = std::fs::File::create(path)?;
+    let mut writer = PcapWriter::new(std::io::BufWriter::new(file))?;
+    let waveform = opts.to_waveform();
+    let smp_rate_field = clamp_smp_rate(opts.sample_rate);
+    let mut buf = [0u8; MAX_FRAME_BYTES];
+    let mut last_len = 0usize;
+    let frame_interval_us = 1_000_000u64 / opts.sample_rate as u64;
+    for i in 0..opts.frames {
+        let n = build_frame(&waveform, i, smp_rate_field, &mut buf);
+        last_len = n;
+        let ts_us = u64::from(i) * frame_interval_us;
+        writer.write_frame(ts_us, &buf[..n])?;
+    }
+    writer.flush()?;
+    let frames = writer.frames_written();
+    println!("Wrote {frames} frame(s) to {path}");
+    if frames > 1 {
+        println!(
+            "Open in Wireshark: wireshark {path}  (display filter: sv,  spans {:.3} s)",
+            (frames as f64) / (opts.sample_rate as f64)
+        );
+    } else {
+        println!("Open in Wireshark: wireshark {path}");
+    }
+    if last_len > 0 {
+        print_summary(&buf[..last_len], Some(opts));
+    }
     Ok(())
 }
 
-fn run_udp(frame: &[u8], target: &str) -> io::Result<()> {
-    let payload = &frame[14..];
+fn run_udp(target: &str, opts: &StreamOpts) -> io::Result<()> {
+    let waveform = opts.to_waveform();
+    let smp_rate_field = clamp_smp_rate(opts.sample_rate);
     let sock = UdpSocket::bind("0.0.0.0:0")?;
-    let sent = sock.send_to(payload, target)?;
-    println!("Sent {sent} bytes of SV payload via UDP to {target}");
-    println!("(L2 Ethernet header omitted; Phase 1 will add raw AF_PACKET on Linux.)");
-    print_summary(frame);
+
+    let total_frames: u64 = if let Some(d) = opts.duration {
+        let n = (d.as_secs_f64() * opts.sample_rate as f64).round() as u64;
+        n.max(1)
+    } else {
+        u64::from(opts.frames)
+    };
+
+    let mut buf = [0u8; MAX_FRAME_BYTES];
+    let mut last_len = 0usize;
+    let frame_interval = Duration::from_nanos(1_000_000_000 / opts.sample_rate as u64);
+    let start = Instant::now();
+    let mut sent_total = 0u64;
+    for i in 0..total_frames {
+        let n = build_frame(&waveform, i as u32, smp_rate_field, &mut buf);
+        last_len = n;
+        let sent = sock.send_to(&buf[14..n], target)?;
+        sent_total += sent as u64;
+        if total_frames > 1 {
+            let target_time = frame_interval * (i + 1) as u32;
+            let elapsed = start.elapsed();
+            if target_time > elapsed {
+                std::thread::sleep(target_time - elapsed);
+            }
+        }
+    }
+    println!(
+        "Sent {} frames ({} payload bytes) over UDP to {target} in {:.3} s",
+        total_frames,
+        sent_total,
+        start.elapsed().as_secs_f64()
+    );
+    println!("(L2 Ethernet header omitted; raw AF_PACKET emission lands in Phase 5.)");
+    if last_len > 0 {
+        print_summary(&buf[..last_len], Some(opts));
+    }
     Ok(())
+}
+
+/// `smpRate` in 9-2 LE is a 16-bit field. Above 65535 Hz the spec
+/// requires a different encoding; the demo CLI just clamps and warns.
+fn clamp_smp_rate(rate: u32) -> u16 {
+    if rate > u16::MAX as u32 {
+        eprintln!(
+            "warning: --rate {rate} exceeds u16; smpRate field clamped to {}",
+            u16::MAX
+        );
+        u16::MAX
+    } else {
+        rate as u16
+    }
 }
 
 fn main() -> ExitCode {
@@ -116,12 +311,8 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    let mut buf = [0u8; MAX_FRAME_BYTES];
-    let n = build_demo_frame(&mut buf);
-    let frame = &buf[..n];
-
     let result = match mode.as_deref() {
-        None | Some("hex") => run_hex(frame),
+        None | Some("hex") => run_hex(),
         Some("pcap") => {
             let Some(path) = args.next() else {
                 eprintln!("error: pcap mode needs a file path");
@@ -129,7 +320,15 @@ fn main() -> ExitCode {
                 print_help(&program);
                 return ExitCode::FAILURE;
             };
-            run_pcap(frame, &path)
+            match parse_stream_opts(&mut args) {
+                Ok(opts) => run_pcap(&path, &opts),
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    eprintln!();
+                    print_help(&program);
+                    return ExitCode::FAILURE;
+                }
+            }
         }
         Some("udp") => {
             let Some(target) = args.next() else {
@@ -138,7 +337,15 @@ fn main() -> ExitCode {
                 print_help(&program);
                 return ExitCode::FAILURE;
             };
-            run_udp(frame, &target)
+            match parse_stream_opts(&mut args) {
+                Ok(opts) => run_udp(&target, &opts),
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    eprintln!();
+                    print_help(&program);
+                    return ExitCode::FAILURE;
+                }
+            }
         }
         Some(other) => {
             eprintln!("error: unknown mode `{other}`");
