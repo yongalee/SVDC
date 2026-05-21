@@ -1,0 +1,29 @@
+/* SVDC Operator Console Stylesheet
+   OWNER: antigravity
+   Agent: antigravity-subagent-ui-spec
+   NFR-10: English-only comments and identifiers
+*/
+
+:root {
+    /* Harmonious HSL color palette */
+    --bg-primary: #fbfbf9;      /* Warm paper default */
+    --bg-secondary: #f3f3f0;
+    --text-primary: #1c1c1a;
+    --text-secondary: #6e6e6a;
+    --accent-blue: #2563eb;
+    --accent-green: #16a34a;
+    --accent-red: #dc2626;
+    --border-color: #e5e5e0;
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 0;
+}
+
+pre, code {
+    font-family: 'JetBrains Mono', monospace;
+}

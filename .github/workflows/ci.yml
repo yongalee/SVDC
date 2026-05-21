@@ -45,6 +45,26 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --workspace --all-targets
       - run: cargo test --workspace --all-targets
+      - name: Verify daemon-only path (--no-ui --help)
+        run: cargo run -p svdc-bin -- --no-ui --help
+
+  playwright:
+    name: Playwright E2E Tests (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            console:
+              - 'crates/svdc-console/**'
+              - 'tests/playwright/**'
+      - name: Run Playwright E2E Stub
+        if: steps.filter.outputs.console == 'true'
+        run: |
+          echo "Playwright E2E tests would run here for svdc-console changes."
+          echo "This is the Playwright job stub for WBS-9.7."
 
   english-only:
     name: NFR-10 English-only check
@@ -52,3 +72,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash scripts/lint-english-only.sh
+

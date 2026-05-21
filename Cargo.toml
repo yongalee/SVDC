@@ -4,7 +4,9 @@ members = [
     "crates/svdc-core",
     "crates/svdc-bin",
     "crates/ssiec-sv-publisher",
+    "crates/svdc-console",
 ]
+
 
 # Additional crates planned for later phases (per IP §2 WBS-1.2):
 #   crates/svdc-ingress      -- WBS-2.1..2.4 (Phase 1)
