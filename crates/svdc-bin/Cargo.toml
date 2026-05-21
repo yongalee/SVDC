@@ -14,4 +14,5 @@ path = "src/main.rs"
 [dependencies]
 svdc-core = { path = "../svdc-core" }
 svdc-console = { path = "../svdc-console" }
+tokio = { version = "1", features = ["rt-multi-thread"] }
 

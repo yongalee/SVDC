@@ -10,9 +10,10 @@ description = "Operator Console for SVDC: serves the web dashboard, southbound M
 [dependencies]
 svdc-core = { path = "../svdc-core" }
 axum = { version = "0.7", features = ["macros"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
 maud = { version = "0.26", features = ["axum"] }
-rust-embed = "8.0"
+rust-embed = { version = "8.0", features = ["mime-guess"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tracing = "0.1"
