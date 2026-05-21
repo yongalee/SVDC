@@ -805,3 +805,126 @@ tbody tr:hover {
     padding-right: 1rem !important;
 }
 
+/* Industrial Data Grid styles */
+.industrial-grid {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 1rem;
+    font-size: 0.775rem; /* Highly readable compact SCADA sizing */
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.industrial-grid th {
+    background-color: var(--bg-surface);
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid var(--border-color);
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.industrial-grid td {
+    padding: 0.45rem 0.75rem; /* Extra compact density */
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+
+.industrial-grid tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.industrial-grid tr.row-selected {
+    background-color: var(--accent-blue-glow) !important;
+}
+
+.industrial-grid tr:hover {
+    background-color: var(--bg-primary);
+}
+
+/* Bulk action toolbar */
+.bulk-actions-toolbar {
+    background-color: #fef3c7; /* Warm amber light alert */
+    border: 1px solid #f59e0b; /* Amber border */
+    color: #92400e; /* Dark amber text */
+    padding: 0.65rem 1rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 500;
+    font-size: 0.8rem;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.bulk-actions-toolbar button {
+    background-color: #d97706;
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 0.35rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: background-color 0.15s ease;
+}
+
+.bulk-actions-toolbar button:hover {
+    background-color: #b45309;
+}
+
+/* Custom compact filter chips */
+.filter-chip-group {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.filter-chip {
+    padding: 0.25rem 0.65rem;
+    font-size: 0.725rem;
+    font-weight: 500;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.filter-chip:hover {
+    background-color: var(--bg-surface);
+}
+
+.filter-chip.active {
+    background-color: var(--accent-blue);
+    border-color: var(--accent-blue);
+    color: white;
+}
+
+/* Custom mini inputs for calibration */
+.mini-num-input {
+    width: 60px;
+    font-family: var(--font-mono);
+    font-size: 0.725rem;
+    padding: 0.15rem 0.35rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.mini-num-input:focus {
+    border-color: var(--accent-blue);
+    outline: none;
+}
+
