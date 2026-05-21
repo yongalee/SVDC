@@ -36,19 +36,19 @@ async fn monitoring_page() -> Html<String> {
                     div class="card-body mt-4 flex flex-col gap-2" {
                         // Inline SVG Trend Line Chart
                         div class="bg-chart-bg rounded-lg border border-border-color p-2" {
-                            svg viewBox="0 0 500 180" class="w-full h-auto block" {
+                            svg viewBox="0 0 500 80" class="w-full h-auto block" {
                                 // Chart Grid lines
-                                line x1="0" y1="90" x2="500" y2="90" class="stroke-grid-primary" stroke-dasharray="4" {}
-                                line x1="0" y1="45" x2="500" y2="45" class="stroke-grid-secondary" stroke-dasharray="2" {}
-                                line x1="0" y1="135" x2="500" y2="135" class="stroke-grid-secondary" stroke-dasharray="2" {}
+                                line x1="0" y1="40" x2="500" y2="40" class="stroke-grid-primary" stroke-dasharray="4" {}
+                                line x1="0" y1="15" x2="500" y2="15" class="stroke-grid-secondary" stroke-dasharray="2" {}
+                                line x1="0" y1="65" x2="500" y2="65" class="stroke-grid-secondary" stroke-dasharray="2" {}
 
-                                // Plotting simulated offset values: average 12-18ns
-                                path d="M 0 110 L 50 100 L 100 115 L 150 95 L 200 105 L 250 112 L 300 98 L 350 102 L 400 108 L 450 92 L 500 95"
-                                     fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" {}
+                                // Plotting simulated offset values
+                                path d="M 0 48 L 50 44 L 100 50 L 150 42 L 200 46 L 250 49 L 300 43 L 350 45 L 400 47 L 450 41 L 500 43"
+                                     fill="none" stroke="#16a34a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" {}
 
                                 // Labeling
-                                text x="10" y="25" fill="var(--text-muted)" font-size="10" font-family="monospace" { "Limit: 100 ns" }
-                                text x="10" y="165" fill="var(--text-muted)" font-size="10" font-family="monospace" { "Active: 12 ns" }
+                                text x="10" y="12" fill="var(--text-muted)" font-size="9" font-family="monospace" { "Limit: 100 ns" }
+                                text x="10" y="75" fill="var(--text-muted)" font-size="9" font-family="monospace" { "Active: 12 ns" }
                             }
                         }
                         span class="text-xs text-text-secondary mt-1 font-mono" {
@@ -68,19 +68,19 @@ async fn monitoring_page() -> Html<String> {
                     div class="card-body mt-4 flex flex-col gap-2" {
                         // Inline SVG Area Chart
                         div class="bg-chart-bg rounded-lg border border-border-color p-2" {
-                            svg viewBox="0 0 500 180" class="w-full h-auto block" {
+                            svg viewBox="0 0 500 80" class="w-full h-auto block" {
                                 // Chart Grid lines
-                                line x1="0" y1="90" x2="500" y2="90" class="stroke-grid-primary" stroke-dasharray="4" {}
+                                line x1="0" y1="40" x2="500" y2="40" class="stroke-grid-primary" stroke-dasharray="4" {}
 
                                 // Fill and Line for Buffer Saturation
-                                path d="M 0 170 L 50 168 L 100 167 L 150 169 L 200 165 L 250 166 L 300 165 L 350 167 L 400 166 L 450 168 L 500 167 L 500 180 L 0 180 Z"
+                                path d="M 0 72 L 50 71 L 100 70 L 150 72 L 200 69 L 250 70 L 300 69 L 350 71 L 400 70 L 450 72 L 500 71 L 500 80 L 0 80 Z"
                                      fill="#2563eb20" {}
-                                path d="M 0 170 L 50 168 L 100 167 L 150 169 L 200 165 L 250 166 L 300 165 L 350 167 L 400 166 L 450 168 L 500 167"
-                                     fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" {}
+                                path d="M 0 72 L 50 71 L 100 70 L 150 72 L 200 69 L 250 70 L 300 69 L 350 71 L 400 70 L 450 72 L 500 71"
+                                     fill="none" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" {}
 
                                 // Labels
-                                text x="10" y="25" fill="var(--text-muted)" font-size="10" font-family="monospace" { "Capacity: 10,000 frames" }
-                                text x="10" y="165" fill="var(--text-muted)" font-size="10" font-family="monospace" { "Current: 2.4%" }
+                                text x="10" y="12" fill="var(--text-muted)" font-size="9" font-family="monospace" { "Capacity: 10,000 frames" }
+                                text x="10" y="75" fill="var(--text-muted)" font-size="9" font-family="monospace" { "Current: 2.4%" }
                             }
                         }
                         span class="text-xs text-text-secondary mt-1 font-mono" {
