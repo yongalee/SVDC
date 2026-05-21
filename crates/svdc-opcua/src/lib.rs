@@ -16,12 +16,10 @@
 //! - [`timestamp`] — `TickRecord.ts_utc_ns` → OPC UA `DateTime`
 //!   100-ns ticks since 1601-01-01 UTC. Round-trippable; pure.
 //!
-//! No daemon wiring lives here. The thin-slice server (PR L) will
-//! consume this crate's public API to build its own `AddressSpace`
-//! and run a `tokio` task that polls the shared `TickBuffer` via
-//! `svdc-subscribe`. The `--enable-opcua` flag, the `/north/L1`
-//! UI integration, and the `--allow-insecure-bind` guard from
-//! ADR-0017 §5 all land in PR L.
+//! - [`server`] — live `async-opcua` 0.18 server task built from
+//!   the [`address_space`] node list, plus the [`LatestTickSnapshot`]
+//!   handle the daemon updates as `TickRecord`s arrive. PR L+ added
+//!   this module; PR L only had the dataplane atomics and the UI.
 //!
 //! OWNER: claude-code (WBS-3.7). NFR-10: English-only.
 
@@ -30,6 +28,7 @@
 
 pub mod address_space;
 pub mod quality;
+pub mod server;
 pub mod timestamp;
 
 pub use address_space::{
@@ -37,4 +36,8 @@ pub use address_space::{
     REFERENCE_CHANNELS,
 };
 pub use quality::{apply_origin_override, iec61850_to_opcua_status, q_bits, status_codes};
+pub use server::{
+    start as start_server, LatestTickSnapshot, OpcuaServer, OpcuaServerConfig, OpcuaServerError,
+    DEFAULT_PUBLISH_INTERVAL, MANAGER_KEY, NAMESPACE_URI,
+};
 pub use timestamp::{utc_ns_to_opcua_ticks, NS_PER_OPCUA_TICK, UNIX_TO_OPCUA_EPOCH_NS};
