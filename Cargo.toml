@@ -7,6 +7,7 @@ members = [
     "crates/svdc-console",
     "crates/svdc-ingress",
     "crates/svdc-aligner",
+    "crates/svdc-subscribe",
 ]
 
 
