@@ -46,6 +46,16 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
     let i_peak = 5.0 * 1.414; // Peak current (5A RMS)
     let pi_2_3 = 2.0 * std::f32::consts::PI / 3.0; // 120 degrees in radians
 
+    let mut last_qse_time = Instant::now();
+    let qse_operations = [
+        ("WBS-9.3c", "Phase A Transient Correction", "QSE Estimator Core", "Substation QSE", "HEALED", "text-accent-green"),
+        ("WBS-9.3a", "Out-of-window Frame Rejected", "Circular Buffer", "svdc-ingest", "DROPPED", "text-accent-yellow"),
+        ("WBS-9.3c", "Residual Variance Warning", "Diagnostic Core", "Substation QSE", "WARN", "text-accent-yellow"),
+        ("WBS-9.1b", "Lock-Free Synchronization Adjust", "Time Aligner", "PTP Daemon", "SYNCED", "text-accent-blue"),
+        ("Gate G0", "Spec-Lock Integrity Verification", "SSIEC Node Settings", "claude-code", "LOCKED", "text-accent-green"),
+    ];
+    let mut qse_index = 0;
+
     loop {
         interval_10hz.tick().await;
 
@@ -107,6 +117,31 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
             });
 
             if let Ok(json_str) = serde_json::to_string(&metrics_event) {
+                let _ = tx.send(json_str);
+            }
+        }
+        
+        // 3. Simulate random QSE Audit Logs every few seconds
+        if last_qse_time.elapsed() >= Duration::from_secs(3 + (now_ms % 4)) {
+            last_qse_time = Instant::now();
+            let op = qse_operations[qse_index % qse_operations.len()];
+            qse_index += 1;
+            
+            // Format current time without chrono
+            let secs = now_ms / 1000;
+            let datetime = format!("2026-05-22 {:02}:{:02}:{:02}", (secs / 3600) % 24, (secs / 60) % 60, secs % 60);
+            
+            let qse_event = SsePayload::Qse(crate::sse::QseLog {
+                timestamp: datetime,
+                wbs: op.0.to_string(),
+                operation: op.1.to_string(),
+                target: op.2.to_string(),
+                operator: op.3.to_string(),
+                result: op.4.to_string(),
+                result_color: op.5.to_string(),
+            });
+            
+            if let Ok(json_str) = serde_json::to_string(&qse_event) {
                 let _ = tx.send(json_str);
             }
         }

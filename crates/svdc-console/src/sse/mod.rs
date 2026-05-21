@@ -39,8 +39,20 @@ pub struct WaveformSample {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct QseLog {
+    pub timestamp: String,
+    pub wbs: String,
+    pub operation: String,
+    pub target: String,
+    pub operator: String,
+    pub result: String,
+    pub result_color: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
 #[serde(tag = "event_type", content = "data")]
 pub enum SsePayload {
     Metrics(DashboardMetrics),
     Waveform(WaveformSample),
+    Qse(QseLog),
 }
