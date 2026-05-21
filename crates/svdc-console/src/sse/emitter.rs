@@ -118,10 +118,10 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
                 0
             };
             let live_feed_active = pipe.has_external_feed();
-            // Phase 0 active-MU proxy: 1 when the buffer is
-            // populated, 0 otherwise. PR D wires real
-            // auto-registration via the incoming svIDs.
-            let active_mus = if buffer_len > 0 { 1 } else { 0 };
+            // PR D: live distinct-svID count from the pipeline's
+            // observation map. Replaces the Phase-0 "1 if buffer
+            // non-empty" proxy.
+            let active_mus = pipe.distinct_mu_count();
             let integrity_violations = pipe.buffer.verify_all().len();
 
             // PTP stays mocked until Phase 5 wires linuxptp.
