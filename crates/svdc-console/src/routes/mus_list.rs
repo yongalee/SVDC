@@ -423,98 +423,59 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                         }
                         div class="card-body mt-3 flex flex-col gap-3" {
 
-                            // Voltage calibration parameters
-                            div class="border-b border-border-color pb-2.5" {
-                                h4 class="text-xs font-bold text-accent-blue uppercase mb-1.5" { "Voltage Channels (Va, Vb, Vc)" }
-                                div class="flex flex-col gap-2 text-[10px]" {
+                            // Calibration parameters — 2-column grid (Voltage | Current)
+                            div class="grid grid-cols-2 gap-3 text-[10px]" {
 
-                                    // Va
-                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-3" style="flex-wrap:wrap;" {
-                                        span class="font-bold text-accent-red" style="min-width:130px;" { "Phase A Voltage (Va)" }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Mag:" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="rms_va";
-                                        }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Angle:" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="angle_va";
-                                        }
-                                    }
+                                // Column headers
+                                h4 class="text-xs font-bold text-accent-blue uppercase" { "Voltage (Va, Vb, Vc)" }
+                                h4 class="text-xs font-bold text-accent-blue uppercase" { "Current (Ia, Ib, Ic)" }
 
-                                    // Vb
-                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-3" style="flex-wrap:wrap;" {
-                                        span class="font-bold text-accent-green" style="min-width:130px;" { "Phase B Voltage (Vb)" }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Mag:" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="rms_vb";
-                                        }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Angle:" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="angle_vb";
-                                        }
-                                    }
-
-                                    // Vc
-                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-3" style="flex-wrap:wrap;" {
-                                        span class="font-bold text-accent-blue" style="min-width:130px;" { "Phase C Voltage (Vc)" }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Mag:" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="rms_vc";
-                                        }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Angle:" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="angle_vc";
-                                        }
-                                    }
-
+                                // Phase A row
+                                div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
+                                    span class="font-bold text-accent-red" style="min-width:50px;" { "Va" }
+                                    span class="text-[9px] text-text-secondary" { "Mag:" }
+                                    input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_va";
+                                    span class="text-[9px] text-text-secondary" { "Ang:" }
+                                    input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="angle_va";
                                 }
-                            }
+                                div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
+                                    span class="font-bold text-accent-red" style="min-width:50px;" { "Ia" }
+                                    span class="text-[9px] text-text-secondary" { "Mag:" }
+                                    input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_ia";
+                                    span class="text-[9px] text-text-secondary" { "Ang:" }
+                                    input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="angle_ia";
+                                }
 
-                            // Current calibration parameters
-                            div {
-                                h4 class="text-xs font-bold text-accent-yellow uppercase mb-1.5" { "Current Channels (Ia, Ib, Ic)" }
-                                div class="flex flex-col gap-2 text-[10px]" {
+                                // Phase B row
+                                div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
+                                    span class="font-bold text-accent-green" style="min-width:50px;" { "Vb" }
+                                    span class="text-[9px] text-text-secondary" { "Mag:" }
+                                    input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_vb";
+                                    span class="text-[9px] text-text-secondary" { "Ang:" }
+                                    input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="angle_vb";
+                                }
+                                div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
+                                    span class="font-bold text-accent-green" style="min-width:50px;" { "Ib" }
+                                    span class="text-[9px] text-text-secondary" { "Mag:" }
+                                    input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_ib";
+                                    span class="text-[9px] text-text-secondary" { "Ang:" }
+                                    input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="angle_ib";
+                                }
 
-                                    // Ia
-                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-3" style="flex-wrap:wrap;" {
-                                        span class="font-bold" style="min-width:130px;color:#d97706;" { "Phase A Current (Ia)" }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Mag:" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="rms_ia";
-                                        }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Angle:" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="angle_ia";
-                                        }
-                                    }
-
-                                    // Ib
-                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-3" style="flex-wrap:wrap;" {
-                                        span class="font-bold" style="min-width:130px;color:#8b5cf6;" { "Phase B Current (Ib)" }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Mag:" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="rms_ib";
-                                        }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Angle:" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="angle_ib";
-                                        }
-                                    }
-
-                                    // Ic
-                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-3" style="flex-wrap:wrap;" {
-                                        span class="font-bold" style="min-width:130px;color:#14b8a6;" { "Phase C Current (Ic)" }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Mag:" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="rms_ic";
-                                        }
-                                        div class="flex items-center gap-1" {
-                                            span class="text-[9px] text-text-secondary" { "Angle:" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:70px;max-width:70px;text-align:right;" x-model="angle_ic";
-                                        }
-                                    }
-
-
+                                // Phase C row
+                                div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
+                                    span class="font-bold text-accent-blue" style="min-width:50px;" { "Vc" }
+                                    span class="text-[9px] text-text-secondary" { "Mag:" }
+                                    input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_vc";
+                                    span class="text-[9px] text-text-secondary" { "Ang:" }
+                                    input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="angle_vc";
+                                }
+                                div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
+                                    span class="font-bold text-accent-blue" style="min-width:50px;" { "Ic" }
+                                    span class="text-[9px] text-text-secondary" { "Mag:" }
+                                    input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_ic";
+                                    span class="text-[9px] text-text-secondary" { "Ang:" }
+                                    input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="angle_ic";
                                 }
                             }
 
