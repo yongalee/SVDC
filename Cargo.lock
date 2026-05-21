@@ -673,6 +673,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "svdc-api"
+version = "0.0.1"
+dependencies = [
+ "axum",
+ "http-body-util",
+ "serde",
+ "serde_json",
+ "svdc-aligner",
+ "svdc-core",
+ "tokio",
+ "tower",
+]
+
+[[package]]
 name = "svdc-bin"
 version = "0.0.1"
 dependencies = [
