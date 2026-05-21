@@ -24,6 +24,8 @@ pub enum Section {
     Monitoring,
     /// `/config`
     Configuration,
+    /// `/dataplane`
+    Dataplane,
 }
 
 /// Render a full page with sidebar + top bar + main content.
@@ -59,6 +61,7 @@ pub fn layout(section: Section, title: &str, body: Markup) -> Markup {
                             (nav_link("/north", "Application layers", section == Section::Northbound))
                         }
                         (nav_link("/monitoring", "Monitoring", section == Section::Monitoring))
+                        (nav_link("/dataplane", "Data plane", section == Section::Dataplane))
                         (nav_link("/config", "Configuration", section == Section::Configuration))
                     }
                     div.sidebar-footer {

@@ -20,6 +20,11 @@
 pub mod assets;
 /// Audit log: typed in-memory ring of operator state changes.
 pub mod audit;
+/// In-process data-plane runner that drives `svdc-ingress` →
+/// `svdc-aligner` → `TickBuffer` → `svdc-historian`. Used by the
+/// `/dataplane` UI to verify end-to-end behaviour without needing a
+/// separate daemon.
+pub mod dataplane;
 /// SVDC-local operational state (calibration triples, subscription flags).
 /// Distinct from the SCD-derived registry — SCD is immutable per IEC 61850-6.
 pub mod operational;
@@ -38,7 +43,17 @@ use axum::Router;
 
 /// Build the axum router with every console route registered. Pure
 /// function: safe to call multiple times for tests.
+///
+/// Also mounts the `svdc-api` management router under `/api/mgmt/*`
+/// so the SDD §8.4 endpoints (`/health`, `/channels`, `/metrics`,
+/// `/calibration`) are reachable from the same listener. ADR-0013
+/// allows merging into a single port when the deployment doesn't
+/// need separate network ACLs; the merged mount is convenient for
+/// Phase 0 verification.
 pub fn router() -> Router {
+    let mgmt_ctx = std::sync::Arc::new(svdc_api::ManagementContext::new(std::sync::Arc::clone(
+        &dataplane::global().buffer,
+    )));
     Router::new()
         .merge(routes::dashboard::router())
         .merge(routes::mus_list::router())
@@ -49,7 +64,9 @@ pub fn router() -> Router {
         .merge(routes::calibration::router())
         .merge(routes::audit::router())
         .merge(routes::sse::router())
+        .merge(routes::dataplane::router())
         .merge(routes::assets::router())
+        .nest("/api/mgmt", svdc_api::management_router(mgmt_ctx))
 }
 
 /// Bind the console router to `addr` and serve until interrupted.
