@@ -209,24 +209,24 @@ async fn dashboard_page() -> Html<String> {
                             colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "PTP Offset:" }
-                                    td class="py-1 px-0 text-right font-bold text-accent-green border-none" x-text="metrics.ptp_offset_ns + ' ns'" { "12 ns" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "PTP Offset:" }
+                                    td class="py-1 px-3 text-right font-bold text-accent-green border-none" x-text="metrics.ptp_offset_ns + ' ns'" { "12 ns" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Grandmaster ID:" }
-                                    td class="py-1 px-0 text-right font-semibold text-text-primary border-none" { "00:50:c2:ff:fe:88:99:a1" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Grandmaster ID:" }
+                                    td class="py-1 px-3 text-right font-semibold text-text-primary border-none" { "00:50:c2:ff:fe:88:99:a1" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Clock Accuracy:" }
-                                    td class="py-1 px-0 text-right font-semibold text-text-primary border-none" { "GPS Class 6 (±10ns)" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Clock Accuracy:" }
+                                    td class="py-1 px-3 text-right font-semibold text-text-primary border-none" { "GPS Class 6 (±10ns)" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Path Delay (Mean):" }
-                                    td class="py-1 px-0 text-right font-semibold text-accent-blue border-none" { "1,248 ns" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Path Delay (Mean):" }
+                                    td class="py-1 px-3 text-right font-semibold text-accent-blue border-none" { "1,248 ns" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Discipline Lock:" }
-                                    td class="py-1 px-0 text-right font-bold text-accent-green border-none" { "99.999% Stable" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Discipline Lock:" }
+                                    td class="py-1 px-3 text-right font-bold text-accent-green border-none" { "99.999% Stable" }
                                 }
                             }
                         }
@@ -247,24 +247,24 @@ async fn dashboard_page() -> Html<String> {
                             colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Ring Capacity:" }
-                                    td class="py-1 px-0 text-right font-semibold text-text-primary border-none" { "262,144 frames" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Ring Capacity:" }
+                                    td class="py-1 px-3 text-right font-semibold text-text-primary border-none" { "262,144 frames" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "R/W Offset Index:" }
-                                    td class="py-1 px-0 text-right font-semibold text-text-primary border-none" { "24 frames" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "R/W Offset Index:" }
+                                    td class="py-1 px-3 text-right font-semibold text-text-primary border-none" { "24 frames" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Atomic Ingest Drops:" }
-                                    td class="py-1 px-0 text-right font-bold text-accent-green border-none" { "0 (Lock-Free)" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Atomic Ingest Drops:" }
+                                    td class="py-1 px-3 text-right font-bold text-accent-green border-none" { "0 (Lock-Free)" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Ingest Latency (p50):" }
-                                    td class="py-1 px-0 text-right font-bold text-accent-blue border-none" { "2.1 μs" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Ingest Latency (p50):" }
+                                    td class="py-1 px-3 text-right font-bold text-accent-blue border-none" { "2.1 μs" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Ingest Latency (p99):" }
-                                    td class="py-1 px-0 text-right font-bold text-accent-blue border-none" { "4.8 μs" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Ingest Latency (p99):" }
+                                    td class="py-1 px-3 text-right font-bold text-accent-blue border-none" { "4.8 μs" }
                                 }
                             }
                         }
@@ -282,24 +282,24 @@ async fn dashboard_page() -> Html<String> {
                             colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Corrections Injected:" }
-                                    td class="py-1 px-0 text-right font-bold text-accent-yellow border-none" x-text="qse.corrections" { "14" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Corrections Injected:" }
+                                    td class="py-1 px-3 text-right font-bold text-accent-yellow border-none" x-text="qse.corrections" { "14" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Channel Overrides:" }
-                                    td class="py-1 px-0 text-right font-semibold text-text-primary border-none" x-text="qse.active_overrides + ' ch'" { "0 ch" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Channel Overrides:" }
+                                    td class="py-1 px-3 text-right font-semibold text-text-primary border-none" x-text="qse.active_overrides + ' ch'" { "0 ch" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Estimation Residual:" }
-                                    td class="py-1 px-0 text-right font-semibold text-text-primary border-none" x-text="'< ' + qse.residual_variance + '%'" { "< 0.04%" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Estimation Residual:" }
+                                    td class="py-1 px-3 text-right font-semibold text-text-primary border-none" x-text="'< ' + qse.residual_variance + '%'" { "< 0.04%" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Write-Back Latency:" }
-                                    td class="py-1 px-0 text-right font-bold text-accent-yellow border-none" x-text="qse.pathway_latency_us + ' μs'" { "18.2 μs" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Write-Back Latency:" }
+                                    td class="py-1 px-3 text-right font-bold text-accent-yellow border-none" x-text="qse.pathway_latency_us + ' μs'" { "18.2 μs" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Pathway Coupling:" }
-                                    td class="py-1 px-0 text-right font-semibold text-text-primary border-none" { "Lock-Free Decoupled" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Pathway Coupling:" }
+                                    td class="py-1 px-3 text-right font-semibold text-text-primary border-none" { "Lock-Free Decoupled" }
                                 }
                             }
                         }
@@ -329,16 +329,16 @@ async fn dashboard_page() -> Html<String> {
                             colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Active Applications:" }
-                                    td class="py-1 px-0 text-right font-semibold text-text-primary border-none" { "4 local relays" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Active Applications:" }
+                                    td class="py-1 px-3 text-right font-semibold text-text-primary border-none" { "4 local relays" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Pull Subscription API:" }
-                                    td class="py-1 px-0 text-right font-bold text-accent-green border-none" { "Zero-Allocation" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Pull Subscription API:" }
+                                    td class="py-1 px-3 text-right font-bold text-accent-green border-none" { "Zero-Allocation" }
                                 }
                                 tr class="border-none hover:bg-transparent" {
-                                    td class="py-1 px-0 text-text-secondary border-none" { "Client Queue Saturation:" }
-                                    td class="py-1 px-0 text-right font-semibold text-text-primary border-none" { "0.01% avg" }
+                                    td class="py-1 px-3 text-text-secondary border-none" { "Client Queue Saturation:" }
+                                    td class="py-1 px-3 text-right font-semibold text-text-primary border-none" { "0.01% avg" }
                                 }
                             }
                         }
