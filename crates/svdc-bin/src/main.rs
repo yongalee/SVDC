@@ -10,6 +10,7 @@
 
 use std::env;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 fn print_help() {
@@ -24,18 +25,25 @@ fn print_help() {
     println!("        --no-ui             Disables the Operator Console (runs headless)");
     println!();
     println!("OPTIONS:");
-    println!("        --ui-bind <addr>    Bind address for the Operator Console [default: 127.0.0.1:8080]");
+    println!("        --ui-bind <addr>           Bind address for the Operator Console [default: 127.0.0.1:8080]");
+    println!("        --operational-config <p>   Path to the SVDC-local operational state TOML");
+    println!(
+        "                                   (calibration, etc.). Loaded on startup; auto-saved"
+    );
+    println!("                                   on every operator change. Created if absent.");
     println!();
     println!("ENVIRONMENT VARIABLES:");
-    println!("    SVDC_UI=1               Enables the Operator Console");
-    println!("    SVDC_NO_UI=1            Disables the Operator Console");
-    println!("    SVDC_UI_BIND            Bind address for the Operator Console");
+    println!("    SVDC_UI=1                      Enables the Operator Console");
+    println!("    SVDC_NO_UI=1                   Disables the Operator Console");
+    println!("    SVDC_UI_BIND                   Bind address for the Operator Console");
+    println!("    SVDC_OPERATIONAL_CONFIG        Path equivalent of --operational-config");
 }
 
 #[derive(Debug)]
 struct Config {
     ui_enabled: bool,
     ui_bind: SocketAddr,
+    operational_path: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -54,6 +62,7 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
 
     let mut cli_ui: Option<bool> = None;
     let mut cli_bind: Option<String> = None;
+    let mut cli_op_path: Option<PathBuf> = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -80,6 +89,15 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
                     return Err(ConfigError::MissingValue("--ui-bind requires an address"));
                 }
                 cli_bind = Some(args[i].clone());
+            }
+            "--operational-config" => {
+                i += 1;
+                if i >= args.len() {
+                    return Err(ConfigError::MissingValue(
+                        "--operational-config requires a path",
+                    ));
+                }
+                cli_op_path = Some(PathBuf::from(&args[i]));
             }
             other => return Err(ConfigError::UnknownArg(other.to_string())),
         }
@@ -112,9 +130,13 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
         .parse::<SocketAddr>()
         .map_err(|_| ConfigError::BadAddr(addr_str))?;
 
+    let operational_path =
+        cli_op_path.or_else(|| env::var("SVDC_OPERATIONAL_CONFIG").ok().map(PathBuf::from));
+
     Ok(Config {
         ui_enabled,
         ui_bind,
+        operational_path,
     })
 }
 
@@ -145,6 +167,26 @@ fn main() -> ExitCode {
     };
 
     println!("svdc: initializing core data plane...");
+
+    // Wire SVDC-local operational state to its config file (per ADR-0007).
+    // Calibration triples (and future operator-tunable settings) load
+    // from this file on startup and auto-save on every mutation. The
+    // SCD is intentionally NOT touched by this code path.
+    if let Some(path) = cfg.operational_path.as_ref() {
+        match svdc_console::operational::global().configure_persistence(path.clone()) {
+            Ok(n) => println!(
+                "svdc: operational state loaded from {} ({n} override(s))",
+                path.display()
+            ),
+            Err(e) => {
+                eprintln!(
+                    "Error: could not configure operational persistence ({}): {e}",
+                    path.display()
+                );
+                return ExitCode::FAILURE;
+            }
+        }
+    }
 
     if !cfg.ui_enabled {
         println!("svdc: Operator Console disabled (headless mode).");
@@ -218,5 +260,24 @@ mod tests {
     fn bad_addr_rejected() {
         let r = resolve_config(&args(&["--ui-bind", "not-an-address"]));
         assert!(matches!(r, Err(ConfigError::BadAddr(_))));
+    }
+
+    #[test]
+    fn operational_config_path_captured() {
+        let cfg = resolve_config(&args(&[
+            "--operational-config",
+            "/var/svdc/operational.toml",
+        ]))
+        .unwrap();
+        assert_eq!(
+            cfg.operational_path.map(|p| p.display().to_string()),
+            Some("/var/svdc/operational.toml".to_string())
+        );
+    }
+
+    #[test]
+    fn operational_config_missing_value_errors() {
+        let r = resolve_config(&args(&["--operational-config"]));
+        assert!(matches!(r, Err(ConfigError::MissingValue(_))));
     }
 }
