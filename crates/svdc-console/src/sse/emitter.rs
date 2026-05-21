@@ -9,6 +9,7 @@ use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::broadcast;
 use tokio::time;
+use svdc_subscribe::{ChannelSet, Subscriber};
 
 static EMITTER_TX: OnceLock<broadcast::Sender<String>> = OnceLock::new();
 
@@ -56,6 +57,9 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
     ];
     let mut qse_index = 0;
 
+    let pipeline = crate::dataplane::global();
+    let mut sub = pipeline.subscriber.subscribe(ChannelSet::all());
+
     loop {
         interval_10hz.tick().await;
 
@@ -64,37 +68,62 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
             .unwrap_or_default()
             .as_millis() as u64;
 
-        // 1. Simulate 3-phase AC voltage and current waveforms at 10 Hz (WBS-9.3b)
-        angle += 0.2; // increment angle for sine generation
-        if angle > 2.0 * std::f32::consts::PI {
-            angle -= 2.0 * std::f32::consts::PI;
-        }
+        if pipeline.has_external_feed() {
+            let records = sub.read_since();
+            if !records.is_empty() {
+                // Throttle SSE: take up to 20 samples per 100ms
+                let step = std::cmp::max(1, records.len() / 20);
+                for r in records.iter().step_by(step) {
+                    let wave_event = SsePayload::Waveform(WaveformSample {
+                        mu_id: "MU-01".to_string(),
+                        timestamp_ms: r.ts_utc_ns / 1_000_000,
+                        i1: (r.samples[0].value_q as f32) / 1000.0,
+                        i2: (r.samples[1].value_q as f32) / 1000.0,
+                        i3: (r.samples[2].value_q as f32) / 1000.0,
+                        i0: (r.samples[3].value_q as f32) / 1000.0,
+                        v1: (r.samples[4].value_q as f32) / 100.0,
+                        v2: (r.samples[5].value_q as f32) / 100.0,
+                        v3: (r.samples[6].value_q as f32) / 100.0,
+                        v0: (r.samples[7].value_q as f32) / 100.0,
+                    });
+                    if let Ok(json_str) = serde_json::to_string(&wave_event) {
+                        let _ = tx.send(json_str);
+                    }
+                }
+            }
+        } else {
+            // 1. Simulate 3-phase AC voltage and current waveforms at 10 Hz (WBS-9.3b)
+            angle += 0.2; // increment angle for sine generation
+            if angle > 2.0 * std::f32::consts::PI {
+                angle -= 2.0 * std::f32::consts::PI;
+            }
 
-        let v1 = v_peak * angle.sin();
-        let v2 = v_peak * (angle - pi_2_3).sin();
-        let v3 = v_peak * (angle + pi_2_3).sin();
-        let v0 = v1 + v2 + v3; // Neutral voltage should sum to nearly 0 in balanced state
+            let v1 = v_peak * angle.sin();
+            let v2 = v_peak * (angle - pi_2_3).sin();
+            let v3 = v_peak * (angle + pi_2_3).sin();
+            let v0 = v1 + v2 + v3; // Neutral voltage should sum to nearly 0 in balanced state
 
-        let i1 = i_peak * (angle - 0.1).sin(); // 0.1 rad lag for inductive load power factor
-        let i2 = i_peak * (angle - pi_2_3 - 0.1).sin();
-        let i3 = i_peak * (angle + pi_2_3 - 0.1).sin();
-        let i0 = i1 + i2 + i3;
+            let i1 = i_peak * (angle - 0.1).sin(); // 0.1 rad lag for inductive load power factor
+            let i2 = i_peak * (angle - pi_2_3 - 0.1).sin();
+            let i3 = i_peak * (angle + pi_2_3 - 0.1).sin();
+            let i0 = i1 + i2 + i3;
 
-        let wave_event = SsePayload::Waveform(WaveformSample {
-            mu_id: "MU-01".to_string(),
-            timestamp_ms: now_ms,
-            v1,
-            v2,
-            v3,
-            v0,
-            i1,
-            i2,
-            i3,
-            i0,
-        });
+            let wave_event = SsePayload::Waveform(WaveformSample {
+                mu_id: "MU-01".to_string(),
+                timestamp_ms: now_ms,
+                v1,
+                v2,
+                v3,
+                v0,
+                i1,
+                i2,
+                i3,
+                i0,
+            });
 
-        if let Ok(json_str) = serde_json::to_string(&wave_event) {
-            let _ = tx.send(json_str);
+            if let Ok(json_str) = serde_json::to_string(&wave_event) {
+                let _ = tx.send(json_str);
+            }
         }
 
         // 2. Simulate dashboard telemetry updates at 1 Hz (WBS-9.2b)
