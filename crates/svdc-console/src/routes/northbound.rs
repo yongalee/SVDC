@@ -1,14 +1,14 @@
 //! `GET /north` and `GET /north/:layer` — North-bound application layers.
 //!
-//! Shell + enable/disable API contract is authored here under
-//! WBS-9.4a (Claude). The four per-layer detail cards (L0, L1, L2, L3)
-//! are filled in under WBS-9.4b (Antigravity).
+//! Industrial-grade table view of the four layers (L0/L1/L2/L3) with
+//! per-row endpoint, active-receivers count, throughput, and a state
+//! toggle. Each row links to the per-layer detail page.
 //!
-//! Northbound state is held in an in-process `RwLock` for v0.1. Real
-//! daemon integration (calling into the L0/L1/L2/L3 adapter modules)
-//! lands in Phase 4 once those modules exist; until then, enable /
-//! disable just flips the in-memory flag and emits a tracing event
-//! that the audit log will later consume.
+//! The layer-level enable/disable API (`POST /api/north/:layer/...`)
+//! is authored here (WBS-9.4a). Per-adapter detail (the actual L0/L1
+//! handler implementation) lands in Phase 4 as the adapters land in
+//! their own crates; until then, mock_metrics() provides plausible
+//! display values so the operator UI looks alive end-to-end.
 
 use std::sync::{Arc, RwLock};
 
@@ -63,20 +63,79 @@ impl Layer {
     /// Human-readable name for UI display.
     pub fn name(self) -> &'static str {
         match self {
-            Layer::L0 => "In-process (C ABI)",
+            Layer::L0 => "Shared Memory RingBuffer",
             Layer::L1 => "OPC UA Server",
             Layer::L2 => "MQTT Publisher",
             Layer::L3 => "TimescaleDB Historian",
         }
     }
 
-    /// One-line purpose, shown in summary tables.
+    /// Protocol family / transport summary, shown in the table.
+    pub fn protocol(self) -> &'static str {
+        match self {
+            Layer::L0 => "Shared memory / C ABI",
+            Layer::L1 => "OPC UA over TCP (per OPC 10040)",
+            Layer::L2 => "MQTT over TCP",
+            Layer::L3 => "PostgreSQL wire protocol",
+        }
+    }
+
+    /// One-line purpose, shown on the detail page.
     pub fn purpose(self) -> &'static str {
         match self {
             Layer::L0 => "Sub-ms feed to EBP relays, QSE, and phasor computation.",
             Layer::L1 => "IEC 61850 ↔ OPC UA per OPC 10040 for SCADA / HMI.",
             Layer::L2 => "Cloud / analytics fan-out at configurable cadence.",
             Layer::L3 => "Historian + replay for audit and post-event analysis.",
+        }
+    }
+
+    /// Default endpoint string. Phase 4 replaces this with a value
+    /// read from the SVDC config; until then it is the reference
+    /// deployment default.
+    pub fn endpoint(self) -> &'static str {
+        match self {
+            Layer::L0 => "/dev/shm/svdc_l0_ring",
+            Layer::L1 => "opc.tcp://127.0.0.1:4840/svdc/server",
+            Layer::L2 => "mqtt://broker.local:1883/svdc",
+            Layer::L3 => "postgres://svdc@127.0.0.1:5432/svdc_historian",
+        }
+    }
+}
+
+/// Mock per-layer runtime metrics shown until Phase 4 wires the real
+/// adapter counters in. Deterministic so the table looks consistent
+/// across page reloads.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub struct LayerMetrics {
+    /// Number of subscribers currently attached to this layer.
+    pub active_receivers: u32,
+    /// Frames per second flowing through this adapter.
+    pub throughput_fps: u32,
+}
+
+impl LayerMetrics {
+    /// Mock value for `layer`. Reasonable for the reference 4800 Hz
+    /// SV stream so the operator UI matches what they would see on a
+    /// real deployment.
+    pub fn mock(layer: Layer) -> Self {
+        match layer {
+            Layer::L0 => Self {
+                active_receivers: 3,
+                throughput_fps: 4800,
+            },
+            Layer::L1 => Self {
+                active_receivers: 2,
+                throughput_fps: 4800,
+            },
+            Layer::L2 => Self {
+                active_receivers: 1,
+                throughput_fps: 60,
+            },
+            Layer::L3 => Self {
+                active_receivers: 1,
+                throughput_fps: 4800,
+            },
         }
     }
 }
@@ -154,42 +213,58 @@ pub fn router() -> Router {
 }
 
 async fn north_index(State(state): State<AppState>) -> Markup {
-    let rows: Vec<(Layer, bool)> = Layer::all()
+    let rows: Vec<(Layer, bool, LayerMetrics)> = Layer::all()
         .iter()
         .copied()
-        .map(|l| (l, state.is_enabled(l)))
+        .map(|l| (l, state.is_enabled(l), LayerMetrics::mock(l)))
         .collect();
 
     layout(
         Section::Northbound,
         "North-bound application layers",
         html! {
-            section.northbound-index {
-                p.muted {
-                    "Four northbound layers fan out from the SVDC core. "
-                    "Each can be enabled or disabled independently. "
-                    "Layer detail cards (status, client list, throughput) "
-                    "land under WBS-9.4b."
+            section.config-section {
+                div.config-section-head {
+                    h2 { "North-bound application layers" }
+                    p.muted {
+                        "Four adapters fan data out from the SVDC core. Each row "
+                        "shows the endpoint the adapter publishes on, the number "
+                        "of consumers currently attached, and the rate at which "
+                        "the adapter is forwarding frames. Click a row to drill "
+                        "into the layer's detail page."
+                    }
                 }
                 table.layer-table {
                     thead {
                         tr {
-                            th.col-code { "Layer" }
-                            th.col-name { "Name" }
-                            th.col-purpose { "Purpose" }
-                            th.col-state { "State" }
+                            th.col-code   { "Layer" }
+                            th.col-name   { "Adapter" }
+                            th            { "Endpoint" }
+                            th.col-rx     { "Receivers" }
+                            th.col-fps    { "Throughput" }
+                            th.col-state  { "State" }
                             th.col-actions { "Actions" }
                         }
                     }
                     tbody {
-                        @for (layer, enabled) in &rows {
-                            tr {
-                                td.mono { (layer.code()) }
-                                td {
-                                    a href={ "/north/" (layer.code()) } { (layer.name()) }
+                        @for (layer, enabled, metrics) in &rows {
+                            @let href = format!("/north/{}", layer.code());
+                            tr.layer-row data-layer=(layer.code()) data-href=(href) {
+                                td.mono.col-code {
+                                    span.layer-tag { (layer.code()) }
                                 }
-                                td.muted { (layer.purpose()) }
                                 td {
+                                    a.layer-link href=(href) { (layer.name()) }
+                                    div.muted.small { (layer.protocol()) }
+                                }
+                                td.mono.endpoint-cell {
+                                    code { (layer.endpoint()) }
+                                }
+                                td.mono.col-rx { (metrics.active_receivers) }
+                                td.mono.col-fps {
+                                    (metrics.throughput_fps) " fps"
+                                }
+                                td.col-state {
                                     @if *enabled {
                                         span.state-badge.state-on { "Enabled" }
                                     } @else {
@@ -214,7 +289,15 @@ async fn north_index(State(state): State<AppState>) -> Markup {
                     }
                 }
             }
+            section.placeholder {
+                p.muted {
+                    "Receivers and throughput are mock values until Phase 4 wires "
+                    "the real adapter counters in. Enable/disable is wired today "
+                    "via POST /api/north/:layer/{enable,disable}."
+                }
+            }
             script type="module" { (PreEscaped(LAYER_TOGGLE_JS)) }
+            script type="module" { (PreEscaped(ROW_CLICK_JS)) }
         },
     )
 }
@@ -223,29 +306,11 @@ async fn north_layer(State(state): State<AppState>, Path(layer_code): Path<Strin
     match Layer::from_str(&layer_code) {
         Some(layer) => {
             let enabled = state.is_enabled(layer);
+            let metrics = LayerMetrics::mock(layer);
             layout(
                 Section::Northbound,
                 &format!("{} — {}", layer.code(), layer.name()),
-                html! {
-                    section.layer-detail {
-                        a.btn-secondary href="/north" { "← All layers" }
-                        h2 { (layer.code()) " · " (layer.name()) }
-                        p.muted { (layer.purpose()) }
-                        div.layer-state {
-                            @if enabled {
-                                span.state-badge.state-on { "Enabled" }
-                            } @else {
-                                span.state-badge.state-off { "Disabled" }
-                            }
-                        }
-                        section.placeholder {
-                            p.muted {
-                                "Per-layer detail card (client list, throughput, "
-                                "endpoint configuration) lands under WBS-9.4b."
-                            }
-                        }
-                    }
-                },
+                layer_detail_body(layer, enabled, metrics),
             )
         }
         None => layout(
@@ -255,9 +320,78 @@ async fn north_layer(State(state): State<AppState>, Path(layer_code): Path<Strin
                 section.placeholder {
                     h2 { "Unknown layer" }
                     p.muted { "Expected one of L0, L1, L2, L3." }
+                    a.btn-secondary href="/north" { "← All layers" }
                 }
             },
         ),
+    }
+}
+
+fn layer_detail_body(layer: Layer, enabled: bool, metrics: LayerMetrics) -> Markup {
+    html! {
+        section.config-section {
+            div.config-section-head {
+                div.layer-detail-head {
+                    div {
+                        h2 { (layer.code()) " · " (layer.name()) }
+                        p.muted { (layer.purpose()) }
+                    }
+                    div.layer-detail-actions {
+                        a.btn-secondary href="/north" { "← All layers" }
+                        @if enabled {
+                            button.btn-secondary
+                                type="button"
+                                data-layer=(layer.code())
+                                data-action="disable" { "Disable layer" }
+                        } @else {
+                            button.btn-primary
+                                type="button"
+                                data-layer=(layer.code())
+                                data-action="enable" { "Enable layer" }
+                        }
+                    }
+                }
+            }
+            table.layer-table {
+                tbody {
+                    tr {
+                        th { "State" }
+                        td {
+                            @if enabled {
+                                span.state-badge.state-on { "Enabled" }
+                            } @else {
+                                span.state-badge.state-off { "Disabled" }
+                            }
+                        }
+                    }
+                    tr {
+                        th { "Protocol" }
+                        td { (layer.protocol()) }
+                    }
+                    tr {
+                        th { "Endpoint" }
+                        td.mono { code { (layer.endpoint()) } }
+                    }
+                    tr {
+                        th { "Active receivers" }
+                        td.mono { (metrics.active_receivers) }
+                    }
+                    tr {
+                        th { "Throughput" }
+                        td.mono { (metrics.throughput_fps) " fps" }
+                    }
+                }
+            }
+        }
+        section.placeholder {
+            p.muted {
+                "Receivers / throughput are mock values until Phase 4 wires real "
+                "adapter counters. Per-adapter configuration (port, broker URL, "
+                "DB credentials) lands under WBS-9.4b alongside the real adapter "
+                "module that owns those settings."
+            }
+        }
+        script type="module" { (PreEscaped(LAYER_TOGGLE_JS)) }
     }
 }
 
@@ -311,22 +445,40 @@ fn api_toggle(state: AppState, code: &str, target: bool) -> (StatusCode, Json<La
 }
 
 const LAYER_TOGGLE_JS: &str = r#"
-document.querySelectorAll('button[data-layer]').forEach((btn) => {
-  btn.addEventListener('click', async () => {
+document.querySelectorAll('button[data-layer][data-action]').forEach((btn) => {
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
     const layer = btn.getAttribute('data-layer');
     const action = btn.getAttribute('data-action');
     btn.disabled = true;
     try {
       const resp = await fetch('/api/north/' + layer + '/' + action, { method: 'POST' });
       if (resp.ok) {
-        /* Trivially refresh by reloading the index page; richer
-           HTMX-driven row-swap lands under WBS-9.4b. */
         window.location.reload();
       } else {
         btn.disabled = false;
       }
     } catch (_) {
       btn.disabled = false;
+    }
+  });
+});
+"#;
+
+const ROW_CLICK_JS: &str = r#"
+document.querySelectorAll('tr.layer-row[data-href]').forEach((row) => {
+  row.addEventListener('click', (e) => {
+    if (e.target.closest('a, button, input, label')) return;
+    const href = row.getAttribute('data-href');
+    if (href) window.location.href = href;
+  });
+  row.setAttribute('role', 'link');
+  row.setAttribute('tabindex', '0');
+  row.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      const href = row.getAttribute('data-href');
+      if (href) window.location.href = href;
     }
   });
 });
@@ -347,6 +499,14 @@ mod tests {
             assert_eq!(Layer::from_str(l.code()), Some(*l));
         }
         assert_eq!(Layer::from_str("L9"), None);
+    }
+
+    #[test]
+    fn each_layer_has_distinct_endpoint() {
+        let mut eps: Vec<&'static str> = Layer::all().iter().map(|l| l.endpoint()).collect();
+        eps.sort();
+        eps.dedup();
+        assert_eq!(eps.len(), 4, "endpoints must be distinct");
     }
 
     #[test]
@@ -383,5 +543,22 @@ mod tests {
         let s: AppState = Arc::new(NorthboundState::new());
         let (code, _) = api_toggle(s, "L9", true);
         assert_eq!(code, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn layer_detail_body_renders_all_facts() {
+        let m = LayerMetrics::mock(Layer::L0);
+        let s = layer_detail_body(Layer::L0, true, m).into_string();
+        assert!(s.contains("L0"));
+        assert!(s.contains("Shared Memory RingBuffer"));
+        assert!(s.contains("/dev/shm/svdc_l0_ring"));
+        assert!(s.contains("4800 fps"));
+        assert!(s.contains("Enabled"));
+    }
+
+    #[test]
+    fn row_click_js_excludes_inner_interactives() {
+        assert!(ROW_CLICK_JS.contains("a, button, input, label"));
+        assert!(ROW_CLICK_JS.contains("tabindex"));
     }
 }
