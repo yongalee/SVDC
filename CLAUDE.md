@@ -61,14 +61,15 @@ Phase 0 task checklist (from IP §9.1):
 - [x] WBS-1.3 Toolchain pin (`rust-toolchain.toml`) — dev container deferred until a Linux-only dep lands
 - [x] WBS-1.4 CI pipeline (`.github/workflows/ci.yml`: fmt, clippy, test on Ubuntu+Windows, NFR-10 lint)
 - [x] WBS-1.6 Issue tracker setup — 23 labels applied to remote, PR/issue templates in `.github/`, main branch protected (PR + 5 status checks required), Phase 0 seed issues filed (#1 #2 #3)
-- [ ] WBS-6.1 (skeleton) `ssiec-sv-publisher` emits one valid SV packet
-- [ ] **Spec-lock review session with Prof. Meliopoulos → Gate G0**
+- [x] WBS-6.1 (skeleton) `ssiec-sv-publisher` emits one valid SV packet (PR #8, dissected by Wireshark)
+- [x] **Gate G0 — Spec-lock provisionally closed on SSIEC defaults (2026-05-21).** Tagged `spec-lock-v0.1-provisional`. Professor ratification deferred per ADR-0006; the `spec-lock-v0.1` tag is reserved for that future sign-off.
 
-See `docs/decisions/0001-dual-agent-workflow.md` for the Claude Code ↔ Antigravity protocol.
+See `docs/decisions/0001-dual-agent-workflow.md` for the Claude Code ↔ Antigravity protocol, and `docs/decisions/0006-provisional-spec-lock-defaults.md` for the provisional-acceptance rationale.
 
-**Do not proceed past Gate G0 into Phase 1 work** until the six open questions in SDD §15 are
-resolved with the professor and recorded in `docs/spec-lock-v0.1.md` (create when answers
-arrive).
+**Phase 1 (WBS-2 Core Data Plane) is unblocked.** Work proceeds against the
+provisional values listed in `docs/spec-lock-v0.1.md`. Any later professor
+revision lands as a new ADR plus a back-applied code change; the defaults
+were chosen with this reversibility in mind.
 
 ## Spec-lock open questions (blocking Phase 1)
 
