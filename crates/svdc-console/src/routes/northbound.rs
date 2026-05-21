@@ -226,48 +226,56 @@ async fn northbound_page() -> Html<String> {
                             th class="w-12 text-center" {
                                 input type="checkbox" x-on:click="toggleSelectAll()" x-bind:checked="selectedAdapters.length === filteredAdapters().length && filteredAdapters().length > 0";
                             }
-                            th { "Layer ID" }
-                            th { "Protocol Name" }
-                            th { "Active Clients" }
-                            th { "Throughput" }
-                            th { "Endpoint Destination / Address" }
-                            th { "Status" }
-                            th { "Adapter Enable Action" }
-                            th class="w-32" { "Actions" }
+                            th class="text-center" { "Layer ID" }
+                            th class="text-center" { "Protocol Name" }
+                            th class="text-center" { "Active Clients" }
+                            th class="text-center" { "Throughput" }
+                            th class="text-center" { "Endpoint Destination / Address" }
+                            th class="text-center" { "Status" }
+                            th class="text-center" { "Adapter Enable Action" }
+                            th class="w-32 text-center" { "Actions" }
                         }
                     }
                     tbody {
                         template x-for="a in filteredAdapters()" x-bind:key="a.id" {
-                            tr x-bind:class="selectedAdapters.includes(a.id) ? 'row-selected' : ''" {
+                            tr class="cursor-pointer hover:bg-bg-surface"
+                               x-bind:class="selectedAdapters.includes(a.id) ? 'row-selected' : ''"
+                               x-on:click="if (!$event.target.closest('input') && !$event.target.closest('a')) window.location.href = '/north/' + a.id.toLowerCase()" {
                                 td class="text-center" {
                                     input type="checkbox" x-bind:value="a.id" x-model="selectedAdapters";
                                 }
-                                td class="font-bold text-accent-blue" x-text="a.id" {}
-                                td class="font-semibold text-text-primary" x-text="a.name" {}
-                                td class="font-semibold" x-text="a.active ? a.consumers : 0" {}
-                                td class="font-semibold text-accent-blue" x-text="a.active ? a.throughput + ' fps' : '0 fps'" {}
-                                td class="font-mono text-xs text-text-secondary" x-text="a.endpoint" {}
-                                td {
-                                    span class="status-badge" x-bind:class="a.active ? 'status-badge-healthy' : 'status-badge-fault'" {
-                                        span class="status-dot-pulse" {}
-                                        span x-text="a.active ? 'Active' : 'Inactive'" {}
+                                td class="font-bold text-accent-blue text-center" x-text="a.id" {}
+                                td class="font-semibold text-text-primary text-center" x-text="a.name" {}
+                                td class="font-semibold text-center" x-text="a.active ? a.consumers : 0" {}
+                                td class="font-semibold text-accent-blue text-center" x-text="a.active ? a.throughput + ' fps' : '0 fps'" {}
+                                td class="font-mono text-xs text-text-secondary text-center" x-text="a.endpoint" {}
+                                td class="text-center" {
+                                    div class="flex justify-center" {
+                                        span class="status-badge" x-bind:class="a.active ? 'status-badge-healthy' : 'status-badge-fault'" {
+                                            span class="status-dot-pulse" {}
+                                            span x-text="a.active ? 'Active' : 'Inactive'" {}
+                                        }
                                     }
                                 }
-                                td {
-                                    label class="switch-container" {
-                                        input type="checkbox"
-                                               x-bind:checked="a.active"
-                                               x-on:click="
-                                                    fetch('/api/v1/northbound/' + a.id.toLowerCase() + '/toggle', { method: 'POST' })
-                                                        .then(() => { a.active = !a.active; });
-                                               "
-                                               class="switch-input";
-                                        span class="switch-slider" {}
+                                td class="text-center" {
+                                    div class="flex justify-center" {
+                                        label class="switch-container" {
+                                            input type="checkbox"
+                                                   x-bind:checked="a.active"
+                                                   x-on:click="
+                                                        fetch('/api/v1/northbound/' + a.id.toLowerCase() + '/toggle', { method: 'POST' })
+                                                            .then(() => { a.active = !a.active; });
+                                                   "
+                                                   class="switch-input";
+                                            span class="switch-slider" {}
+                                        }
                                     }
                                 }
-                                td {
-                                    a x-bind:href="'/north/' + a.id.toLowerCase()" class="btn-primary py-1 px-2 text-[11px] bg-accent-blue hover:bg-[#1d4ed8] text-center" {
-                                        "Settings"
+                                td class="text-center" {
+                                    div class="flex justify-center" {
+                                        a x-bind:href="'/north/' + a.id.toLowerCase()" class="btn-primary py-1 px-2 text-[11px] bg-accent-blue hover:bg-[#1d4ed8] text-center" {
+                                            "Settings"
+                                        }
                                     }
                                 }
                             }
@@ -431,30 +439,30 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                                         table class="industrial-grid" {
                                             thead {
                                                 tr {
-                                                    th { "PID" }
-                                                    th { "Process Name" }
-                                                    th { "Lag" }
-                                                    th { "Sat. %" }
+                                                    th class="text-center" { "PID" }
+                                                    th class="text-center" { "Process Name" }
+                                                    th class="text-center" { "Lag" }
+                                                    th class="text-center" { "Sat. %" }
                                                 }
                                             }
                                             tbody {
                                                 tr {
-                                                    td class="font-mono text-[10px]" { "4092" }
-                                                    td class="font-semibold" { "ebp_protection" }
-                                                    td class="font-mono text-accent-green" { "2 μs" }
-                                                    td class="font-mono text-text-secondary" { "0.1%" }
+                                                    td class="font-mono text-[10px] text-center" { "4092" }
+                                                    td class="font-semibold text-center" { "ebp_protection" }
+                                                    td class="font-mono text-accent-green text-center" { "2 μs" }
+                                                    td class="font-mono text-text-secondary text-center" { "0.1%" }
                                                 }
                                                 tr {
-                                                    td class="font-mono text-[10px]" { "5122" }
-                                                    td class="font-semibold" { "pcm_phasor" }
-                                                    td class="font-mono text-accent-green" { "8 μs" }
-                                                    td class="font-mono text-text-secondary" { "0.3%" }
+                                                    td class="font-mono text-[10px] text-center" { "5122" }
+                                                    td class="font-semibold text-center" { "pcm_phasor" }
+                                                    td class="font-mono text-accent-green text-center" { "8 μs" }
+                                                    td class="font-mono text-text-secondary text-center" { "0.3%" }
                                                 }
                                                 tr {
-                                                    td class="font-mono text-[10px]" { "7180" }
-                                                    td class="font-semibold" { "fault_locator" }
-                                                    td class="font-mono text-accent-green" { "12 μs" }
-                                                    td class="font-mono text-text-secondary" { "0.4%" }
+                                                    td class="font-mono text-[10px] text-center" { "7180" }
+                                                    td class="font-semibold text-center" { "fault_locator" }
+                                                    td class="font-mono text-accent-green text-center" { "12 μs" }
+                                                    td class="font-mono text-text-secondary text-center" { "0.4%" }
                                                 }
                                             }
                                         }
@@ -628,21 +636,21 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                                         table class="industrial-grid" {
                                             thead {
                                                 tr {
-                                                    th { "Client IP" }
-                                                    th { "Session ID" }
-                                                    th { "Sub. Nodes" }
+                                                    th class="text-center" { "Client IP" }
+                                                    th class="text-center" { "Session ID" }
+                                                    th class="text-center" { "Sub. Nodes" }
                                                 }
                                             }
                                             tbody {
                                                 tr {
-                                                    td class="font-mono text-[10px]" { "192.168.1.50" }
-                                                    td class="font-semibold" { "SCADA_HMI_01" }
-                                                    td class="font-semibold text-accent-blue" { "42 nodes" }
+                                                    td class="font-mono text-[10px] text-center" { "192.168.1.50" }
+                                                    td class="font-semibold text-center" { "SCADA_HMI_01" }
+                                                    td class="font-semibold text-accent-blue text-center" { "42 nodes" }
                                                 }
                                                 tr {
-                                                    td class="font-mono text-[10px]" { "192.168.1.52" }
-                                                    td class="font-semibold" { "UaExpert_Verifier" }
-                                                    td class="font-semibold text-accent-blue" { "12 nodes" }
+                                                    td class="font-mono text-[10px] text-center" { "192.168.1.52" }
+                                                    td class="font-semibold text-center" { "UaExpert_Verifier" }
+                                                    td class="font-semibold text-accent-blue text-center" { "12 nodes" }
                                                 }
                                             }
                                         }

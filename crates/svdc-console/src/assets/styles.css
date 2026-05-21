@@ -423,7 +423,9 @@ body {
 
 .uppercase { text-transform: uppercase; }
 .tracking-wider { letter-spacing: 0.05em; }
-.text-left { text-align: left; }
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
 .overflow-hidden { overflow: hidden; }
 .overflow-y-auto { overflow-y: auto; }
 .block { display: block; }

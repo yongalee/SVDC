@@ -138,15 +138,15 @@ async fn mus_list_page() -> Html<String> {
                             th class="w-12 text-center" {
                                 input type="checkbox" x-on:click="toggleSelectAll()" x-bind:checked="selectedMus.length === filteredMus().length && filteredMus().length > 0";
                             }
-                            th { "MU ID" }
-                            th { "Status" }
-                            th { "IP Address" }
-                            th { "MAC Address" }
-                            th { "Sample Rate" }
-                            th { "Dropped" }
-                            th { "Latency" }
-                            th { "Calib. Factor" }
-                            th class="w-48" { "Actions" }
+                            th class="text-center" { "MU ID" }
+                            th class="text-center" { "Status" }
+                            th class="text-center" { "IP Address" }
+                            th class="text-center" { "MAC Address" }
+                            th class="text-center" { "Sample Rate" }
+                            th class="text-center" { "Dropped" }
+                            th class="text-center" { "Latency" }
+                            th class="text-center" { "Calib. Factor" }
+                            th class="w-48 text-center" { "Actions" }
                         }
                     }
                     tbody {
@@ -155,23 +155,25 @@ async fn mus_list_page() -> Html<String> {
                                 td class="text-center" {
                                     input type="checkbox" x-bind:value="mu.id" x-model="selectedMus";
                                 }
-                                td class="font-semibold" x-text="mu.id" {}
-                                td {
-                                    span class="status-badge" x-bind:class="mu.status === 'Healthy' ? 'status-badge-healthy' : (mu.status === 'Degraded' ? 'status-badge-degraded' : 'status-badge-fault')" {
-                                        span class="status-dot-pulse" {}
-                                        span x-text="mu.status" {}
+                                td class="font-semibold text-center" x-text="mu.id" {}
+                                td class="text-center" {
+                                    div class="flex justify-center" {
+                                        span class="status-badge" x-bind:class="mu.status === 'Healthy' ? 'status-badge-healthy' : (mu.status === 'Degraded' ? 'status-badge-degraded' : 'status-badge-fault')" {
+                                            span class="status-dot-pulse" {}
+                                            span x-text="mu.status" {}
+                                        }
                                     }
                                 }
-                                td class="font-mono" x-text="mu.ip" {}
-                                td class="font-mono text-xs" x-text="mu.mac" {}
-                                td class="font-semibold text-accent-blue" x-text="mu.rate > 0 ? mu.rate + ' sps' : '0 sps'" {}
-                                td class="font-semibold" x-bind:class="mu.dropped > 0 ? 'text-accent-red' : 'text-text-primary'" x-text="mu.dropped" {}
-                                td class="font-mono text-accent-green" x-text="mu.rtt" {}
-                                td {
+                                td class="font-mono text-center" x-text="mu.ip" {}
+                                td class="font-mono text-xs text-center" x-text="mu.mac" {}
+                                td class="font-semibold text-accent-blue text-center" x-text="mu.rate > 0 ? mu.rate + ' sps' : '0 sps'" {}
+                                td class="font-semibold text-center" x-bind:class="mu.dropped > 0 ? 'text-accent-red' : 'text-text-primary'" x-text="mu.dropped" {}
+                                td class="font-mono text-accent-green text-center" x-text="mu.rtt" {}
+                                td class="text-center" {
                                     span class="font-mono font-semibold" x-text="parseFloat(mu.calib).toFixed(3)" {}
                                 }
-                                td {
-                                    div class="flex gap-2" {
+                                td class="text-center" {
+                                    div class="flex gap-2 justify-center" {
                                         button x-on:click="pingMu(mu.id)" class="btn-primary py-1 px-2 text-[11px] flex items-center gap-1" {
                                             span class="btn-spinner" x-show="mu.pinging" {}
                                             span x-text="mu.pinging ? 'Pinging...' : 'Ping'" {}
