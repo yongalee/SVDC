@@ -664,6 +664,15 @@ name = "ssiec-sv-publisher"
 version = "0.0.1"
 
 [[package]]
+name = "svdc-aligner"
+version = "0.0.1"
+dependencies = [
+ "ssiec-sv-publisher",
+ "svdc-core",
+ "svdc-ingress",
+]
+
+[[package]]
 name = "svdc-bin"
 version = "0.0.1"
 dependencies = [
