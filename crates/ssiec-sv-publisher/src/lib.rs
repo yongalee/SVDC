@@ -12,11 +12,18 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod calibration_loader;
 pub mod pcap_writer;
+pub mod vendor;
+pub mod vendor_loader;
 pub mod waveform;
 
 pub use pcap_writer::PcapWriter;
+pub use vendor::{VendorProfile, VlanTag};
 pub use waveform::WaveformConfig;
+
+/// 802.1Q TPID prepended to a VLAN tag.
+pub const TPID_8021Q: u16 = 0x8100;
 
 use std::io::{self, Write};
 
@@ -120,7 +127,7 @@ pub struct AsduFields<'a> {
     pub samples: SampleData,
 }
 
-/// Frame-level parameters: Ethernet MACs, APPID. Phase 0 hardcodes these.
+/// Frame-level parameters: Ethernet MACs, APPID, optional VLAN tag.
 #[derive(Debug, Clone, Copy)]
 pub struct FrameParams {
     /// Destination MAC. SV multicast range is 01:0C:CD:04:00:00..01:FF.
@@ -129,6 +136,10 @@ pub struct FrameParams {
     pub src_mac: [u8; 6],
     /// 9-2 LE APPID (typically 0x4000).
     pub appid: u16,
+    /// Optional 802.1Q VLAN tag. When `Some`, the encoder emits
+    /// `[TPID 0x8100][TCI]` between the source MAC and the EtherType.
+    /// Real substation MUs almost always tag with PCP = 4.
+    pub vlan: Option<vendor::VlanTag>,
 }
 
 impl FrameParams {
@@ -137,7 +148,20 @@ impl FrameParams {
         dst_mac: [0x01, 0x0C, 0xCD, 0x04, 0x00, 0x01],
         src_mac: [0x02, 0x00, 0x00, 0x00, 0x00, 0x01],
         appid: DEFAULT_APPID,
+        vlan: None,
     };
+
+    /// Build frame parameters that look like the given vendor's
+    /// merging unit. `unit_suffix` is the last three octets of the
+    /// source MAC (normally a unit serial-number low-bits value).
+    pub fn from_vendor(profile: &VendorProfile, unit_suffix: [u8; 3]) -> Self {
+        Self {
+            dst_mac: profile.multicast_mac,
+            src_mac: profile.source_mac(unit_suffix),
+            appid: profile.default_appid,
+            vlan: profile.vlan,
+        }
+    }
 }
 
 /// Errors the encoder can produce. All map to "output buffer too small"
@@ -278,9 +302,16 @@ pub fn encode_frame(
 ) -> Result<usize, EncodeError> {
     let mut cur = Cursor::new(out);
 
-    // Ethernet II header.
+    // Ethernet II header. If a VLAN tag is configured, insert the
+    // 802.1Q [TPID][TCI] pair between the source MAC and the
+    // SV EtherType — every real merging unit tags its SV traffic
+    // with PCP = 4 per the 9-2 LE Implementation Guideline.
     cur.write(&params.dst_mac)?;
     cur.write(&params.src_mac)?;
+    if let Some(tag) = params.vlan {
+        cur.write_u16_be(TPID_8021Q)?;
+        cur.write_u16_be(tag.tci())?;
+    }
     cur.write_u16_be(ETHERTYPE_SV)?;
 
     // 9-2 LE header: APPID + Length (patched later) + 2 reserved words.
@@ -351,19 +382,20 @@ pub fn encode_frame(
 ///
 /// Layout budget:
 ///   Eth header              14
+///   Optional 802.1Q tag      4   (TPID 0x8100 + TCI)
 ///   9-2 LE header            8
 ///   savPdu outer tag+len     4   (0x60 0x82 LL LL)
 ///     noASDU                 5   (0x80 0x03 + up to 3 bytes)
 ///     asdu seq tag+len       4   (0xA2 0x82 LL LL)
 ///       ASDU tag+len         4   (0x30 0x82 LL LL)
-///         svID               4 + 64  (tag+len + up to 64 ASCII chars)
+///         svID               4 + 96  (tag+len + up to 96 ASCII chars — vendor profiles include full functional names)
 ///         smpCnt             4
 ///         confRev            6
 ///         smpSynch           3
 ///         smpRate            5
 ///         sample             4 + 64  (tag+len + payload)
-///   Total                  < 256 bytes (Phase 0 demo)
-pub const MAX_FRAME_BYTES: usize = 256;
+///   Total                  < 320 bytes
+pub const MAX_FRAME_BYTES: usize = 320;
 
 // ---------------------------------------------------------------------------
 //  Minimal decoder for round-trip tests.
@@ -538,7 +570,14 @@ pub fn decode_frame(buf: &[u8]) -> Result<DecodedFrame, DecodeError> {
     let src = r.read_bytes(6)?;
     let mut src_mac = [0u8; 6];
     src_mac.copy_from_slice(src);
-    let ethertype = r.read_u16_be()?;
+    // The next u16 is either the SV EtherType directly, or an
+    // 802.1Q TPID (0x8100) that introduces a 4-byte VLAN tag.
+    // Skip over the tag and re-read the EtherType when present.
+    let mut ethertype = r.read_u16_be()?;
+    if ethertype == TPID_8021Q {
+        let _tci = r.read_u16_be()?;
+        ethertype = r.read_u16_be()?;
+    }
     if ethertype != ETHERTYPE_SV {
         return Err(DecodeError::NotSvFrame { ethertype });
     }

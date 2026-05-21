@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic GE Vernova UR-series (F60 / T60 / B30) SCL sample.
+  Sources: GE Multilin UR-series Communication Guide (GEK-119504);
+           GE Vernova "IEC 61850 Process Bus Implementation Note".
+  This file is NOT a real GE deliverable; values match the
+  publisher's `vendor::GE_UR_SERIES` preset.
+-->
+<SCL xmlns="http://www.iec.ch/61850/2003/SCL"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     version="2007" revision="B" release="4">
+
+  <Header id="SVDC_VENDOR_SAMPLE_GE" nameStructure="IEDName"
+          toolID="hand-authored sample"/>
+
+  <Communication>
+    <SubNetwork name="ProcessBus_North" type="8-MMS">
+      <ConnectedAP iedName="GE_F60_MU01" apName="P1">
+        <SMV cbName="MSV_PB1" ldInst="LD0">
+          <Address>
+            <P type="VLAN-ID">0x000</P>
+            <P type="VLAN-PRIORITY">4</P>
+            <P type="MAC-Address">01-0C-CD-04-00-03</P>
+            <P type="APPID">0x4002</P>
+          </Address>
+          <MinTime unit="s" multiplier="m">10</MinTime>
+          <MaxTime unit="s" multiplier="m">10</MaxTime>
+        </SMV>
+      </ConnectedAP>
+    </SubNetwork>
+  </Communication>
+
+  <IED name="GE_F60_MU01"
+       manufacturer="GE Vernova"
+       type="UR-F60"
+       configVersion="1.0"
+       desc="GE F60 with process-bus expansion (UR-series MU)">
+    <AccessPoint name="P1">
+      <Server>
+        <Authentication/>
+        <LDevice inst="LD0">
+          <LN0 lnClass="LLN0" inst="" lnType="LLN0Type">
+            <DataSet name="Phsmeas9">
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="1" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="2" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="3" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="4" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="1" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="2" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="3" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="4" doName="Vol" daName="instMag.i" fc="MX"/>
+            </DataSet>
+            <SampledValueControl name="MSV_PB1"
+                                 smvID="GE_F60_MU01_F60_MU"
+                                 datSet="Phsmeas9"
+                                 confRev="1"
+                                 multicast="true"
+                                 smpRate="4800"
+                                 nofASDU="1">
+              <SmvOpts refreshTime="true" sampleSynchronized="true"
+                       sampleRate="true" dataSet="true" security="false"/>
+            </SampledValueControl>
+          </LN0>
+        </LDevice>
+      </Server>
+    </AccessPoint>
+  </IED>
+</SCL>

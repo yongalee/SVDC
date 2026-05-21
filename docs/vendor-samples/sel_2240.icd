@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic SEL-2240 Axion / SEL-401 SCL sample.
+  Sources: SEL-2240 Instruction Manual §11.6 (Sampled Values);
+           SEL Application Guide AG2017-25 "IEC 61850-9-2 LE Subscription".
+  This file is NOT a real SEL deliverable; values match the
+  publisher's `vendor::SEL_2240` preset.
+  SEL is known for very strict 9-2 LE adherence — minimal vendor
+  extensions — which makes this useful as the reference baseline.
+-->
+<SCL xmlns="http://www.iec.ch/61850/2003/SCL"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     version="2007" revision="B" release="4">
+
+  <Header id="SVDC_VENDOR_SAMPLE_SEL" nameStructure="IEDName"
+          toolID="hand-authored sample"/>
+
+  <Communication>
+    <SubNetwork name="ProcessBus_PB" type="8-MMS">
+      <ConnectedAP iedName="SEL_BUS01_PB_MU01" apName="P1">
+        <SMV cbName="MSVCB01" ldInst="MU01">
+          <Address>
+            <P type="VLAN-ID">0x000</P>
+            <P type="VLAN-PRIORITY">4</P>
+            <P type="MAC-Address">01-0C-CD-04-00-04</P>
+            <P type="APPID">0x4003</P>
+          </Address>
+          <MinTime unit="s" multiplier="m">10</MinTime>
+          <MaxTime unit="s" multiplier="m">10</MaxTime>
+        </SMV>
+      </ConnectedAP>
+    </SubNetwork>
+  </Communication>
+
+  <IED name="SEL_BUS01_PB_MU01"
+       manufacturer="Schweitzer Engineering Laboratories"
+       type="SEL-2240"
+       configVersion="1.0"
+       desc="SEL-2240 Axion with 0153 SV publisher card">
+    <AccessPoint name="P1">
+      <Server>
+        <Authentication/>
+        <LDevice inst="MU01">
+          <LN0 lnClass="LLN0" inst="" lnType="LLN0Type">
+            <DataSet name="Phsmeas9" desc="IEC 61850-9-2 LE phase measurements">
+              <FCDA ldInst="MU01" lnClass="TCTR" lnInst="1" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="MU01" lnClass="TCTR" lnInst="2" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="MU01" lnClass="TCTR" lnInst="3" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="MU01" lnClass="TCTR" lnInst="4" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="MU01" lnClass="TVTR" lnInst="1" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="MU01" lnClass="TVTR" lnInst="2" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="MU01" lnClass="TVTR" lnInst="3" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="MU01" lnClass="TVTR" lnInst="4" doName="Vol" daName="instMag.i" fc="MX"/>
+            </DataSet>
+            <SampledValueControl name="MSVCB01"
+                                 smvID="SEL_BUS01_PB_MU01_PB_MU"
+                                 datSet="Phsmeas9"
+                                 confRev="1"
+                                 multicast="true"
+                                 smpRate="4800"
+                                 nofASDU="1">
+              <SmvOpts refreshTime="true" sampleSynchronized="true"
+                       sampleRate="true" dataSet="true" security="false"/>
+            </SampledValueControl>
+          </LN0>
+        </LDevice>
+      </Server>
+    </AccessPoint>
+  </IED>
+</SCL>

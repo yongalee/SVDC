@@ -16,3 +16,4 @@ name = "ssiec-sv-publisher"
 path = "src/main.rs"
 
 [dependencies]
+roxmltree = "0.20"

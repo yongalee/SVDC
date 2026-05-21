@@ -1,0 +1,13 @@
+# SEL-2240 Axion calibration export — synthetic example.
+# Replace with the AcSELerator Architect / RTAC export on real deployment.
+# SEL: factory-calibrated; the operator typically sees gain ≈ 1.0,
+# offset = 0 unless a custom factor is applied at the site.
+channel_id,phase,quantity,ct_pt_ratio,gain,offset,unit_scale,notes
+0,A,current,1000/1,1.0,0.0,0.001,"Phase A — SEL factory cal, 1000:1 CT"
+1,B,current,1000/1,1.0,0.0,0.001,"Phase B"
+2,C,current,1000/1,1.0,0.0,0.001,"Phase C"
+3,N,current,1000/1,1.0,0.0,0.001,"Neutral"
+4,A,voltage,115000/115,1.0,0.0,0.01,"Phase A voltage, 115 kV:115 V PT"
+5,B,voltage,115000/115,1.0,0.0,0.01,"Phase B"
+6,C,voltage,115000/115,1.0,0.0,0.01,"Phase C"
+7,N,voltage,115000/115,1.0,0.0,0.01,"Neutral"

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic Siemens SIPROTEC 5 6MU85 SCL sample.
+  Sources: Siemens SIPROTEC 5 Manual 7SS85 (C53000-G5040-C015);
+           Siemens 9-2 LE Implementation Guide.
+  This file is NOT a real Siemens deliverable; values match the
+  publisher's `vendor::SIEMENS_SIPROTEC_5` preset.
+-->
+<SCL xmlns="http://www.iec.ch/61850/2003/SCL"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     version="2007" revision="B" release="4">
+
+  <Header id="SVDC_VENDOR_SAMPLE_SIEMENS" nameStructure="IEDName"
+          toolID="hand-authored sample"/>
+
+  <Communication>
+    <SubNetwork name="ProcessBus_PB1" type="8-MMS">
+      <ConnectedAP iedName="BAYO1_MU01" apName="ProcAP">
+        <SMV cbName="ControlBlock_PB" ldInst="LD0">
+          <Address>
+            <P type="VLAN-ID">0xFA0</P>
+            <P type="VLAN-PRIORITY">4</P>
+            <P type="MAC-Address">01-0C-CD-04-00-02</P>
+            <P type="APPID">0x4001</P>
+          </Address>
+          <MinTime unit="s" multiplier="m">10</MinTime>
+          <MaxTime unit="s" multiplier="m">10</MaxTime>
+        </SMV>
+      </ConnectedAP>
+    </SubNetwork>
+  </Communication>
+
+  <IED name="BAYO1_MU01"
+       manufacturer="Siemens"
+       type="6MU85"
+       configVersion="1.0"
+       desc="SIPROTEC 5 6MU85 merging unit for bay BAYO1">
+    <AccessPoint name="ProcAP">
+      <Server>
+        <Authentication/>
+        <LDevice inst="LD0">
+          <LN0 lnClass="LLN0" inst="" lnType="LLN0Type">
+            <DataSet name="PhsMeasDataset" desc="9-2 LE phase measurements">
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="1" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="2" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="3" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="4" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="1" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="2" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="3" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="4" doName="Vol" daName="instMag.i" fc="MX"/>
+            </DataSet>
+            <SampledValueControl name="ControlBlock_PB"
+                                 smvID="BAYO1_MU01_PB"
+                                 datSet="PhsMeasDataset"
+                                 confRev="10001"
+                                 multicast="true"
+                                 smpRate="4800"
+                                 nofASDU="1">
+              <SmvOpts refreshTime="true" sampleSynchronized="true"
+                       sampleRate="true" dataSet="true" security="false"/>
+            </SampledValueControl>
+          </LN0>
+        </LDevice>
+      </Server>
+    </AccessPoint>
+  </IED>
+</SCL>

@@ -1,0 +1,12 @@
+# ABB Relion 670 / SAM600 calibration export — synthetic example.
+# Format: see crates/ssiec-sv-publisher/src/calibration_loader.rs.
+# Replace with the vendor's commissioning sheet on real deployment.
+channel_id,phase,quantity,ct_pt_ratio,gain,offset,unit_scale,notes
+0,A,current,1500/5,1.0000,0.0,0.001,"Phase A current, 1500:5 CT, 0.001 A/LSB"
+1,B,current,1500/5,1.0000,0.0,0.001,"Phase B current"
+2,C,current,1500/5,1.0000,0.0,0.001,"Phase C current"
+3,N,current,1500/5,1.0000,0.0,0.001,"Neutral CT shared with phase A reference"
+4,A,voltage,138000/115,1.0150,-50.0,0.01,"Phase A voltage, primary -50 V offset per ABB cal sheet 2025-03"
+5,B,voltage,138000/115,1.0150,-50.0,0.01,"Phase B voltage"
+6,C,voltage,138000/115,1.0150,-50.0,0.01,"Phase C voltage"
+7,N,voltage,138000/115,1.0000,0.0,0.01,"Neutral voltage (computed)"
