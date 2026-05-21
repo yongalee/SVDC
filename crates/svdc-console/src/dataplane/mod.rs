@@ -101,6 +101,20 @@ pub struct DataPipeline {
     /// Distinct from [`Self::ticks_emitted`] because that counter
     /// tracks the synthetic loop, not the L0 subscriber.
     l0_demo_total_ticks: AtomicU64,
+    /// True when `svdc-bin` was started with `--enable-opcua` and
+    /// the L1 OPC UA server task has bound its socket. Read by
+    /// `/north/L1` to badge the layer as "Wired (running)" vs
+    /// "Wired (not started)". Set by the daemon's L1 task (PR L+;
+    /// the flag is reserved here so PR L's UI / atomics layout is
+    /// complete and PR L+ only needs to flip it).
+    l1_opcua_active: AtomicBool,
+    /// Highest tick_id the L1 server has published to its
+    /// AddressSpace via `set_variable_value`. Mirrors
+    /// [`Self::l0_demo_last_tick_id`] in role.
+    l1_opcua_last_tick_id: AtomicU64,
+    /// Total publish operations the L1 server has completed since
+    /// boot. One publish = one batch of variable updates per tick.
+    l1_opcua_total_publishes: AtomicU64,
 }
 
 /// One row in [`DataPipeline::seen_mus`]. Tracks first-seen,
@@ -141,6 +155,9 @@ impl DataPipeline {
             l0_demo_active: AtomicBool::new(false),
             l0_demo_last_tick_id: AtomicU64::new(0),
             l0_demo_total_ticks: AtomicU64::new(0),
+            l1_opcua_active: AtomicBool::new(false),
+            l1_opcua_last_tick_id: AtomicU64::new(0),
+            l1_opcua_total_publishes: AtomicU64::new(0),
         }
     }
 
@@ -176,6 +193,41 @@ impl DataPipeline {
     /// Total ticks drained by the L0 demo since process start.
     pub fn l0_demo_total_ticks(&self) -> u64 {
         self.l0_demo_total_ticks.load(Ordering::Relaxed)
+    }
+
+    /// Mark the L1 OPC UA server as running (or stopped). Called
+    /// by the L1 task in `svdc-bin` after it has bound its TCP
+    /// socket. Drives the badge on `/north` and `/north/L1`.
+    /// PR L lands the atomic and UI; PR L+ adds the actual server
+    /// task that flips this flag.
+    pub fn mark_l1_opcua_active(&self, active: bool) {
+        self.l1_opcua_active.store(active, Ordering::Relaxed);
+    }
+
+    /// Record one L1 publish operation. Updates the last-seen
+    /// tick cursor and the running total. Called once per tick
+    /// after the server has updated its AddressSpace variables.
+    pub fn record_l1_opcua_publish(&self, tick_id: u64) {
+        self.l1_opcua_last_tick_id.store(tick_id, Ordering::Relaxed);
+        self.l1_opcua_total_publishes
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Whether the L1 OPC UA server is running. False means the
+    /// daemon was started without `--enable-opcua`.
+    pub fn l1_opcua_active(&self) -> bool {
+        self.l1_opcua_active.load(Ordering::Relaxed)
+    }
+
+    /// Highest tick_id the L1 server has published to its
+    /// AddressSpace. Zero before the first publish.
+    pub fn l1_opcua_last_tick_id(&self) -> u64 {
+        self.l1_opcua_last_tick_id.load(Ordering::Relaxed)
+    }
+
+    /// Total publishes the L1 server has emitted since boot.
+    pub fn l1_opcua_total_publishes(&self) -> u64 {
+        self.l1_opcua_total_publishes.load(Ordering::Relaxed)
     }
 
     /// Set the synthetic-loop vendor preset by name (case-insensitive

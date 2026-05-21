@@ -50,7 +50,7 @@ client binaries are named by their layer.
 | Layer | Server side                  | Client simulator binary       | Status              |
 | ----- | ---------------------------- | ----------------------------- | ------------------- |
 | L0    | `svdc-subscribe` (PR #47)    | `svdc-bin --enable-l0-demo`   | **Wired (PR H)**    |
-| L1    | `svdc-opcua` (Phase 4)       | `svdc-l1-opcua-client`        | Phase 4 (paired)    |
+| L1    | `svdc-opcua` (PR K scaffold; PR L stub; PR L+ server) | `svdc-l1-opcua-client` (PR M) | **Stubbed (PR L)** |
 | L2    | `svdc-mqtt` (Phase 4)        | `svdc-l2-mqtt-subscriber`     | Phase 4 (paired)    |
 | L3    | `svdc-historian-tsdb` (Phase 4) | `svdc-l3-historian-query`  | Phase 4 (paired)    |
 | C37.118 | Phasor Computation Module (Phase 4) | `svdc-c37118-pdc-sim` | Phase 4 (paired)    |
@@ -117,10 +117,23 @@ of printing.
 
 ## L1 — OPC UA SCADA client
 
-Status: **not yet wired**. Lands together with the
-`svdc-opcua` server in PR J (per ADR-0017).
+Status: **Stub mode (PR L)**. The `--enable-opcua` CLI flag is
+parsed, the `/north/L1` UI reflects whether it was set, and the
+`crates/svdc-opcua/` AddressSpace builder (PR K) is unit-tested
+against ADR-0017 §2. The actual OPC UA server task is deferred
+to PR L+ pending an OpenSSL build environment — see ADR-0017 §1
+"Library follow-up note" for the three resolution paths.
 
-When ready, the simulator will:
+Today, running `svdc-bin --enable-opcua 127.0.0.1:4840` produces:
+
+- `svdc-l1-opcua: stub mode at 127.0.0.1:4840 — actual server deferred to PR L+`
+  on stdout
+- `/north/L1` shows the `Wired · stub mode` badge with a Stub
+  Mode disclosure block linking back to ADR-0017
+- No TCP socket is opened on the bind address; UA Expert cannot
+  connect
+
+When PR L+ lands the server, the simulator (PR M) will:
 
 1. Open an OPC UA session against `opc.tcp://127.0.0.1:4840`.
 2. Browse the SVDC namespace (per ADR-0017 address space mapping).
