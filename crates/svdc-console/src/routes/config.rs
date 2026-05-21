@@ -83,7 +83,12 @@ async fn config_page() -> Html<String> {
             div class="lg:col-span-7 flex flex-col gap-6" {
                 div class="glass-card shadow-lg" {
                     div class="card-header border-b border-border-color pb-3 flex items-center gap-2" {
-                        span class="card-icon" { "⚙️" }
+                        span class="card-icon text-accent-blue" {
+                            svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                                path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" {}
+                                path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" {}
+                            }
+                        }
                         h2 class="card-title" { "Alignment & Calibration parameters" }
                     }
 
@@ -199,7 +204,11 @@ async fn config_page() -> Html<String> {
                 // Card A: SCD/SCL Configuration Ingest
                 div class="glass-card shadow-lg" {
                     div class="card-header border-b border-border-color pb-3 flex items-center gap-2" {
-                        span class="card-icon" { "📄" }
+                        span class="card-icon text-accent-blue" {
+                            svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                                path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" {}
+                            }
+                        }
                         h2 class="card-title" { "IEC 61850 SCL/SCD Ingest" }
                     }
 
@@ -217,7 +226,9 @@ async fn config_page() -> Html<String> {
                             div class="flex items-center justify-center w-full" {
                                 label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border-color rounded-lg cursor-pointer bg-bg-secondary hover:bg-bg-primary hover:border-accent-blue transition-all" {
                                     div class="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4" {
-                                        span class="text-2xl mb-2" { "📤" }
+                                        svg class="w-8 h-8 text-accent-blue mb-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                                            path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" {}
+                                        }
                                         p class="mb-1 text-xs text-text-primary font-medium" { "Click to select SCL/SCD file" }
                                         p class="text-[10px] text-text-secondary" { "IEC 61850 xml format (.scd, .scl, .xml)" }
                                     }
@@ -234,7 +245,11 @@ async fn config_page() -> Html<String> {
                 // Card B: About Screen & Node Diagnostics
                 div class="glass-card shadow-lg" {
                     div class="card-header border-b border-border-color pb-3 flex items-center gap-2" {
-                        span class="card-icon" { "ℹ️" }
+                        span class="card-icon text-accent-blue" {
+                            svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                                path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.852l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" {}
+                            }
+                        }
                         h2 class="card-title" { "About Operator Console" }
                     }
 

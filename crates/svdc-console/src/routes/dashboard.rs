@@ -74,7 +74,11 @@ async fn dashboard_page() -> Html<String> {
                 div class="glass-card telemetry-tile flex flex-col justify-between" {
                     div class="tile-header flex justify-between items-center" {
                         span class="tile-label" { "Grandmaster Sync" }
-                        span class="tile-icon" { "⏱️" }
+                        span class="tile-icon" {
+                            svg class="w-4 h-4 text-accent-green" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                                path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" {}
+                            }
+                        }
                     }
                     div class="tile-body mt-2" {
                         div class="flex items-baseline gap-2" {
@@ -91,7 +95,11 @@ async fn dashboard_page() -> Html<String> {
                 div class="glass-card telemetry-tile flex flex-col justify-between" {
                     div class="tile-header flex justify-between items-center" {
                         span class="tile-label" { "Circular Buffer" }
-                        span class="tile-icon" { "💿" }
+                        span class="tile-icon" {
+                            svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                                path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" {}
+                            }
+                        }
                     }
                     div class="tile-body mt-2" {
                         div class="flex items-baseline gap-2" {
@@ -110,7 +118,11 @@ async fn dashboard_page() -> Html<String> {
                 div class="glass-card telemetry-tile flex flex-col justify-between" {
                     div class="tile-header flex justify-between items-center" {
                         span class="tile-label" { "Merging Units" }
-                        span class="tile-icon" { "🔌" }
+                        span class="tile-icon" {
+                            svg class="w-4 h-4 text-text-secondary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                                path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" {}
+                            }
+                        }
                     }
                     div class="tile-body mt-2" {
                         div class="flex items-baseline gap-2" {
@@ -128,7 +140,11 @@ async fn dashboard_page() -> Html<String> {
                 div class="glass-card telemetry-tile flex flex-col justify-between" {
                     div class="tile-header flex justify-between items-center" {
                         span class="tile-label" { "Active Adapters" }
-                        span class="tile-icon" { "🚀" }
+                        span class="tile-icon" {
+                            svg class="w-4 h-4 text-text-secondary" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                                path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" {}
+                            }
+                        }
                     }
                     div class="tile-body mt-2" {
                         div class="flex gap-2" {
@@ -160,7 +176,11 @@ async fn dashboard_page() -> Html<String> {
             div class="glass-card shadow-lg" {
                 div class="card-header flex justify-between items-center" {
                     div class="flex items-center gap-2" {
-                        span class="card-icon" { "📈" }
+                        span class="card-icon" {
+                            svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                                path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" {}
+                            }
+                        }
                         h2 class="card-title" { "Reconstructed 3-Phase AC Waveforms (10 Hz Monitor)" }
                     }
                     span class="text-xs font-mono bg-bg-secondary border border-border-color px-2 py-1 rounded text-text-secondary" {
@@ -242,7 +262,11 @@ async fn dashboard_page() -> Html<String> {
             // 3. System Diagnostic Logs Console
             div class="glass-card shadow-lg" {
                 div class="card-header flex items-center gap-2 border-b border-border-color pb-3" {
-                    span class="card-icon" { "📜" }
+                    span class="card-icon" {
+                        svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
+                            path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" {}
+                        }
+                    }
                     h2 class="card-title" { "System Diagnostic Log Stream" }
                 }
                 div class="card-body mt-4 font-mono text-xs text-text-secondary bg-[#1c1c1a] border border-border-color p-4 rounded-lg h-48 overflow-y-auto flex flex-col gap-1.5" {
