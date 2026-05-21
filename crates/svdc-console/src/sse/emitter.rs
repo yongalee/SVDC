@@ -4,11 +4,11 @@
    NFR-10: English-only comments and identifiers
 */
 
+use crate::sse::{DashboardMetrics, SsePayload, WaveformSample};
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::broadcast;
 use tokio::time;
-use crate::sse::{DashboardMetrics, WaveformSample, SsePayload};
 
 static EMITTER_TX: OnceLock<broadcast::Sender<String>> = OnceLock::new();
 
@@ -16,10 +16,10 @@ static EMITTER_TX: OnceLock<broadcast::Sender<String>> = OnceLock::new();
 pub fn get_emitter_tx() -> &'static broadcast::Sender<String> {
     EMITTER_TX.get_or_init(|| {
         let (tx, _) = broadcast::channel(1024);
-        
+
         // Spawn background simulation loop
         tokio::spawn(run_simulation(tx.clone()));
-        
+
         tx
     })
 }
@@ -40,15 +40,15 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
     let mut interval_10hz = time::interval(Duration::from_millis(100));
     let mut last_metrics_time = Instant::now();
     let mut angle: f32 = 0.0;
-    
+
     // Simulated constants
     let v_peak = 110.0 * 1.414; // Peak voltage (110V RMS)
-    let i_peak = 5.0 * 1.414;   // Peak current (5A RMS)
+    let i_peak = 5.0 * 1.414; // Peak current (5A RMS)
     let pi_2_3 = 2.0 * std::f32::consts::PI / 3.0; // 120 degrees in radians
 
     loop {
         interval_10hz.tick().await;
-        
+
         let now_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
