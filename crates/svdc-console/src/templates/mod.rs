@@ -7,4 +7,5 @@
 //! NFR-10: English-only.
 
 pub mod base;
+pub mod charts;
 pub mod components;
