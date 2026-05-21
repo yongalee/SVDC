@@ -359,102 +359,92 @@ async fn dashboard_page() -> Html<String> {
                             }
                         }
 
-                        div class="card-body mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 items-start" {
-                            // Polar Diagram Canvas
-                            div class="flex flex-col items-center justify-center p-2 bg-chart-bg rounded-lg border border-border-color relative" {
-                                svg viewBox="0 0 200 200" style="width: 120px; height: 120px; display: block; background: transparent;" {
-                                    // Concentric grid circles: 30V/1.5A, 60V/3A, 90V/4.5A, 120V/6A (radius 20, 40, 60, 80 centered at 100, 100)
-                                    circle cx="100" cy="100" r="20" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
-                                    circle cx="100" cy="100" r="40" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
-                                    circle cx="100" cy="100" r="60" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
-                                    circle cx="100" cy="100" r="80" class="stroke-grid-primary" fill="none" {}
+                        div class="card-body mt-4" style="display: flex; gap: 1.5rem; align-items: flex-start;" {
+                            // LEFT: Polar Diagram Canvas (fixed width)
+                            div style="flex-shrink: 0; width: 200px;" class="flex flex-col items-center" {
+                                div class="p-2 bg-chart-bg rounded-lg border border-border-color" {
+                                    svg viewBox="0 0 200 200" style="width: 180px; height: 180px; display: block; background: transparent;" {
+                                        // Concentric grid circles
+                                        circle cx="100" cy="100" r="20" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
+                                        circle cx="100" cy="100" r="40" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
+                                        circle cx="100" cy="100" r="60" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
+                                        circle cx="100" cy="100" r="80" class="stroke-grid-primary" fill="none" {}
 
-                                    // Polar degree axis lines every 30 degrees (30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330)
-                                    // 0-180 horizontal line
-                                    line x1="20" y1="100" x2="180" y2="100" class="stroke-grid-secondary" stroke-dasharray="2" {}
-                                    // 90-270 vertical line
-                                    line x1="100" y1="20" x2="100" y2="180" class="stroke-grid-secondary" stroke-dasharray="2" {}
+                                        // Axis lines
+                                        line x1="20" y1="100" x2="180" y2="100" class="stroke-grid-secondary" stroke-dasharray="2" {}
+                                        line x1="100" y1="20" x2="100" y2="180" class="stroke-grid-secondary" stroke-dasharray="2" {}
+                                        line x1="30.7" y1="140" x2="169.3" y2="60" class="stroke-grid-secondary" stroke-dasharray="1" {}
+                                        line x1="60" y1="169.3" x2="140" y2="30.7" class="stroke-grid-secondary" stroke-dasharray="1" {}
+                                        line x1="60" y1="30.7" x2="140" y2="169.3" class="stroke-grid-secondary" stroke-dasharray="1" {}
+                                        line x1="30.7" y1="60" x2="169.3" y2="140" class="stroke-grid-secondary" stroke-dasharray="1" {}
 
-                                    // Diagonal 30-210 degree lines
-                                    line x1="30.7" y1="140" x2="169.3" y2="60" class="stroke-grid-secondary" stroke-dasharray="1" {}
-                                    // 60-240 line
-                                    line x1="60" y1="169.3" x2="140" y2="30.7" class="stroke-grid-secondary" stroke-dasharray="1" {}
-                                    // 120-300 line
-                                    line x1="60" y1="30.7" x2="140" y2="169.3" class="stroke-grid-secondary" stroke-dasharray="1" {}
-                                    // 150-330 line
-                                    line x1="30.7" y1="60" x2="169.3" y2="140" class="stroke-grid-secondary" stroke-dasharray="1" {}
+                                        // Polar Degree Labels
+                                        text x="183" y="103" class="text-grid text-[8px] font-mono font-bold" { "0°" }
+                                        text x="96" y="15" class="text-grid text-[8px] font-mono font-bold" { "90°" }
+                                        text x="5" y="103" class="text-grid text-[8px] font-mono font-bold" { "180°" }
+                                        text x="93" y="193" class="text-grid text-[8px] font-mono font-bold" { "270°" }
 
-                                    // Polar Degree Labels
-                                    text x="183" y="103" class="text-grid text-[8px] font-mono font-bold" { "0°" }
-                                    text x="96" y="15" class="text-grid text-[8px] font-mono font-bold" { "90°" }
-                                    text x="5" y="103" class="text-grid text-[8px] font-mono font-bold" { "180°" }
-                                    text x="93" y="193" class="text-grid text-[8px] font-mono font-bold" { "270°" }
+                                        // Voltage vectors (solid)
+                                        line x1="100" y1="100"
+                                             x-bind:x2="getVectorX(phasors.va_rms, phasors.va_ang, true)"
+                                             x-bind:y2="getVectorY(phasors.va_rms, phasors.va_ang, true)"
+                                             stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" {}
+                                        line x1="100" y1="100"
+                                             x-bind:x2="getVectorX(phasors.vb_rms, phasors.vb_ang, true)"
+                                             x-bind:y2="getVectorY(phasors.vb_rms, phasors.vb_ang, true)"
+                                             stroke="#059669" stroke-width="2.5" stroke-linecap="round" {}
+                                        line x1="100" y1="100"
+                                             x-bind:x2="getVectorX(phasors.vc_rms, phasors.vc_ang, true)"
+                                             x-bind:y2="getVectorY(phasors.vc_rms, phasors.vc_ang, true)"
+                                             stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" {}
 
-                                    // Dynamically bound voltage vectors
-                                    // Va Voltage Vector (Solid Red)
-                                    line x1="100" y1="100"
-                                         x-bind:x2="getVectorX(phasors.va_rms, phasors.va_ang, true)"
-                                         x-bind:y2="getVectorY(phasors.va_rms, phasors.va_ang, true)"
-                                         stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" {}
-                                    // Vb Voltage Vector (Solid Green)
-                                    line x1="100" y1="100"
-                                         x-bind:x2="getVectorX(phasors.vb_rms, phasors.vb_ang, true)"
-                                         x-bind:y2="getVectorY(phasors.vb_rms, phasors.vb_ang, true)"
-                                         stroke="#059669" stroke-width="2.5" stroke-linecap="round" {}
-                                    // Vc Voltage Vector (Solid Blue)
-                                    line x1="100" y1="100"
-                                         x-bind:x2="getVectorX(phasors.vc_rms, phasors.vc_ang, true)"
-                                         x-bind:y2="getVectorY(phasors.vc_rms, phasors.vc_ang, true)"
-                                         stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" {}
-
-                                    // Dynamically bound current vectors
-                                    // Ia Current Vector (Dashed Amber)
-                                    line x1="100" y1="100"
-                                         x-bind:x2="getVectorX(phasors.ia_rms, phasors.ia_ang, false)"
-                                         x-bind:y2="getVectorY(phasors.ia_rms, phasors.ia_ang, false)"
-                                         stroke="#d97706" stroke-width="1.8" stroke-dasharray="2" stroke-linecap="round" {}
-                                    // Ib Current Vector (Dashed Purple)
-                                    line x1="100" y1="100"
-                                         x-bind:x2="getVectorX(phasors.ib_rms, phasors.ib_ang, false)"
-                                         x-bind:y2="getVectorY(phasors.ib_rms, phasors.ib_ang, false)"
-                                         stroke="#8b5cf6" stroke-width="1.8" stroke-dasharray="2" stroke-linecap="round" {}
-                                    // Ic Current Vector (Dashed Teal)
-                                    line x1="100" y1="100"
-                                         x-bind:x2="getVectorX(phasors.ic_rms, phasors.ic_ang, false)"
-                                         x-bind:y2="getVectorY(phasors.ic_rms, phasors.ic_ang, false)"
-                                         stroke="#14b8a6" stroke-width="1.8" stroke-dasharray="2" stroke-linecap="round" {}
+                                        // Current vectors (dashed)
+                                        line x1="100" y1="100"
+                                             x-bind:x2="getVectorX(phasors.ia_rms, phasors.ia_ang, false)"
+                                             x-bind:y2="getVectorY(phasors.ia_rms, phasors.ia_ang, false)"
+                                             stroke="#d97706" stroke-width="1.8" stroke-dasharray="2" stroke-linecap="round" {}
+                                        line x1="100" y1="100"
+                                             x-bind:x2="getVectorX(phasors.ib_rms, phasors.ib_ang, false)"
+                                             x-bind:y2="getVectorY(phasors.ib_rms, phasors.ib_ang, false)"
+                                             stroke="#8b5cf6" stroke-width="1.8" stroke-dasharray="2" stroke-linecap="round" {}
+                                        line x1="100" y1="100"
+                                             x-bind:x2="getVectorX(phasors.ic_rms, phasors.ic_ang, false)"
+                                             x-bind:y2="getVectorY(phasors.ic_rms, phasors.ic_ang, false)"
+                                             stroke="#14b8a6" stroke-width="1.8" stroke-dasharray="2" stroke-linecap="round" {}
+                                    }
                                 }
-                                div class="flex flex-wrap gap-x-3 gap-y-1 justify-center mt-3 text-[9px] font-mono w-full" {
+                                // Legend
+                                div class="flex flex-wrap gap-x-3 gap-y-1 justify-center mt-2 text-[9px] font-mono" {
                                     span class="flex items-center gap-1" {
-                                        span class="w-2 h-0.5 bg-[#dc2626]" {}
+                                        span style="width:8px;height:2px;background:#dc2626;display:inline-block;" {}
                                         span class="text-text-primary" { "Va" }
                                     }
                                     span class="flex items-center gap-1" {
-                                        span class="w-2 h-0.5 bg-[#059669]" {}
+                                        span style="width:8px;height:2px;background:#059669;display:inline-block;" {}
                                         span class="text-text-primary" { "Vb" }
                                     }
                                     span class="flex items-center gap-1" {
-                                        span class="w-2 h-0.5 bg-[#2563eb]" {}
+                                        span style="width:8px;height:2px;background:#2563eb;display:inline-block;" {}
                                         span class="text-text-primary" { "Vc" }
                                     }
                                     span class="flex items-center gap-1" {
-                                        span class="w-2 h-0.5 border-t border-dashed border-[#d97706]" {}
+                                        span style="width:8px;height:2px;border-top:1px dashed #d97706;display:inline-block;" {}
                                         span class="text-text-primary" { "Ia" }
                                     }
                                     span class="flex items-center gap-1" {
-                                        span class="w-2 h-0.5 border-t border-dashed border-[#8b5cf6]" {}
+                                        span style="width:8px;height:2px;border-top:1px dashed #8b5cf6;display:inline-block;" {}
                                         span class="text-text-primary" { "Ib" }
                                     }
                                     span class="flex items-center gap-1" {
-                                        span class="w-2 h-0.5 border-t border-dashed border-[#14b8a6]" {}
+                                        span style="width:8px;height:2px;border-top:1px dashed #14b8a6;display:inline-block;" {}
                                         span class="text-text-primary" { "Ic" }
                                     }
                                 }
                             }
 
-                            // Electrical Telemetry & Diagnostics Table
-                            div class="w-full" {
-                                table class="industrial-grid text-[10px] w-full font-mono mt-0 border-none" {
+                            // RIGHT: Electrical Telemetry & Diagnostics (fills remaining space)
+                            div style="flex: 1; min-width: 0;" {
+                                table class="industrial-grid text-[10px] w-full font-mono" style="margin-top: 0;" {
                                     thead {
                                         tr {
                                             th class="py-1 px-1.5 text-left text-text-muted" { "Parameter" }
@@ -496,7 +486,7 @@ async fn dashboard_page() -> Html<String> {
                                     }
                                 }
 
-                                // Symmetrical Components Grid Section
+                                // Symmetrical Components
                                 div class="mt-3 grid grid-cols-3 gap-2 p-2 bg-bg-primary rounded border border-border-color" {
                                     div class="text-center font-mono text-[9px]" {
                                         span class="block text-text-muted" { "Positive (V1)" }
@@ -512,7 +502,7 @@ async fn dashboard_page() -> Html<String> {
                                     }
                                 }
 
-                                // Total System Metrics Table
+                                // System Metrics
                                 table class="text-[9px] w-full font-mono mt-3 border-none" {
                                     tbody {
                                         tr class="border-none hover:bg-transparent" {
