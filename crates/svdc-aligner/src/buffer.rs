@@ -18,7 +18,7 @@
 
 use std::sync::Mutex;
 
-use svdc_core::TickRecord;
+use svdc_core::{IntegrityViolation, TickRecord};
 
 /// Bounded FIFO of tick records. Drops the oldest on overflow rather
 /// than rejecting new pushes, because dropping the *newest* tick would
@@ -86,6 +86,23 @@ impl TickBuffer {
     pub fn capacity(&self) -> usize {
         self.capacity
     }
+
+    /// Verify every record's stored CRC against its recomputed value.
+    /// Returns one [`IntegrityViolation`] per failure; empty `Vec`
+    /// means the whole buffer is consistent.
+    ///
+    /// This is the diagnostic surface for WBS-2.9. Phase 2 will plug
+    /// the dual-CB failover path into this method: if the primary
+    /// returns any violation, swap to the hot spare and mark the
+    /// surrounding tick window `DEGRADED`. Phase 0 just reports.
+    ///
+    /// Cost: O(n_channels × buffer.len()) — call from a slow path
+    /// (operator-driven `/health` probe, periodic integrity sweep),
+    /// not the hot read loop.
+    pub fn verify_all(&self) -> Vec<IntegrityViolation> {
+        let g = self.inner.lock().expect("tick buffer poisoned");
+        g.iter().filter_map(|r| r.verify_crc().err()).collect()
+    }
 }
 
 /// Outcome of a [`TickBuffer::push`].
@@ -147,5 +164,48 @@ mod tests {
     #[should_panic(expected = "TickBuffer capacity must be > 0")]
     fn zero_capacity_panics() {
         let _ = TickBuffer::new(0);
+    }
+
+    #[test]
+    fn verify_all_passes_for_stamped_records() {
+        let b = TickBuffer::new(8);
+        for i in 0..4u64 {
+            let mut t = tick(i, i * 1000);
+            t.n_channels = 1;
+            t.samples[0].value_q = i as i32;
+            t.samples[0].origin = svdc_core::SampleOrigin::Live.as_u8();
+            t.stamp_crc();
+            b.push(t);
+        }
+        let violations = b.verify_all();
+        assert!(violations.is_empty(), "stamped records must verify");
+    }
+
+    #[test]
+    fn verify_all_flags_tampered_records() {
+        let b = TickBuffer::new(8);
+        // Push 3 records: stamp 2 properly, leave 1 with the wrong CRC.
+        let mut good = tick(1, 100);
+        good.n_channels = 1;
+        good.samples[0].value_q = 10;
+        good.stamp_crc();
+        b.push(good);
+
+        let mut tampered = tick(2, 200);
+        tampered.n_channels = 1;
+        tampered.samples[0].value_q = 20;
+        tampered.stamp_crc();
+        tampered.samples[0].value_q = 999; // post-stamp tamper
+        b.push(tampered);
+
+        let mut good2 = tick(3, 300);
+        good2.n_channels = 1;
+        good2.samples[0].value_q = 30;
+        good2.stamp_crc();
+        b.push(good2);
+
+        let violations = b.verify_all();
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].tick_id, 2);
     }
 }

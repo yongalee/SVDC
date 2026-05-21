@@ -98,6 +98,11 @@ impl Aligner {
             tick.n_channels = n as u16;
         }
 
+        // Stamp the integrity CRC after the payload is final so the
+        // dual-CB integrity overlay (WBS-2.9) can verify each record
+        // without recomputing on read.
+        tick.stamp_crc();
+
         self.next_tick_id += 1;
         vec![tick]
     }
@@ -198,5 +203,14 @@ mod tests {
             SampleOrigin::Invalid.as_u8(),
             "unused slots stay Invalid"
         );
+    }
+
+    #[test]
+    fn process_frame_stamps_a_verifiable_crc() {
+        let mut a = Aligner::new(208_333);
+        let out = a.process_frame(dummy_frame(1_700_000_000_000_000_000));
+        let tick = &out[0];
+        assert_ne!(tick.crc, 0, "aligner must stamp CRC, not leave it zero");
+        tick.verify_crc().expect("aligner-stamped CRC must verify");
     }
 }
