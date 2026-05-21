@@ -1,38 +1,39 @@
-//! `GET /north` and `GET /north/:layer` — North-bound application layers.
+//! `GET /north` and `GET /north/:layer` — northbound application layers.
 //!
-//! Industrial-grade table view of the four layers (L0/L1/L2/L3) with
-//! per-row endpoint, active-receivers count, throughput, and a state
-//! toggle. Each row links to the per-layer detail page.
+//! Honest table view of the four ADR-0016 layers. Only L0 is wired
+//! today (PR H); L1/L2/L3 ship as "Planned (Phase 4)" cards. The
+//! page does not invent traffic — every row pulls from
+//! [`crate::dataplane::global`] or admits to being a stub.
 //!
-//! The layer-level enable/disable API (`POST /api/north/:layer/...`)
-//! is authored here (WBS-9.4a). Per-adapter detail (the actual L0/L1
-//! handler implementation) lands in Phase 4 as the adapters land in
-//! their own crates; until then, mock_metrics() provides plausible
-//! display values so the operator UI looks alive end-to-end.
+//! L0 is enabled by starting `svdc-bin --enable-l0-demo`. The flag
+//! is read once at boot and cannot be toggled from the UI, so the
+//! prior `/api/north/:layer/{enable,disable}` endpoints have been
+//! removed. The `AuditEvent::NorthboundStateChange` variant is
+//! kept (audit logs may already contain records of it) but is no
+//! longer emitted.
+//!
+//! OWNER: claude-code. NFR-10: English-only.
 
-use std::sync::{Arc, RwLock};
-
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
+use axum::extract::Path;
 use axum::response::IntoResponse;
-use axum::routing::{get, post};
-use axum::{Json, Router};
+use axum::routing::get;
+use axum::Router;
 use maud::{html, Markup, PreEscaped};
 use serde::{Deserialize, Serialize};
 
-use crate::audit::{self, AuditEvent};
+use crate::dataplane::DataPipeline;
 use crate::templates::base::{layout, Section};
 
-/// Northbound layer identifier per UI Doc §3.
+/// Northbound layer identifier per SDD §8.2 and ADR-0016.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Layer {
-    /// In-process C ABI for EBP relays / QSE / phasor computation.
+    /// In-process subscriber (Rust API + C ABI). Wired in PR H.
     L0,
-    /// OPC UA Server (SCADA, HMI).
+    /// OPC UA server for SCADA / HMI integration. Phase 4.
     L1,
-    /// MQTT publisher (analytics, cloud).
+    /// MQTT publisher for cloud / analytics fan-out. Phase 4.
     L2,
-    /// TimescaleDB sidecar (historian).
+    /// TimescaleDB sidecar historian. Phase 4.
     L3,
 }
 
@@ -61,22 +62,22 @@ impl Layer {
         }
     }
 
-    /// Human-readable name for UI display.
+    /// Human-readable adapter name.
     pub fn name(self) -> &'static str {
         match self {
-            Layer::L0 => "Shared Memory RingBuffer",
-            Layer::L1 => "OPC UA Server",
-            Layer::L2 => "MQTT Publisher",
-            Layer::L3 => "TimescaleDB Historian",
+            Layer::L0 => "In-process subscriber",
+            Layer::L1 => "OPC UA server",
+            Layer::L2 => "MQTT publisher",
+            Layer::L3 => "TimescaleDB historian",
         }
     }
 
-    /// Protocol family / transport summary, shown in the table.
+    /// Transport / protocol summary, shown beneath the adapter name.
     pub fn protocol(self) -> &'static str {
         match self {
-            Layer::L0 => "Shared memory / C ABI",
-            Layer::L1 => "OPC UA over TCP (per OPC 10040)",
-            Layer::L2 => "MQTT over TCP",
+            Layer::L0 => "Rust API + C ABI (in-process)",
+            Layer::L1 => "OPC UA over TCP (IEC 62541)",
+            Layer::L2 => "MQTT over TCP (OASIS 5.0)",
             Layer::L3 => "PostgreSQL wire protocol",
         }
     }
@@ -84,155 +85,125 @@ impl Layer {
     /// One-line purpose, shown on the detail page.
     pub fn purpose(self) -> &'static str {
         match self {
-            Layer::L0 => "Sub-ms feed to EBP relays, QSE, and phasor computation.",
-            Layer::L1 => "IEC 61850 ↔ OPC UA per OPC 10040 for SCADA / HMI.",
-            Layer::L2 => "Cloud / analytics fan-out at configurable cadence.",
-            Layer::L3 => "Historian + replay for audit and post-event analysis.",
+            Layer::L0 => {
+                "Zero-network-hop tick subscription for EBP relays, QSE, and \
+                 phasor computation modules running on the same node."
+            }
+            Layer::L1 => {
+                "IEC 61850 ↔ OPC UA bridge per OPC 10040 for SCADA, HMI, and \
+                 engineering workstations."
+            }
+            Layer::L2 => {
+                "Subsampled telemetry fan-out for cloud analytics and \
+                 substation-fleet management."
+            }
+            Layer::L3 => {
+                "Time-series historian + replay backing post-event analysis \
+                 and audit queries."
+            }
         }
     }
 
-    /// Default endpoint string. Phase 4 replaces this with a value
-    /// read from the SVDC config; until then it is the reference
-    /// deployment default.
+    /// Endpoint string. For L0 this is the runtime command, not a
+    /// network address — the subscriber is in-process by SDD §8.2.
     pub fn endpoint(self) -> &'static str {
         match self {
-            Layer::L0 => "/dev/shm/svdc_l0_ring",
-            Layer::L1 => "opc.tcp://127.0.0.1:4840/svdc/server",
-            Layer::L2 => "mqtt://broker.local:1883/svdc",
-            Layer::L3 => "postgres://svdc@127.0.0.1:5432/svdc_historian",
+            Layer::L0 => "svdc-bin --enable-l0-demo",
+            Layer::L1 => "opc.tcp://<host>:4840/svdc/server (planned)",
+            Layer::L2 => "mqtt://<broker>:1883/svdc/... (planned)",
+            Layer::L3 => "postgres://<host>:5432/svdc_historian (planned)",
+        }
+    }
+
+    /// Implementation maturity. Read by both the index and detail
+    /// pages so the badge text is in one place.
+    pub fn maturity(self) -> Maturity {
+        match self {
+            Layer::L0 => Maturity::Wired,
+            Layer::L1 | Layer::L2 | Layer::L3 => Maturity::Planned { phase: 4 },
+        }
+    }
+
+    /// ADR that documents this adapter's design, if one exists.
+    pub fn adr(self) -> Option<&'static str> {
+        match self {
+            Layer::L0 => Some("ADR-0010 (subscriber API), ADR-0016 (simulators)"),
+            Layer::L1 => Some("ADR-0017 (planned)"),
+            Layer::L2 => None,
+            Layer::L3 => None,
+        }
+    }
+
+    /// Runbook section anchor in `docs/northbound-simulators.md`.
+    pub fn runbook_anchor(self) -> &'static str {
+        match self {
+            Layer::L0 => "#l0--in-process-consumer-wired-in-pr-h",
+            Layer::L1 => "#l1--opc-ua-scada-client",
+            Layer::L2 => "#l2--mqtt-cloud-subscriber",
+            Layer::L3 => "#l3--historian-tsdb-query",
         }
     }
 }
 
-/// Mock per-layer runtime metrics shown until Phase 4 wires the real
-/// adapter counters in. Deterministic so the table looks consistent
-/// across page reloads.
-#[derive(Debug, Clone, Copy, Serialize)]
-pub struct LayerMetrics {
-    /// Number of subscribers currently attached to this layer.
-    pub active_receivers: u32,
-    /// Frames per second flowing through this adapter.
-    pub throughput_fps: u32,
+/// Implementation maturity for a [`Layer`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Maturity {
+    /// Adapter is shipped and observable from this UI.
+    Wired,
+    /// Adapter is on the roadmap; the detail page is a stub
+    /// describing what will land.
+    Planned {
+        /// Project phase the adapter is slated for.
+        phase: u8,
+    },
 }
 
-impl LayerMetrics {
-    /// Mock value for `layer`. Reasonable for the reference 4800 Hz
-    /// SV stream so the operator UI matches what they would see on a
-    /// real deployment.
-    pub fn mock(layer: Layer) -> Self {
-        match layer {
-            Layer::L0 => Self {
-                active_receivers: 3,
-                throughput_fps: 4800,
-            },
-            Layer::L1 => Self {
-                active_receivers: 2,
-                throughput_fps: 4800,
-            },
-            Layer::L2 => Self {
-                active_receivers: 1,
-                throughput_fps: 60,
-            },
-            Layer::L3 => Self {
-                active_receivers: 1,
-                throughput_fps: 4800,
-            },
-        }
-    }
+/// Live counters for the L0 demo, read from the shared
+/// [`DataPipeline`] each render.
+#[derive(Debug, Clone, Copy)]
+struct L0Status {
+    /// Whether the subscriber task is currently running.
+    active: bool,
+    /// Highest tick_id consumed since start.
+    last_tick_id: u64,
+    /// Total ticks consumed since start.
+    total_ticks: u64,
 }
 
-/// In-memory state of the four northbound layers.
-///
-/// Replaced by real adapter integration in Phase 4. Until then,
-/// enable/disable flips this flag, audit-logs via `tracing`, and
-/// returns the new state.
-#[derive(Debug)]
-pub struct NorthboundState {
-    l0: RwLock<bool>,
-    l1: RwLock<bool>,
-    l2: RwLock<bool>,
-    l3: RwLock<bool>,
-}
-
-impl NorthboundState {
-    /// Initial state: all layers disabled until explicitly enabled by
-    /// the operator. Phase 4 may flip the defaults after deployment
-    /// experience.
-    pub fn new() -> Self {
+impl L0Status {
+    fn from_pipeline(p: &DataPipeline) -> Self {
         Self {
-            l0: RwLock::new(false),
-            l1: RwLock::new(false),
-            l2: RwLock::new(false),
-            l3: RwLock::new(false),
+            active: p.l0_demo_active(),
+            last_tick_id: p.l0_demo_last_tick_id(),
+            total_ticks: p.l0_demo_total_ticks(),
         }
     }
-
-    /// Read the enabled flag for `layer`.
-    pub fn is_enabled(&self, layer: Layer) -> bool {
-        let cell = match layer {
-            Layer::L0 => &self.l0,
-            Layer::L1 => &self.l1,
-            Layer::L2 => &self.l2,
-            Layer::L3 => &self.l3,
-        };
-        cell.read().map(|g| *g).unwrap_or(false)
-    }
-
-    /// Set `enabled` for `layer`. Returns the previous value.
-    pub fn set(&self, layer: Layer, enabled: bool) -> bool {
-        let cell = match layer {
-            Layer::L0 => &self.l0,
-            Layer::L1 => &self.l1,
-            Layer::L2 => &self.l2,
-            Layer::L3 => &self.l3,
-        };
-        let mut guard = cell.write().expect("northbound state lock poisoned");
-        let prev = *guard;
-        *guard = enabled;
-        prev
-    }
 }
 
-impl Default for NorthboundState {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// State alias used by the axum handlers.
-pub type AppState = Arc<NorthboundState>;
-
-/// Build the North-bound sub-router with shared state.
+/// Build the northbound sub-router. No state — every render reads
+/// from [`crate::dataplane::global`].
 pub fn router() -> Router {
-    let state: AppState = Arc::new(NorthboundState::new());
     Router::new()
         .route("/north", get(north_index))
         .route("/north/:layer", get(north_layer))
-        .route("/api/north/:layer/enable", post(api_enable))
-        .route("/api/north/:layer/disable", post(api_disable))
-        .with_state(state)
 }
 
-async fn north_index(State(state): State<AppState>) -> Markup {
-    let rows: Vec<(Layer, bool, LayerMetrics)> = Layer::all()
-        .iter()
-        .copied()
-        .map(|l| (l, state.is_enabled(l), LayerMetrics::mock(l)))
-        .collect();
+async fn north_index() -> impl IntoResponse {
+    let pipeline = crate::dataplane::global();
+    let l0 = L0Status::from_pipeline(pipeline.as_ref());
 
     layout(
         Section::Northbound,
-        "North-bound application layers",
+        "Northbound application layers",
         html! {
             section.config-section {
                 div.config-section-head {
-                    h2 { "North-bound application layers" }
+                    h2 { "Northbound application layers" }
                     p.muted {
-                        "Four adapters fan data out from the SVDC core. Each row "
-                        "shows the endpoint the adapter publishes on, the number "
-                        "of consumers currently attached, and the rate at which "
-                        "the adapter is forwarding frames. Click a row to drill "
-                        "into the layer's detail page."
+                        "Four adapters fan SV-aligned telemetry out of the \
+                         SVDC core (SDD §8.2). Today only L0 is wired; the \
+                         others ship as Phase 4 stubs. Click a row for the \
+                         per-layer detail page."
                     }
                 }
                 table.layer-table {
@@ -241,14 +212,12 @@ async fn north_index(State(state): State<AppState>) -> Markup {
                             th.col-code   { "Layer" }
                             th.col-name   { "Adapter" }
                             th            { "Endpoint" }
-                            th.col-rx     { "Receivers" }
-                            th.col-fps    { "Throughput" }
-                            th.col-state  { "State" }
-                            th.col-actions { "Actions" }
+                            th.col-status { "Status" }
+                            th.col-detail { "Live" }
                         }
                     }
                     tbody {
-                        @for (layer, enabled, metrics) in &rows {
+                        @for layer in Layer::all().iter().copied() {
                             @let href = format!("/north/{}", layer.code());
                             tr.layer-row data-layer=(layer.code()) data-href=(href) {
                                 td.mono.col-code {
@@ -261,29 +230,11 @@ async fn north_index(State(state): State<AppState>) -> Markup {
                                 td.mono.endpoint-cell {
                                     code { (layer.endpoint()) }
                                 }
-                                td.mono.col-rx { (metrics.active_receivers) }
-                                td.mono.col-fps {
-                                    (metrics.throughput_fps) " fps"
+                                td.col-status {
+                                    (status_badge(layer, l0))
                                 }
-                                td.col-state {
-                                    @if *enabled {
-                                        span.state-badge.state-on { "Enabled" }
-                                    } @else {
-                                        span.state-badge.state-off { "Disabled" }
-                                    }
-                                }
-                                td.col-actions {
-                                    @if *enabled {
-                                        button.btn-secondary
-                                            type="button"
-                                            data-layer=(layer.code())
-                                            data-action="disable" { "Disable" }
-                                    } @else {
-                                        button.btn-primary
-                                            type="button"
-                                            data-layer=(layer.code())
-                                            data-action="enable" { "Enable" }
-                                    }
+                                td.col-detail.mono.small {
+                                    (live_summary(layer, l0))
                                 }
                             }
                         }
@@ -292,28 +243,59 @@ async fn north_index(State(state): State<AppState>) -> Markup {
             }
             section.placeholder {
                 p.muted {
-                    "Receivers and throughput are mock values until Phase 4 wires "
-                    "the real adapter counters in. Enable/disable is wired today "
-                    "via POST /api/north/:layer/{enable,disable}."
+                    "L0 counters are live — they reflect the running \
+                     subscriber task spawned by "
+                    code { "--enable-l0-demo" }
+                    ". L1, L2, and L3 do not yet have adapter modules; their \
+                     detail pages summarise what will land in Phase 4."
                 }
             }
-            script type="module" { (PreEscaped(LAYER_TOGGLE_JS)) }
             script type="module" { (PreEscaped(ROW_CLICK_JS)) }
         },
     )
 }
 
-async fn north_layer(State(state): State<AppState>, Path(layer_code): Path<String>) -> Markup {
-    match Layer::from_str(&layer_code) {
-        Some(layer) => {
-            let enabled = state.is_enabled(layer);
-            let metrics = LayerMetrics::mock(layer);
-            layout(
-                Section::Northbound,
-                &format!("{} — {}", layer.code(), layer.name()),
-                layer_detail_body(layer, enabled, metrics),
-            )
+/// Render the maturity / runtime-state badge for a layer.
+fn status_badge(layer: Layer, l0: L0Status) -> Markup {
+    match layer.maturity() {
+        Maturity::Wired => {
+            if l0.active {
+                html! { span.state-badge.state-on { "Wired · running" } }
+            } else {
+                html! { span.state-badge.state-off { "Wired · not started" } }
+            }
         }
+        Maturity::Planned { phase } => html! {
+            span.state-badge.state-planned {
+                "Planned (Phase " (phase) ")"
+            }
+        },
+    }
+}
+
+/// One-cell "live" summary on the index row. L0 shows the cursor;
+/// planned layers show an em-dash so the table stays aligned.
+fn live_summary(layer: Layer, l0: L0Status) -> Markup {
+    match layer {
+        Layer::L0 if l0.active => html! {
+            "tick_id=" (l0.last_tick_id) " · "
+            (l0.total_ticks) " drained"
+        },
+        Layer::L0 => html! { span.muted { "idle" } },
+        _ => html! { span.muted { "—" } },
+    }
+}
+
+async fn north_layer(Path(layer_code): Path<String>) -> impl IntoResponse {
+    let pipeline = crate::dataplane::global();
+    let l0 = L0Status::from_pipeline(pipeline.as_ref());
+
+    match Layer::from_str(&layer_code) {
+        Some(layer) => layout(
+            Section::Northbound,
+            &format!("{} — {}", layer.code(), layer.name()),
+            layer_detail_body(layer, l0),
+        ),
         None => layout(
             Section::Northbound,
             "Unknown layer",
@@ -328,7 +310,11 @@ async fn north_layer(State(state): State<AppState>, Path(layer_code): Path<Strin
     }
 }
 
-fn layer_detail_body(layer: Layer, enabled: bool, metrics: LayerMetrics) -> Markup {
+fn layer_detail_body(layer: Layer, l0: L0Status) -> Markup {
+    let detail = match layer.maturity() {
+        Maturity::Wired => wired_l0_body(layer, l0),
+        Maturity::Planned { phase } => planned_body(layer, phase),
+    };
     html! {
         section.config-section {
             div.config-section-head {
@@ -339,131 +325,122 @@ fn layer_detail_body(layer: Layer, enabled: bool, metrics: LayerMetrics) -> Mark
                     }
                     div.layer-detail-actions {
                         a.btn-secondary href="/north" { "← All layers" }
-                        @if enabled {
-                            button.btn-secondary
-                                type="button"
-                                data-layer=(layer.code())
-                                data-action="disable" { "Disable layer" }
-                        } @else {
-                            button.btn-primary
-                                type="button"
-                                data-layer=(layer.code())
-                                data-action="enable" { "Enable layer" }
-                        }
                     }
                 }
             }
-            table.layer-table {
-                tbody {
-                    tr {
-                        th { "State" }
-                        td {
-                            @if enabled {
-                                span.state-badge.state-on { "Enabled" }
-                            } @else {
-                                span.state-badge.state-off { "Disabled" }
-                            }
+            (detail)
+        }
+    }
+}
+
+/// Detail body for L0 — pulls real counters from the dataplane.
+fn wired_l0_body(layer: Layer, l0: L0Status) -> Markup {
+    html! {
+        table.layer-table {
+            tbody {
+                tr {
+                    th { "Status" }
+                    td { (status_badge(layer, l0)) }
+                }
+                tr {
+                    th { "Protocol" }
+                    td { (layer.protocol()) }
+                }
+                tr {
+                    th { "Activation" }
+                    td.mono { code { (layer.endpoint()) } }
+                }
+                tr {
+                    th { "Last tick_id consumed" }
+                    td.mono {
+                        @if l0.active {
+                            (l0.last_tick_id)
+                        } @else {
+                            span.muted { "—" }
                         }
                     }
+                }
+                tr {
+                    th { "Total ticks drained" }
+                    td.mono { (l0.total_ticks) }
+                }
+                tr {
+                    th { "ADR" }
+                    td.mono.small { (layer.adr().unwrap_or("—")) }
+                }
+            }
+        }
+        @if !l0.active {
+            section.placeholder {
+                h3 { "How to enable L0" }
+                p.muted {
+                    "The L0 reference subscriber is enabled at daemon boot. \
+                     Start svdc-bin with the demo flag to observe live ticks \
+                     on this page and on stdout:"
+                }
+                pre.codeblock { code {
+                    "cargo run --release -p svdc-bin -- \\\n"
+                    "    --ingress-udp 239.0.0.1:9100 \\\n"
+                    "    --enable-l0-demo"
+                } }
+                p.muted {
+                    "Pair with a southbound simulator on the same multicast \
+                     group (see "
+                    a href="/north" { "docs/northbound-simulators.md" }
+                    "). Counters above refresh on page reload."
+                }
+            }
+        }
+    }
+}
+
+/// Detail body for L1/L2/L3 — a single "Planned (Phase N)" card.
+/// No mock metrics, no toggle, no save buttons. Production adapter
+/// modules will replace this when they land.
+fn planned_body(layer: Layer, phase: u8) -> Markup {
+    html! {
+        section.placeholder {
+            div.placeholder-head {
+                span.state-badge.state-planned {
+                    "Planned (Phase " (phase) ")"
+                }
+            }
+            h3 { (layer.name()) }
+            p { (layer.purpose()) }
+            table.layer-table.layer-table-compact {
+                tbody {
                     tr {
                         th { "Protocol" }
                         td { (layer.protocol()) }
                     }
                     tr {
-                        th { "Endpoint" }
+                        th { "Target endpoint" }
                         td.mono { code { (layer.endpoint()) } }
                     }
                     tr {
-                        th { "Active receivers" }
-                        td.mono { (metrics.active_receivers) }
+                        th { "ADR" }
+                        td.mono.small {
+                            (layer.adr().unwrap_or("not yet authored"))
+                        }
                     }
                     tr {
-                        th { "Throughput" }
-                        td.mono { (metrics.throughput_fps) " fps" }
+                        th { "Runbook section" }
+                        td.mono.small {
+                            "docs/northbound-simulators.md"
+                            (layer.runbook_anchor())
+                        }
                     }
                 }
             }
-        }
-        section.placeholder {
-            p.muted {
-                "Receivers / throughput are mock values until Phase 4 wires real "
-                "adapter counters. Per-adapter configuration (port, broker URL, "
-                "DB credentials) lands under WBS-9.4b alongside the real adapter "
-                "module that owns those settings."
+            p.muted.small {
+                "No adapter module is wired today. This page is a stub; the \
+                 control surface (endpoint binding, credentials, throttling) \
+                 will land alongside the adapter implementation in its own \
+                 crate."
             }
         }
-        script type="module" { (PreEscaped(LAYER_TOGGLE_JS)) }
     }
 }
-
-/// API response body: the new (post-action) state of a layer.
-#[derive(Debug, Serialize)]
-pub struct LayerStateResponse {
-    /// Layer code (`L0`..`L3`).
-    pub layer: &'static str,
-    /// Layer enabled state after the action completed.
-    pub enabled: bool,
-    /// Whether the request changed state (false = already in target state).
-    pub changed: bool,
-}
-
-async fn api_enable(State(state): State<AppState>, Path(code): Path<String>) -> impl IntoResponse {
-    api_toggle(state, &code, true)
-}
-
-async fn api_disable(State(state): State<AppState>, Path(code): Path<String>) -> impl IntoResponse {
-    api_toggle(state, &code, false)
-}
-
-fn api_toggle(state: AppState, code: &str, target: bool) -> (StatusCode, Json<LayerStateResponse>) {
-    let Some(layer) = Layer::from_str(code) else {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(LayerStateResponse {
-                layer: "?",
-                enabled: false,
-                changed: false,
-            }),
-        );
-    };
-    let prev = state.set(layer, target);
-    let changed = prev != target;
-    if changed {
-        audit::record(AuditEvent::NorthboundStateChange {
-            layer: layer.code().to_string(),
-            enabled: target,
-        });
-    }
-    (
-        StatusCode::OK,
-        Json(LayerStateResponse {
-            layer: layer.code(),
-            enabled: target,
-            changed,
-        }),
-    )
-}
-
-const LAYER_TOGGLE_JS: &str = r#"
-document.querySelectorAll('button[data-layer][data-action]').forEach((btn) => {
-  btn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    const layer = btn.getAttribute('data-layer');
-    const action = btn.getAttribute('data-action');
-    btn.disabled = true;
-    try {
-      const resp = await fetch('/api/north/' + layer + '/' + action, { method: 'POST' });
-      if (resp.ok) {
-        window.location.reload();
-      } else {
-        btn.disabled = false;
-      }
-    } catch (_) {
-      btn.disabled = false;
-    }
-  });
-});
-"#;
 
 const ROW_CLICK_JS: &str = r#"
 document.querySelectorAll('tr.layer-row[data-href]').forEach((row) => {
@@ -510,55 +487,92 @@ mod tests {
     }
 
     #[test]
-    fn state_set_returns_previous_and_persists() {
-        let s = NorthboundState::new();
-        assert!(!s.is_enabled(Layer::L1));
-        let prev = s.set(Layer::L1, true);
-        assert!(!prev);
-        assert!(s.is_enabled(Layer::L1));
-        let prev2 = s.set(Layer::L1, true);
-        assert!(prev2);
-        assert!(s.is_enabled(Layer::L1));
+    fn only_l0_is_wired() {
+        assert_eq!(Layer::L0.maturity(), Maturity::Wired);
+        for l in [Layer::L1, Layer::L2, Layer::L3] {
+            assert!(matches!(l.maturity(), Maturity::Planned { phase: 4 }));
+        }
     }
 
     #[test]
-    fn api_toggle_reports_changed_correctly() {
-        let s: AppState = Arc::new(NorthboundState::new());
-        let (code, body) = api_toggle(s.clone(), "L2", true);
-        assert_eq!(code, StatusCode::OK);
-        assert!(body.0.enabled);
-        assert!(body.0.changed);
-
-        let (_, body2) = api_toggle(s.clone(), "L2", true);
-        assert!(body2.0.enabled);
-        assert!(!body2.0.changed, "second enable must report changed=false");
-
-        let (_, body3) = api_toggle(s, "L2", false);
-        assert!(!body3.0.enabled);
-        assert!(body3.0.changed);
+    fn status_badge_reflects_l0_runtime_state() {
+        let running = L0Status {
+            active: true,
+            last_tick_id: 123,
+            total_ticks: 456,
+        };
+        let idle = L0Status {
+            active: false,
+            last_tick_id: 0,
+            total_ticks: 0,
+        };
+        let on = status_badge(Layer::L0, running).into_string();
+        assert!(on.contains("Wired"));
+        assert!(on.contains("running"));
+        let off = status_badge(Layer::L0, idle).into_string();
+        assert!(off.contains("Wired"));
+        assert!(off.contains("not started"));
+        let planned = status_badge(Layer::L1, idle).into_string();
+        assert!(planned.contains("Planned"));
+        assert!(planned.contains("Phase 4"));
     }
 
     #[test]
-    fn api_toggle_404_on_unknown_layer() {
-        let s: AppState = Arc::new(NorthboundState::new());
-        let (code, _) = api_toggle(s, "L9", true);
-        assert_eq!(code, StatusCode::NOT_FOUND);
+    fn live_summary_shows_tick_id_when_l0_active() {
+        let running = L0Status {
+            active: true,
+            last_tick_id: 999,
+            total_ticks: 4800,
+        };
+        let s = live_summary(Layer::L0, running).into_string();
+        assert!(s.contains("999"));
+        assert!(s.contains("4800"));
+        assert!(s.contains("drained"));
     }
 
     #[test]
-    fn layer_detail_body_renders_all_facts() {
-        let m = LayerMetrics::mock(Layer::L0);
-        let s = layer_detail_body(Layer::L0, true, m).into_string();
-        assert!(s.contains("L0"));
-        assert!(s.contains("Shared Memory RingBuffer"));
-        assert!(s.contains("/dev/shm/svdc_l0_ring"));
-        assert!(s.contains("4800 fps"));
-        assert!(s.contains("Enabled"));
+    fn live_summary_for_planned_layers_is_em_dash() {
+        let idle = L0Status {
+            active: false,
+            last_tick_id: 0,
+            total_ticks: 0,
+        };
+        for l in [Layer::L1, Layer::L2, Layer::L3] {
+            let s = live_summary(l, idle).into_string();
+            assert!(s.contains("—"), "layer {} missing em-dash", l.code());
+        }
     }
 
     #[test]
-    fn row_click_js_excludes_inner_interactives() {
-        assert!(ROW_CLICK_JS.contains("a, button, input, label"));
-        assert!(ROW_CLICK_JS.contains("tabindex"));
+    fn wired_l0_body_shows_activation_command() {
+        let idle = L0Status {
+            active: false,
+            last_tick_id: 0,
+            total_ticks: 0,
+        };
+        let body = wired_l0_body(Layer::L0, idle).into_string();
+        assert!(body.contains("--enable-l0-demo"));
+        assert!(body.contains("How to enable"));
+    }
+
+    #[test]
+    fn wired_l0_body_hides_activation_help_when_running() {
+        let running = L0Status {
+            active: true,
+            last_tick_id: 1,
+            total_ticks: 1,
+        };
+        let body = wired_l0_body(Layer::L0, running).into_string();
+        assert!(!body.contains("How to enable"));
+    }
+
+    #[test]
+    fn planned_body_does_not_pretend_to_be_active() {
+        let body = planned_body(Layer::L1, 4).into_string();
+        assert!(body.contains("Planned"));
+        assert!(body.contains("Phase 4"));
+        assert!(!body.contains("running"));
+        assert!(!body.contains("Disable"));
+        assert!(!body.contains("Enable"));
     }
 }

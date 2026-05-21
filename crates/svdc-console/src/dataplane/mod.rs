@@ -88,6 +88,19 @@ pub struct DataPipeline {
     /// (PR F). Real UDP ingress ignores this — vendor identity
     /// there is whatever the simulator emits.
     selected_vendor: Mutex<Option<&'static ssiec_sv_publisher::VendorProfile>>,
+    /// True when `svdc-bin` was started with `--enable-l0-demo` and
+    /// the L0 reference subscriber task is running. Read by
+    /// `/north` to badge L0 as "Wired (running)" vs "Wired
+    /// (not started)" without forcing the UI to guess from log
+    /// scraping. Set by `spawn_l0_demo` (PR H).
+    l0_demo_active: AtomicBool,
+    /// Highest tick_id the L0 demo has emitted via `read_since`.
+    /// Surfaced on `/north/L0` as the cursor proof-of-life.
+    l0_demo_last_tick_id: AtomicU64,
+    /// Total ticks the L0 demo has drained since it started.
+    /// Distinct from [`Self::ticks_emitted`] because that counter
+    /// tracks the synthetic loop, not the L0 subscriber.
+    l0_demo_total_ticks: AtomicU64,
 }
 
 /// One row in [`DataPipeline::seen_mus`]. Tracks first-seen,
@@ -125,7 +138,44 @@ impl DataPipeline {
             external_feed_active: AtomicBool::new(false),
             seen_mus: Mutex::new(BTreeMap::new()),
             selected_vendor: Mutex::new(None),
+            l0_demo_active: AtomicBool::new(false),
+            l0_demo_last_tick_id: AtomicU64::new(0),
+            l0_demo_total_ticks: AtomicU64::new(0),
         }
+    }
+
+    /// Mark the L0 reference subscriber as running (or stopped).
+    /// Called once by `spawn_l0_demo` in `svdc-bin` after the task
+    /// successfully subscribes. The flag drives the badge on
+    /// `/north` and the "Wired (running)" state on `/north/L0`.
+    pub fn mark_l0_demo_active(&self, active: bool) {
+        self.l0_demo_active.store(active, Ordering::Relaxed);
+    }
+
+    /// Record one tick consumed by the L0 demo. Updates both the
+    /// last-seen cursor and the running total. Called once per
+    /// tick inside `spawn_l0_demo`'s `read_since` drain.
+    pub fn record_l0_demo_tick(&self, tick_id: u64) {
+        self.l0_demo_last_tick_id.store(tick_id, Ordering::Relaxed);
+        self.l0_demo_total_ticks.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Whether the L0 demo subscriber is running. False means the
+    /// daemon was started without `--enable-l0-demo`; toggling at
+    /// runtime is not supported (the flag is read once at boot).
+    pub fn l0_demo_active(&self) -> bool {
+        self.l0_demo_active.load(Ordering::Relaxed)
+    }
+
+    /// Highest tick_id the L0 demo has consumed since it started.
+    /// Zero before the first read or when the demo is not running.
+    pub fn l0_demo_last_tick_id(&self) -> u64 {
+        self.l0_demo_last_tick_id.load(Ordering::Relaxed)
+    }
+
+    /// Total ticks drained by the L0 demo since process start.
+    pub fn l0_demo_total_ticks(&self) -> u64 {
+        self.l0_demo_total_ticks.load(Ordering::Relaxed)
     }
 
     /// Set the synthetic-loop vendor preset by name (case-insensitive

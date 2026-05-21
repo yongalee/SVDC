@@ -315,6 +315,33 @@ button:disabled { opacity: 0.55; cursor: progress; }
 }
 .state-on  { background-color: rgba(22, 163, 74, 0.14); color: var(--status-ok);   border: 1px solid rgba(22, 163, 74, 0.3); }
 .state-off { background-color: rgba(154, 160, 166, 0.14); color: var(--status-unknown); border: 1px solid rgba(154, 160, 166, 0.3); }
+.state-planned { background-color: rgba(251, 191, 36, 0.14); color: #b45309; border: 1px solid rgba(251, 191, 36, 0.32); }
+
+/* Northbound index — added in PR I */
+.layer-table .col-status { width: 160px; }
+.layer-table .col-detail { width: 220px; }
+.layer-table-compact { margin-top: 12px; }
+.layer-table-compact th { width: 180px; }
+.placeholder-head { margin-bottom: 8px; }
+.codeblock {
+    background: #0f1115;
+    color: #e5e7eb;
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-x: auto;
+    margin: 8px 0 12px;
+}
+.codeblock code {
+    font-family: 'JetBrains Mono', monospace;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    white-space: pre;
+}
+.small { font-size: 12px; }
 
 .layer-detail h2 { margin: 12px 0 4px; }
 .layer-detail .layer-state { margin: 12px 0 16px; }
