@@ -750,6 +750,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "svdc-opcua"
+version = "0.0.1"
+
+[[package]]
 name = "svdc-subscribe"
 version = "0.0.1"
 dependencies = [

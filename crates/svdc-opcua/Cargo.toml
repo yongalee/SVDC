@@ -1,0 +1,18 @@
+[package]
+name = "svdc-opcua"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "L1 northbound layer: OPC UA Information Model + AddressSpace builder per ADR-0017."
+
+# PR K: library-neutral AddressSpace model + IEC 61850 ↔ OPC UA
+# quality and timestamp mappings. PR L adds the actual `opcua`
+# server dep and wires the AddressSpaceNode list into
+# `opcua::server::address_space::AddressSpace`. Keeping the
+# dependency surface empty here means the mapping is unit-testable
+# without a network stack and survives a library swap (per
+# ADR-0017 §1 trade-off matrix).
+
+[dependencies]
