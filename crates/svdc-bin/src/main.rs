@@ -31,12 +31,16 @@ fn print_help() {
         "                                   (calibration, etc.). Loaded on startup; auto-saved"
     );
     println!("                                   on every operator change. Created if absent.");
+    println!("        --audit-log <p>            Path to the append-only audit JSONL file.");
+    println!("                                   Loaded on startup; each subsequent operator");
+    println!("                                   action appends one line. Created if absent.");
     println!();
     println!("ENVIRONMENT VARIABLES:");
     println!("    SVDC_UI=1                      Enables the Operator Console");
     println!("    SVDC_NO_UI=1                   Disables the Operator Console");
     println!("    SVDC_UI_BIND                   Bind address for the Operator Console");
     println!("    SVDC_OPERATIONAL_CONFIG        Path equivalent of --operational-config");
+    println!("    SVDC_AUDIT_LOG                 Path equivalent of --audit-log");
 }
 
 #[derive(Debug)]
@@ -44,6 +48,7 @@ struct Config {
     ui_enabled: bool,
     ui_bind: SocketAddr,
     operational_path: Option<PathBuf>,
+    audit_log_path: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -63,6 +68,7 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
     let mut cli_ui: Option<bool> = None;
     let mut cli_bind: Option<String> = None;
     let mut cli_op_path: Option<PathBuf> = None;
+    let mut cli_audit_path: Option<PathBuf> = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -99,6 +105,13 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
                 }
                 cli_op_path = Some(PathBuf::from(&args[i]));
             }
+            "--audit-log" => {
+                i += 1;
+                if i >= args.len() {
+                    return Err(ConfigError::MissingValue("--audit-log requires a path"));
+                }
+                cli_audit_path = Some(PathBuf::from(&args[i]));
+            }
             other => return Err(ConfigError::UnknownArg(other.to_string())),
         }
         i += 1;
@@ -132,11 +145,14 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
 
     let operational_path =
         cli_op_path.or_else(|| env::var("SVDC_OPERATIONAL_CONFIG").ok().map(PathBuf::from));
+    let audit_log_path =
+        cli_audit_path.or_else(|| env::var("SVDC_AUDIT_LOG").ok().map(PathBuf::from));
 
     Ok(Config {
         ui_enabled,
         ui_bind,
         operational_path,
+        audit_log_path,
     })
 }
 
@@ -181,6 +197,25 @@ fn main() -> ExitCode {
             Err(e) => {
                 eprintln!(
                     "Error: could not configure operational persistence ({}): {e}",
+                    path.display()
+                );
+                return ExitCode::FAILURE;
+            }
+        }
+    }
+
+    // Wire the audit log to its on-disk JSONL file. Existing records
+    // replay into the in-memory ring so /api/audit shows operator
+    // history from before the restart.
+    if let Some(path) = cfg.audit_log_path.as_ref() {
+        match svdc_console::audit::global().configure_persistence(path.clone()) {
+            Ok(n) => println!(
+                "svdc: audit log persisted to {} ({n} historical record(s) replayed)",
+                path.display()
+            ),
+            Err(e) => {
+                eprintln!(
+                    "Error: could not configure audit persistence ({}): {e}",
                     path.display()
                 );
                 return ExitCode::FAILURE;
@@ -278,6 +313,21 @@ mod tests {
     #[test]
     fn operational_config_missing_value_errors() {
         let r = resolve_config(&args(&["--operational-config"]));
+        assert!(matches!(r, Err(ConfigError::MissingValue(_))));
+    }
+
+    #[test]
+    fn audit_log_path_captured() {
+        let cfg = resolve_config(&args(&["--audit-log", "/var/svdc/audit.jsonl"])).unwrap();
+        assert_eq!(
+            cfg.audit_log_path.map(|p| p.display().to_string()),
+            Some("/var/svdc/audit.jsonl".to_string())
+        );
+    }
+
+    #[test]
+    fn audit_log_missing_value_errors() {
+        let r = resolve_config(&args(&["--audit-log"]));
         assert!(matches!(r, Err(ConfigError::MissingValue(_))));
     }
 }
