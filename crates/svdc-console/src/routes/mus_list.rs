@@ -264,10 +264,10 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
             getWaveformPath(rms, angle, phaseShift) {{
                 let points = [];
                 let width = 240;
-                let height = 150;
-                let centerY = height / 2;
+                let height = 60;
+                let centerY = 30;
                 let scaleX = width / 360;
-                let scaleY = 45;
+                let scaleY = 14;
                 let shiftRad = (parseFloat(phaseShift) + parseFloat(angle)) * Math.PI / 180;
                 for (let deg = 0; deg <= 360; deg += 10) {{
                     let rad = deg * Math.PI / 180;
@@ -341,7 +341,7 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
             div class="grid grid-cols-1 lg:grid-cols-12 gap-6" {
                 
                 // Left & Center Column (Settings Form)
-                div class="lg:col-span-8 flex flex-col gap-6" {
+                div class="lg:col-span-9 flex flex-col gap-6" {
                     
                     // IEC 61850 Ingestion parameters
                     div class="glass-card shadow-md" {
@@ -422,67 +422,67 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                         div class="card-header border-b border-border-color pb-3" {
                             h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "3. 3-Phase Calibration Magnitude & Angle Offsets" }
                         }
-                        div class="card-body mt-4 flex flex-col gap-4" {
+                        div class="card-body mt-3 flex flex-col gap-3" {
                             
                             // Voltage calibration parameters
-                            div class="border-b border-border-color pb-3" {
-                                h4 class="text-xs font-bold text-accent-blue uppercase mb-2" { "Voltage Channels (Va, Vb, Vc)" }
-                                div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-[11px]" {
+                            div class="border-b border-border-color pb-2.5" {
+                                h4 class="text-xs font-bold text-accent-blue uppercase mb-1.5" { "Voltage Channels (Va, Vb, Vc)" }
+                                div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[10px]" {
                                     
                                     // Va
-                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex flex-col gap-1.5" {
                                         span class="font-bold text-accent-red" { "Phase A Voltage (Va)" }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Magnitude Multiplier" }
                                                 span class="font-bold font-mono" x-text="parseFloat(rms_va).toFixed(3)" {}
                                             }
-                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_va";
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="rms_va";
                                         }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Phase Angle Offset" }
                                                 span class="font-bold font-mono" x-text="parseFloat(angle_va).toFixed(1) + '°'" {}
                                             }
-                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_va";
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="angle_va";
                                         }
                                     }
 
                                     // Vb
-                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex flex-col gap-1.5" {
                                         span class="font-bold text-accent-green" { "Phase B Voltage (Vb)" }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Magnitude Multiplier" }
                                                 span class="font-bold font-mono" x-text="parseFloat(rms_vb).toFixed(3)" {}
                                             }
-                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_vb";
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="rms_vb";
                                         }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Phase Angle Offset" }
                                                 span class="font-bold font-mono" x-text="parseFloat(angle_vb).toFixed(1) + '°'" {}
                                             }
-                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_vb";
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="angle_vb";
                                         }
                                     }
 
                                     // Vc
-                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex flex-col gap-1.5" {
                                         span class="font-bold text-accent-blue" { "Phase C Voltage (Vc)" }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Magnitude Multiplier" }
                                                 span class="font-bold font-mono" x-text="parseFloat(rms_vc).toFixed(3)" {}
                                             }
-                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_vc";
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="rms_vc";
                                         }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Phase Angle Offset" }
                                                 span class="font-bold font-mono" x-text="parseFloat(angle_vc).toFixed(1) + '°'" {}
                                             }
-                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_vc";
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="angle_vc";
                                         }
                                     }
 
@@ -491,63 +491,63 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
 
                             // Current calibration parameters
                             div {
-                                h4 class="text-xs font-bold text-accent-yellow uppercase mb-2" { "Current Channels (Ia, Ib, Ic)" }
-                                div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-[11px]" {
+                                h4 class="text-xs font-bold text-accent-yellow uppercase mb-1.5" { "Current Channels (Ia, Ib, Ic)" }
+                                div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[10px]" {
                                     
                                     // Ia
-                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex flex-col gap-1.5" {
                                         span class="font-bold text-[#d97706]" { "Phase A Current (Ia)" }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Magnitude Multiplier" }
                                                 span class="font-bold font-mono" x-text="parseFloat(rms_ia).toFixed(3)" {}
                                             }
-                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_ia";
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="rms_ia";
                                         }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Phase Angle Offset" }
                                                 span class="font-bold font-mono" x-text="parseFloat(angle_ia).toFixed(1) + '°'" {}
                                             }
-                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_ia";
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="angle_ia";
                                         }
                                     }
 
                                     // Ib
-                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex flex-col gap-1.5" {
                                         span class="font-bold text-[#8b5cf6]" { "Phase B Current (Ib)" }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Magnitude Multiplier" }
                                                 span class="font-bold font-mono" x-text="parseFloat(rms_ib).toFixed(3)" {}
                                             }
-                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_ib";
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="rms_ib";
                                         }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Phase Angle Offset" }
                                                 span class="font-bold font-mono" x-text="parseFloat(angle_ib).toFixed(1) + '°'" {}
                                             }
-                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_ib";
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="angle_ib";
                                         }
                                     }
 
                                     // Ic
-                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                    div class="bg-bg-secondary p-2 rounded border border-border-color flex flex-col gap-1.5" {
                                         span class="font-bold text-[#14b8a6]" { "Phase C Current (Ic)" }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Magnitude Multiplier" }
                                                 span class="font-bold font-mono" x-text="parseFloat(rms_ic).toFixed(3)" {}
                                             }
-                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_ic";
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="rms_ic";
                                         }
-                                        div class="flex flex-col gap-1" {
-                                            div class="flex justify-between text-[10px]" {
+                                        div class="flex flex-col gap-0.5" {
+                                            div class="flex justify-between text-[9px]" {
                                                 span { "Phase Angle Offset" }
                                                 span class="font-bold font-mono" x-text="parseFloat(angle_ic).toFixed(1) + '°'" {}
                                             }
-                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_ic";
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-0.5 bg-bg-primary rounded appearance-none cursor-pointer" x-model="angle_ic";
                                         }
                                     }
 
@@ -560,29 +560,29 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                 }
 
                 // Right Column (Visualizations & Operations)
-                div class="lg:col-span-4 flex flex-col gap-6" {
+                div class="lg:col-span-3 flex flex-col gap-6" {
                     
                     // Waveform panel
                     div class="glass-card shadow-md" {
                         div class="card-header border-b border-border-color pb-3" {
                             h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Interactive Waveform Plot" }
                         }
-                        div class="card-body mt-4 flex flex-col items-center gap-4" {
-                            div class="bg-[#0f172a] rounded-lg p-2.5 border border-border-color shadow-inner w-full flex items-center justify-center" {
+                        div class="card-body mt-3 flex flex-col items-center gap-3" {
+                            div class="waveform-container" {
                                 // SVG waveform canvas
-                                svg viewBox="0 0 240 150" class="w-full h-auto block" {
+                                svg viewBox="0 0 240 60" class="waveform-svg" {
                                     // Zero line grid
-                                    line x1="0" y1="75" x2="240" y2="75" stroke="#334155" stroke-width="1.5" stroke-dasharray="2" {}
+                                    line x1="0" y1="30" x2="240" y2="30" stroke="#cbd5e1" stroke-width="0.3" stroke-dasharray="2" {}
                                     
                                     // Dynamic Phase Paths (Voltage sine waves Va, Vb, Vc)
                                     path x-bind:d="getWaveformPath(rms_va, angle_va, 0)"
-                                         fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" {}
+                                         fill="none" stroke="#ef4444" stroke-width="0.5" stroke-linecap="round" {}
                                          
                                     path x-bind:d="getWaveformPath(rms_vb, angle_vb, 120)"
-                                         fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" {}
+                                         fill="none" stroke="#22c55e" stroke-width="0.5" stroke-linecap="round" {}
                                          
                                     path x-bind:d="getWaveformPath(rms_vc, angle_vc, 240)"
-                                         fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" {}
+                                         fill="none" stroke="#3b82f6" stroke-width="0.5" stroke-linecap="round" {}
                                 }
                             }
                             
