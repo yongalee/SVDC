@@ -93,35 +93,36 @@ Total: 15.5 PD (UI Doc §7.1). Claude lane: ~8 PD. Antigravity lane:
 
 ## Dependency graph for issues
 
+Actual GitHub issue numbers (seeded 2026-05-21):
+
 ```
-issue #9   [for:claude]      ADR-0004 confirmation review
-issue #10  [for:claude]      ADR-0005 confirmation review
-issue #11  [for:claude]      IP v0.3 patch confirmation review
+issue #10  [for:claude]      ADR-0004 confirmation review
+issue #11  [for:claude]      ADR-0005 confirmation review
+issue #12  [for:claude]      IP v0.3 patch confirmation review
                   │
-                  ▼ (blocked-on the three reviews — but not really,
-                     they are records of decisions already taken;
-                     these issues exist for traceability)
-issue #12  [for:antigravity] WBS-9.1b: svdc-console crate scaffold + rust-embed
-issue #13  [for:antigravity] CI: add svdc-console to build matrix + Playwright job stub
+                  ▼ (review issues — records of decisions already taken,
+                     exist for traceability)
+issue #13  [for:antigravity] WBS-9.1b: svdc-console crate scaffold + rust-embed
+issue #14  [for:antigravity] CI: add svdc-console to build matrix + Playwright job stub
                   │
-                  ▼ (12 and 13 unblock everything below)
-issue #14  [for:claude]      WBS-9.1a: base layout, sidebar, top bar
-issue #15  [for:claude]      WBS-9.2a: Dashboard tiles + typed SSE contract
-issue #16  [for:antigravity] WBS-9.2b: SSE emitter + mock data
+                  ▼ (13 and 14 unblock everything below)
+issue #15  [for:claude]      WBS-9.1a: base layout, sidebar, top bar
+issue #16  [for:claude]      WBS-9.2a: Dashboard tiles + typed SSE contract
+issue #17  [for:antigravity] WBS-9.2b: SSE emitter + mock data
                   │
                   ▼ (Dashboard end-to-end visible, parallel work resumes)
-issue #17  [for:claude]      WBS-9.3a: MU detail + downsampler + SVG
-issue #18  [for:antigravity] WBS-9.3b: MU list page + cards
-issue #19  [for:claude]      WBS-9.4a: Northbound shell + enable/disable API
-issue #20  [for:antigravity] WBS-9.4b: L0/L1/L2/L3 layer cards
-issue #21  [for:claude]      WBS-9.5a: latency histogram + p50/p99
-issue #22  [for:antigravity] WBS-9.5b: PTP/CB charts + audit log
-issue #23  [for:claude]      WBS-9.6a: SCD validator + channel model
-issue #24  [for:antigravity] WBS-9.6b: Config form + About
-issue #25  [for:antigravity] WBS-9.7: Playwright E2E suite
+issue #18  [for:claude]      WBS-9.3a: MU detail + downsampler + SVG
+issue #19  [for:antigravity] WBS-9.3b: MU list page + cards
+issue #20  [for:claude]      WBS-9.4a: Northbound shell + enable/disable API
+issue #21  [for:antigravity] WBS-9.4b: L0/L1/L2/L3 layer cards
+issue #22  [for:claude]      WBS-9.5a: latency histogram + p50/p99
+issue #23  [for:antigravity] WBS-9.5b: PTP/CB charts + audit log
+issue #24  [for:claude]      WBS-9.6a: SCD validator + channel model
+issue #25  [for:antigravity] WBS-9.6b: Config form + About
+issue #26  [for:antigravity] WBS-9.7: Playwright E2E suite
 ```
 
-After #12 and #13 land on `main`, parallel work is possible: any
+After #13 and #14 land on `main`, parallel work is possible: any
 `for:claude` issue can run alongside any `for:antigravity` issue
 provided their files don't overlap (the table above guarantees they
 don't).
@@ -207,13 +208,13 @@ After this document is merged to `main`:
 
 1. Read this document, `0004-ui-stack.md`, `0005-daemon-vs-ui-mode.md`,
    `0001-dual-agent-workflow.md`, and UI Doc §4 + §6 + §7.
-2. Pick up issue **#12** (WBS-9.1b crate scaffold). Branch:
+2. Pick up issue **#13** (WBS-9.1b crate scaffold). Branch:
    `antigravity/wbs-9-1b-crate-scaffold`. Land it. Open PR.
-3. Pick up issue **#13** (CI extension). Branch:
+3. Pick up issue **#14** (CI extension). Branch:
    `antigravity/wbs-9-1-ci-matrix`. Land it. Open PR.
-4. After both merge, you are unblocked on issues **#16, #18, #20,
-   #22, #24, #25** (mark them ready in priority order). Pick the one
+4. After both merge, you are unblocked on issues **#17, #19, #21,
+   #23, #25, #26** (mark them ready in priority order). Pick the one
    whose Claude-side prerequisite is already merged.
 
-Claude's parallel sequence starts at issue **#14** (WBS-9.1a base
-layout) once #12 has landed and the crate exists to put templates in.
+Claude's parallel sequence starts at issue **#15** (WBS-9.1a base
+layout) once #13 has landed and the crate exists to put templates in.
