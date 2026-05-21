@@ -83,7 +83,7 @@ when the server-side lands):
 
 | ADR  | Subject                                                |
 | ---- | ------------------------------------------------------ |
-| 0017 | OPC UA address space mapping: `TickRecord` → nodes     |
+| 0017 | OPC UA address space mapping + library choice ([accepted](0017-l1-opcua-server.md)) |
 | 0018 | MQTT topic structure + payload schema (JSON / CBOR)    |
 | 0019 | TimescaleDB schema, hypertables, retention policy      |
 | 0020 | IEEE C37.118.2 frame mapping from `TickRecord` + phasor computation |
@@ -174,21 +174,24 @@ turn on.
 | -- | ------------------------------------------------------------------ | ----- |
 | A  | ✅ ADR-0015 + simulator-runbook + README                            | 0     |
 | B  | ✅ UdpSubscriber + `--ingress-udp` + `/dataplane` toggle             | 0     |
-| C  | Dashboard live counters from TickBuffer                            | 0     |
-| D  | MU list auto-registration from incoming svIDs                      | 0     |
-| E  | MU detail live waveform                                            | 0     |
-| F  | `/dataplane` vendor selector (queued from ADR-0014)                | 0     |
-| **G** | **ADR-0016 + northbound-simulators runbook (this PR)**          | **0** |
-| **H** | **L0 in-process consumer demo (`svdc-l0-consumer-demo`)**       | **0** |
-| I  | ADR-0017: OPC UA address space + `svdc-opcua` server scaffold      | 4     |
-| J  | `svdc-l1-opcua-client` simulator                                   | 4     |
-| K  | ADR-0018: MQTT topic schema + `svdc-mqtt` publisher scaffold       | 4     |
-| L  | `svdc-l2-mqtt-subscriber` simulator                                | 4     |
-| M  | ADR-0019: TimescaleDB schema + `svdc-historian-tsdb` sidecar       | 4     |
-| N  | `svdc-l3-historian-query` simulator                                | 4     |
-| O  | ADR-0020: Phasor Computation Module + C37.118 emission             | 4     |
-| P  | `svdc-c37118-pdc-sim` master-node PDC simulator                    | 4     |
-| Q  | ADR-0021: COMTRADE writer for fault windows                        | 5     |
+| C  | ✅ Dashboard live counters from TickBuffer                          | 0     |
+| D  | ✅ MU list auto-registration from incoming svIDs                    | 0     |
+| E  | ✅ MU detail live waveform                                          | 0     |
+| F  | ✅ `/dataplane` vendor selector (queued from ADR-0014)              | 0     |
+| G  | ✅ ADR-0016 + northbound-simulators runbook                         | 0     |
+| H  | ✅ L0 in-process consumer demo (`--enable-l0-demo` on `svdc-bin`)   | 0     |
+| I  | ✅ Truthful `/north` UI driven by real L0 state (not in original plan; inserted to honest-up the page before adding L1) | 0 |
+| J  | **ADR-0017: OPC UA library + address-space mapping (this PR, docs-only)** | **4 (planning)** |
+| K  | `svdc-opcua` crate scaffold + AddressSpace builder + unit tests     | 4     |
+| L  | `--enable-opcua` daemon flag + `/north/L1` wiring                   | 4     |
+| M  | `svdc-l1-opcua-client` simulator                                    | 4     |
+| N  | ADR-0018: MQTT topic schema + `svdc-mqtt` publisher scaffold        | 4     |
+| O  | `svdc-l2-mqtt-subscriber` simulator                                 | 4     |
+| P  | ADR-0019: TimescaleDB schema + `svdc-historian-tsdb` sidecar        | 4     |
+| Q  | `svdc-l3-historian-query` simulator                                 | 4     |
+| R  | ADR-0020: Phasor Computation Module + C37.118 emission              | 4     |
+| S  | `svdc-c37118-pdc-sim` master-node PDC simulator                     | 4     |
+| T  | ADR-0021: COMTRADE writer for fault windows                         | 5     |
 
 ## Out of scope
 
