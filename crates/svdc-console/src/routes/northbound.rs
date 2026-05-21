@@ -240,7 +240,7 @@ async fn northbound_page() -> Html<String> {
                         template x-for="a in filteredAdapters()" x-bind:key="a.id" {
                             tr class="cursor-pointer hover:bg-bg-surface"
                                x-bind:class="selectedAdapters.includes(a.id) ? 'row-selected' : ''"
-                               x-on:click="if (!$event.target.closest('input') && !$event.target.closest('a')) window.location.href = '/north/' + a.id.toLowerCase()" {
+                               x-on:click="if (!$event.target.closest('input') && !$event.target.closest('a') && !$event.target.closest('.switch-container')) window.location.href = '/north/' + a.id.toLowerCase()" {
                                 td class="text-center" {
                                     input type="checkbox" x-bind:value="a.id" x-model="selectedAdapters";
                                 }

@@ -1027,5 +1027,22 @@ input[type="range"]::-moz-range-thumb:hover {
     display: block;
 }
 
+/* Explicit alignments for industrial grid elements to prevent browser default th/td overrides */
+.industrial-grid th.text-left,
+.industrial-grid td.text-left {
+    text-align: left !important;
+}
+
+.industrial-grid th.text-center,
+.industrial-grid td.text-center {
+    text-align: center !important;
+}
+
+.industrial-grid th.text-right,
+.industrial-grid td.text-right {
+    text-align: right !important;
+}
+
+
 
 

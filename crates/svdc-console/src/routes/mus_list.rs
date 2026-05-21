@@ -151,7 +151,9 @@ async fn mus_list_page() -> Html<String> {
                     }
                     tbody {
                         template x-for="mu in filteredMus()" x-bind:key="mu.id" {
-                            tr x-bind:class="selectedMus.includes(mu.id) ? 'row-selected' : ''" {
+                            tr class="cursor-pointer hover:bg-bg-surface"
+                               x-bind:class="selectedMus.includes(mu.id) ? 'row-selected' : ''"
+                               x-on:click="if (!$event.target.closest('input') && !$event.target.closest('button') && !$event.target.closest('a')) window.location.href = '/south/mus/' + mu.id" {
                                 td class="text-center" {
                                     input type="checkbox" x-bind:value="mu.id" x-model="selectedMus";
                                 }
