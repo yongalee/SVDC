@@ -1,0 +1,17 @@
+[package]
+name = "svdc-historian"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "Append-only CSV historian for SVDC tick records. First concrete northbound consumer of the svdc-subscribe API. Plain CSV in Phase 0; Parquet and TimescaleDB sidecars land in Phase 4."
+
+[dependencies]
+svdc-core = { path = "../svdc-core" }
+svdc-subscribe = { path = "../svdc-subscribe" }
+
+[dev-dependencies]
+ssiec-sv-publisher = { path = "../ssiec-sv-publisher" }
+svdc-aligner = { path = "../svdc-aligner" }
+svdc-ingress = { path = "../svdc-ingress" }
