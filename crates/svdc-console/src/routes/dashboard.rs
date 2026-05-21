@@ -190,9 +190,12 @@ async fn dashboard_page() -> Html<String> {
                         "Subsecond Performance Precision"
                     }
                 }
-                div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 divide-y lg:divide-y-0 lg:divide-x divide-border-color lg:-mx-2" {
+                div class="grid grid-cols-1 md:grid-cols-2 gap-4" {
+
+                    // Left column: 1 + 2
+                    div class="flex flex-col gap-4" {
                     // Timing & Synchrony Core
-                    div class="lg:px-4 py-2 lg:py-0" {
+                    div class="py-2" {
                         div class="flex items-center justify-between" {
                             span class="text-[10px] font-bold tracking-wider text-text-muted uppercase" { "1. Timing & Synchrony" }
                             span class="status-badge status-badge-healthy py-0.5 px-2 text-[9px]" {
@@ -228,7 +231,7 @@ async fn dashboard_page() -> Html<String> {
                     }
 
                     // Redundant Lock-Free Circular Buffer Core
-                    div class="lg:px-4 py-2 lg:py-0 pt-3 lg:pt-0" {
+                    div class="py-2 border-t border-border-color" {
                         div class="flex items-center justify-between" {
                             span class="text-[10px] font-bold tracking-wider text-text-muted uppercase" { "2. Redundant Buffer Ingest" }
                             span class="font-mono text-[9px] text-accent-blue font-bold" x-text="metrics.buffer_saturation.toFixed(2) + '%'" { "2.40%" }
@@ -264,9 +267,12 @@ async fn dashboard_page() -> Html<String> {
                             }
                         }
                     }
+                    } // end left column
 
+                    // Right column: 3 + 4
+                    div class="flex flex-col gap-4" {
                     // QSE Self-Healing Loop Core
-                    div class="lg:px-4 py-2 lg:py-0 pt-3 lg:pt-0" {
+                    div class="py-2" {
                         div class="flex items-center justify-between" {
                             span class="text-[10px] font-bold tracking-wider text-text-muted uppercase" { "3. QSE Self-Healing" }
                             span class="status-badge status-badge-healthy py-0.5 px-2 text-[9px]" {
@@ -301,7 +307,7 @@ async fn dashboard_page() -> Html<String> {
                     }
 
                     // Northbound Routing Core
-                    div class="lg:px-4 py-2 lg:py-0 pt-3 lg:pt-0" {
+                    div class="py-2 border-t border-border-color" {
                         div class="flex items-center justify-between" {
                             span class="text-[10px] font-bold tracking-wider text-text-muted uppercase" { "4. Egress & Northbound" }
                             span class="font-mono text-[9px] text-text-secondary" { "12,000 msg/s" }
@@ -338,6 +344,7 @@ async fn dashboard_page() -> Html<String> {
                             }
                         }
                     }
+                    } // end right column
                 }
             }
 
