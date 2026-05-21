@@ -61,11 +61,17 @@ async fn serve_assets(axum::extract::Path(file): axum::extract::Path<String>) ->
     }
 }
 
-/// Start console web server on the specified bind address in a background task
+/// Start console web server on the specified bind address and block the thread
 pub fn start_console(bind_addr: &str) {
     let addr = bind_addr.to_string();
     println!("svdc-console: Starting console web server on {}...", addr);
-    tokio::spawn(async move {
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    rt.block_on(async move {
         let app = register_routes(axum::Router::new())
             .route("/assets/*file", axum::routing::get(serve_assets));
 
