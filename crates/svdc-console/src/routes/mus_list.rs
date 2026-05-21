@@ -33,19 +33,23 @@ pub fn router() -> Router {
 
 async fn mus_list(State(registry): State<SharedRegistry>) -> Markup {
     let mus = registry.snapshot();
-    layout(Section::Southbound, "Merging Units", mus_list_body(&mus))
+    let observed = crate::dataplane::global().seen_mus();
+    layout(
+        Section::Southbound,
+        "Merging Units",
+        mus_list_body(&mus, &observed),
+    )
 }
 
-fn mus_list_body(mus: &[MergingUnit]) -> Markup {
+fn mus_list_body(mus: &[MergingUnit], observed: &[crate::dataplane::MuObservation]) -> Markup {
     html! {
         section.config-section {
             div.config-section-head {
                 h2 { "Merging Units" }
                 p.muted {
-                    "All Merging Units the SVDC is configured to subscribe to. "
-                    "Each row links to the per-MU detail view "
-                    "(SCD config, calibration, and live 8-channel waveform). "
-                    "MUs come from the SCD on /config — register or upload there."
+                    "Registered Merging Units come from the SCD on /config. "
+                    "Auto-observed Merging Units are discovered live from the "
+                    "ingress stream (synthetic demo loop or `--ingress-udp`)."
                 }
             }
             @if mus.is_empty() {
@@ -54,7 +58,86 @@ fn mus_list_body(mus: &[MergingUnit]) -> Markup {
                 (mu_table(mus))
             }
         }
+        section.config-section {
+            div.config-section-head {
+                h2 { "Auto-observed (live ingress)" }
+                p.muted {
+                    "Each row is a distinct svID the daemon has decoded from "
+                    "incoming frames. PR D — auto-registered before the SCD "
+                    "channel registry catches up."
+                }
+            }
+            @if observed.is_empty() {
+                (auto_empty_state())
+            } @else {
+                (observed_table(observed))
+            }
+        }
     }
+}
+
+fn auto_empty_state() -> Markup {
+    html! {
+        section.placeholder {
+            h3 { "No live svIDs observed yet" }
+            p.muted {
+                "Start the synthetic demo from "
+                a href="/dataplane" { "Data plane" }
+                " or run the simulator against "
+                code { "--ingress-udp" }
+                " — see "
+                a href="/" { "Dashboard" }
+                " for the live-feed badge."
+            }
+        }
+    }
+}
+
+fn observed_table(rows: &[crate::dataplane::MuObservation]) -> Markup {
+    html! {
+        table.layer-table.mu-table {
+            thead {
+                tr {
+                    th.col-mu-id { "svID" }
+                    th.col-state { "First seen (UTC)" }
+                    th.col-state { "Last seen (UTC)" }
+                    th.col-rate  { "Frame count" }
+                }
+            }
+            tbody {
+                @for o in rows {
+                    tr {
+                        td.col-mu-id { code { (o.sv_id) } }
+                        td.col-state { (format_ms(o.first_seen_ms)) }
+                        td.col-state { (format_ms(o.last_seen_ms)) }
+                        td.col-rate  { (o.frame_count) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn format_ms(ms: u64) -> String {
+    // ISO-like rendering without dragging chrono in. Matches the
+    // emitter's formatter style for consistency.
+    let secs = (ms / 1000) as i64;
+    let millis = (ms % 1000) as u32;
+    let z = secs.div_euclid(86_400) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let year = if m <= 2 { y + 1 } else { y };
+    let s_of_day = secs.rem_euclid(86_400) as u32;
+    let h = s_of_day / 3600;
+    let mi = (s_of_day / 60) % 60;
+    let s = s_of_day % 60;
+    format!("{year:04}-{m:02}-{d:02} {h:02}:{mi:02}:{s:02}.{millis:03}")
 }
 
 fn empty_state() -> Markup {

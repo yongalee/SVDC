@@ -399,6 +399,11 @@ fn spawn_udp_ingress(addr: std::net::SocketAddr) -> std::io::Result<()> {
             loop {
                 match consumer_ring.pop() {
                     Some(frame) => {
+                        // PR D: record every distinct svID we see
+                        // before the aligner consumes the frame.
+                        for asdu in &frame.samples {
+                            pipe.note_mu_observed(&asdu.sv_id);
+                        }
                         for tick in aligner.process_frame(frame) {
                             pipe.buffer.push(tick);
                             pipe.record_external_tick();

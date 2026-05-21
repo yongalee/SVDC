@@ -29,6 +29,7 @@
 //!
 //! OWNER: claude-code. NFR-10: English-only.
 
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -76,6 +77,26 @@ pub struct DataPipeline {
     /// `/dataplane` synthetic loop refuses to start so the two
     /// feeds do not interleave (ADR-0015 §3).
     external_feed_active: AtomicBool,
+    /// Distinct svIDs observed in the ingress stream (synthetic or
+    /// live UDP). One entry per svID; updated on every frame.
+    /// Populates the auto-observed section of `/south/mus` (PR D)
+    /// and the `active_mus` count on the Dashboard.
+    seen_mus: Mutex<BTreeMap<String, MuObservation>>,
+}
+
+/// One row in [`DataPipeline::seen_mus`]. Tracks first-seen,
+/// last-seen, and the running frame count for a single svID.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MuObservation {
+    /// The svID exactly as it appeared on the wire (ASN.1
+    /// VisibleString from `SampledValueControl::smvID`).
+    pub sv_id: String,
+    /// Unix-ms when the daemon first observed this svID.
+    pub first_seen_ms: u64,
+    /// Unix-ms of the most recent frame carrying this svID.
+    pub last_seen_ms: u64,
+    /// Number of frames the daemon has seen carrying this svID.
+    pub frame_count: u64,
 }
 
 impl DataPipeline {
@@ -96,6 +117,46 @@ impl DataPipeline {
             tamper_count: AtomicU64::new(0),
             last_violations: AtomicU64::new(0),
             external_feed_active: AtomicBool::new(false),
+            seen_mus: Mutex::new(BTreeMap::new()),
+        }
+    }
+
+    /// Record one observation of `sv_id`. Called from the ingress
+    /// hot path (synthetic loop or UDP receive task) just before
+    /// the frame enters the aligner. The first call for a new svID
+    /// records `first_seen_ms`; subsequent calls update
+    /// `last_seen_ms` and increment `frame_count`.
+    pub fn note_mu_observed(&self, sv_id: &str) {
+        let now = now_unix_ms();
+        let mut g = self.seen_mus.lock().expect("seen_mus lock poisoned");
+        let entry = g.entry(sv_id.to_string()).or_insert_with(|| MuObservation {
+            sv_id: sv_id.to_string(),
+            first_seen_ms: now,
+            last_seen_ms: now,
+            frame_count: 0,
+        });
+        entry.last_seen_ms = now;
+        entry.frame_count = entry.frame_count.saturating_add(1);
+    }
+
+    /// Snapshot of all observed MUs, sorted by svID. Cheap to call
+    /// from a route handler.
+    pub fn seen_mus(&self) -> Vec<MuObservation> {
+        self.seen_mus
+            .lock()
+            .map(|g| g.values().cloned().collect())
+            .unwrap_or_default()
+    }
+
+    /// Distinct-svID count, used by the Dashboard `active_mus` tile.
+    pub fn distinct_mu_count(&self) -> usize {
+        self.seen_mus.lock().map(|g| g.len()).unwrap_or(0)
+    }
+
+    /// Drop every observation. Test helper.
+    pub fn clear_seen_mus(&self) {
+        if let Ok(mut g) = self.seen_mus.lock() {
+            g.clear();
         }
     }
 
@@ -289,6 +350,13 @@ fn now_ns() -> u64 {
         .unwrap_or(0)
 }
 
+fn now_unix_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
 /// Synthetic IngressFrame producer + aligner + historian loop. Runs
 /// inside the tokio runtime; exits when `pipe.running` becomes
 /// `false`.
@@ -318,6 +386,9 @@ async fn run_pipeline(pipe: Arc<DataPipeline>) {
     while pipe.running.load(Ordering::Relaxed) {
         ticker.tick().await;
         let frame = synth_frame(smp_cnt, period_ns);
+        for asdu in &frame.samples {
+            pipe.note_mu_observed(&asdu.sv_id);
+        }
         for tick in aligner.process_frame(frame) {
             pipe.buffer.push(tick);
             pipe.ticks_emitted.fetch_add(1, Ordering::Relaxed);
@@ -447,5 +518,46 @@ mod tests {
         );
         assert!(!p.buffer.is_empty());
         let _ = std::fs::remove_file(&p.historian_path);
+    }
+
+    #[test]
+    fn note_mu_observed_tracks_first_seen_last_seen_and_count() {
+        let p = DataPipeline::new();
+        assert_eq!(p.distinct_mu_count(), 0);
+
+        p.note_mu_observed("SVDC_DEMO_PB_MU");
+        let snap = p.seen_mus();
+        assert_eq!(snap.len(), 1);
+        assert_eq!(snap[0].sv_id, "SVDC_DEMO_PB_MU");
+        assert_eq!(snap[0].frame_count, 1);
+        assert_eq!(snap[0].first_seen_ms, snap[0].last_seen_ms);
+
+        p.note_mu_observed("SVDC_DEMO_PB_MU");
+        let snap = p.seen_mus();
+        assert_eq!(snap[0].frame_count, 2);
+        assert!(snap[0].last_seen_ms >= snap[0].first_seen_ms);
+    }
+
+    #[test]
+    fn seen_mus_returns_one_entry_per_distinct_svid_sorted() {
+        let p = DataPipeline::new();
+        p.note_mu_observed("ZZ_LAST");
+        p.note_mu_observed("AA_FIRST");
+        p.note_mu_observed("MM_MID");
+        p.note_mu_observed("AA_FIRST"); // duplicate — same entry
+        assert_eq!(p.distinct_mu_count(), 3);
+        let snap = p.seen_mus();
+        let ids: Vec<&str> = snap.iter().map(|m| m.sv_id.as_str()).collect();
+        assert_eq!(ids, vec!["AA_FIRST", "MM_MID", "ZZ_LAST"]);
+    }
+
+    #[test]
+    fn clear_seen_mus_empties_the_map() {
+        let p = DataPipeline::new();
+        p.note_mu_observed("X");
+        p.note_mu_observed("Y");
+        assert_eq!(p.distinct_mu_count(), 2);
+        p.clear_seen_mus();
+        assert_eq!(p.distinct_mu_count(), 0);
     }
 }
