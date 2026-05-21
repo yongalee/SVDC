@@ -8,6 +8,7 @@
 */
 
 pub mod assets;
+pub mod sse;
 
 /// Register console routes. This skeleton function will be fully populated 
 /// by Claude Code under WBS-9.1a.

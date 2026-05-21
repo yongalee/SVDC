@@ -87,9 +87,9 @@ fn main() {
     // Resolve UI flag: CLI > Env > Default
     let ui_enabled = if let Some(cli_val) = cli_ui {
         cli_val
-    } else if let Some(_) = env_ui {
+    } else if env_ui.is_some() {
         true
-    } else if let Some(_) = env_no_ui {
+    } else if env_no_ui.is_some() {
         false
     } else {
         true // default on
