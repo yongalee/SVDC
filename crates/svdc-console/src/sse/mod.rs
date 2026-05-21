@@ -75,6 +75,32 @@ pub struct WaveformSample {
     pub i0: f32,
 }
 
+/// One row in the `/monitoring` "QSE Write-Back Action Audit Logs"
+/// table. Wire schema is documented in
+/// `docs/telemetry_sse_simulator_sync.md` §"`Qse` event".
+///
+/// Phase 0 ships a mock periodic emitter so the audit table is
+/// non-empty during demos; real wiring lands when the QSE
+/// write-back path is built (ADR-0020, Phase 4).
+#[derive(Debug, Clone, Serialize)]
+pub struct QseLog {
+    /// ISO-8601 UTC timestamp.
+    pub timestamp: String,
+    /// WBS code or sub-system tag for traceability.
+    pub wbs: String,
+    /// Verb describing the action: `set_calibration`, `scd_upload`,
+    /// `tamper_injected`, `qse_writeback`, …
+    pub operation: String,
+    /// Operator-readable target (MU id, channel, layer).
+    pub target: String,
+    /// Source identity. Phase 0 stamps `console:<remote-ip>`.
+    pub operator: String,
+    /// Outcome verb: `applied`, `rejected`, `degraded`, …
+    pub result: String,
+    /// UI hint: `green` / `amber` / `red` / `grey`.
+    pub result_color: String,
+}
+
 /// Discriminated union the SSE channel serializes.
 ///
 /// The JSON shape is `{ "event_type": "Metrics", "data": { … } }` or
@@ -87,4 +113,8 @@ pub enum SsePayload {
     Metrics(DashboardMetrics),
     /// MU waveform sample tuple (≤10 Hz).
     Waveform(WaveformSample),
+    /// One row in the `/monitoring` QSE write-back audit table.
+    /// Phase 0 emits mock rows so the table is non-empty during
+    /// demos.
+    Qse(QseLog),
 }
