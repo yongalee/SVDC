@@ -697,6 +697,7 @@ dependencies = [
  "svdc-console",
  "svdc-core",
  "svdc-ingress",
+ "svdc-subscribe",
  "tokio",
  "tracing",
 ]

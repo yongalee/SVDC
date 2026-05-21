@@ -49,7 +49,7 @@ client binaries are named by their layer.
 
 | Layer | Server side                  | Client simulator binary       | Status              |
 | ----- | ---------------------------- | ----------------------------- | ------------------- |
-| L0    | `svdc-subscribe` (PR #47)    | `svdc-l0-consumer-demo`       | **Lands in PR H**   |
+| L0    | `svdc-subscribe` (PR #47)    | `svdc-bin --enable-l0-demo`   | **Wired (PR H)**    |
 | L1    | `svdc-opcua` (Phase 4)       | `svdc-l1-opcua-client`        | Phase 4 (paired)    |
 | L2    | `svdc-mqtt` (Phase 4)        | `svdc-l2-mqtt-subscriber`     | Phase 4 (paired)    |
 | L3    | `svdc-historian-tsdb` (Phase 4) | `svdc-l3-historian-query`  | Phase 4 (paired)    |
@@ -62,14 +62,17 @@ until their PR lands.
 
 ---
 
-## L0 — In-process consumer (ready: PR H)
+## L0 — In-process consumer (wired in PR H)
 
 The L0 surface is the highest-performance binding: zero-copy
 access for performance-critical applications (EBP relays, Phasor
 Computation Module, QSE). The reference consumer is a thin tokio
 task that subscribes via `svdc_subscribe::InProcessSubscriber`,
 drains every fresh tick via `read_since()`, and prints a
-configurable summary line to stdout.
+configurable summary line to stdout. Lives inside `svdc-bin`
+itself behind the `--enable-l0-demo` flag — L0 is in-process by
+definition (SDD §8.2), so a free-standing binary would not
+demonstrate the binding.
 
 ### Run
 
@@ -87,17 +90,19 @@ cargo run --release -p svdc-bin -- \
 # operator-console boot lines):
 #
 #   svdc-l0-demo: subscribed (cursor = 0)
-#   svdc-l0-demo: tick_id=480  ts=1717603200000000000 ch0=4811 ch4=22987 …
-#   svdc-l0-demo: tick_id=960  ts=1717603200100000000 ch0=4682 ch4=22340 …
+#   svdc-l0-demo: tick_id=480 ts=1717603200000000000 ch0=4811 ch4=22987 lag=0
+#   svdc-l0-demo: tick_id=4800 ts=1717603201000000000 ch0=4682 ch4=22340 lag=0
 #   ...
 ```
 
 The demo subscriber loops every 100 ms, calls `read_since()`,
-prints a one-line summary for every Nth tick, and reports a "ticks
-behind" counter when the buffer is rolling faster than the
-consumer drains. This mirrors what an EBP relay would do —
-except a real relay applies a protection algorithm to each tick
-instead of printing.
+prints a one-line summary for every 10th tick (to keep stdout
+readable at 4800 Hz), and reports a `lag=` count — the number
+of fresh ticks the read returned minus one. A `lag` that grows
+across consecutive prints means the consumer is falling behind
+the buffer. This mirrors what an EBP relay would do — except a
+real relay applies a protection algorithm to each tick instead
+of printing.
 
 ### Verification
 
