@@ -77,10 +77,10 @@ async fn config_page() -> Html<String> {
     let time_c = *TIMING_SHIFT_C.lock().unwrap();
 
     let content = html! {
-        div class="screen-layout grid grid-cols-1 lg:grid-cols-12 gap-6" {
+        div class="screen-layout flex flex-col gap-6" {
 
-            // 1. Left Column (Cols 1-7): Parameter Tuning Settings Form
-            div class="lg:col-span-7 flex flex-col gap-6" {
+            // 1. Parameter Tuning Settings Form
+            div class="flex flex-col gap-6" {
                 div class="glass-card shadow-lg" {
                     div class="card-header border-b border-border-color pb-3 flex items-center gap-2" {
                         h2 class="card-title" { "Alignment & Calibration parameters" }
@@ -192,8 +192,8 @@ async fn config_page() -> Html<String> {
                 }
             }
 
-            // 2. Right Column (Cols 8-12): SCD Ingest & About Screen
-            div class="lg:col-span-5 flex flex-col gap-6" {
+            // 2. SCD Ingest & About Screen
+            div class="flex flex-col gap-6" {
 
                 // Card A: SCD/SCL Configuration Ingest
                 div class="glass-card shadow-lg" {

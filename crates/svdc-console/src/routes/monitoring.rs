@@ -23,7 +23,7 @@ async fn monitoring_page() -> Html<String> {
     let content = html! {
         div class="screen-layout gap-6" {
             // 1. Diagnostics Charts Grid (PTP Offset & Buffer occupancy)
-            div class="grid grid-cols-1 lg:grid-cols-2 gap-6" {
+            div class="flex flex-col gap-6" {
 
                 // Chart A: PTP Synchronization Offset Trend
                 div class="glass-card" {

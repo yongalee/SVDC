@@ -337,10 +337,10 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
             }
 
             // Multi-column Editor Panel
-            div class="grid grid-cols-1 lg:grid-cols-12 gap-6" {
+            div class="flex flex-col gap-6" {
 
-                // Left & Center Column (Settings Form)
-                div class="lg:col-span-9 flex flex-col gap-6" {
+                // Settings Form
+                div class="flex flex-col gap-6" {
 
                     // IEC 61850 Ingestion parameters
                     div class="glass-card shadow-md" {
@@ -484,8 +484,8 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
 
                 }
 
-                // Right Column (Visualizations & Operations)
-                div class="lg:col-span-3 flex flex-col gap-6" {
+                // Visualizations
+                div class="flex flex-col gap-6" {
 
                     // Waveform panel
                     div class="glass-card shadow-md" {

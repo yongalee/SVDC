@@ -382,8 +382,8 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                         }
                     }
 
-                    div class="grid grid-cols-1 lg:grid-cols-12 gap-6" {
-                        div class="lg:col-span-8 flex flex-col gap-6" {
+                    div class="flex flex-col gap-6" {
+                        div class="flex flex-col gap-6" {
                             div class="glass-card shadow-md" {
                                 div class="card-header border-b border-border-color pb-3" {
                                     h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "L0 Shared Memory Configuration Parameters" }
@@ -426,7 +426,7 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                             }
                         }
 
-                        div class="lg:col-span-4 flex flex-col gap-6" {
+                        div class="flex flex-col gap-6" {
                             div class="glass-card shadow-md" {
                                 div class="card-header border-b border-border-color pb-3" {
                                     h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Active Application Process Subscriptions" }
@@ -583,8 +583,8 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                         }
                     }
 
-                    div class="grid grid-cols-1 lg:grid-cols-12 gap-6" {
-                        div class="lg:col-span-8 flex flex-col gap-6" {
+                    div class="flex flex-col gap-6" {
+                        div class="flex flex-col gap-6" {
                             div class="glass-card shadow-md" {
                                 div class="card-header border-b border-border-color pb-3" {
                                     h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "L1 OPC UA Server Settings" }
@@ -623,7 +623,7 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                             }
                         }
 
-                        div class="lg:col-span-4 flex flex-col gap-6" {
+                        div class="flex flex-col gap-6" {
                             div class="glass-card shadow-md" {
                                 div class="card-header border-b border-border-color pb-3" {
                                     h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "SCADA Active Sessions Diagnostics" }
@@ -774,8 +774,8 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                         }
                     }
 
-                    div class="grid grid-cols-1 lg:grid-cols-12 gap-6" {
-                        div class="lg:col-span-8 flex flex-col gap-6" {
+                    div class="flex flex-col gap-6" {
+                        div class="flex flex-col gap-6" {
                             div class="glass-card shadow-md" {
                                 div class="card-header border-b border-border-color pb-3" {
                                     h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "L2 MQTT Publisher settings" }
@@ -829,7 +829,7 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                             }
                         }
 
-                        div class="lg:col-span-4 flex flex-col gap-6" {
+                        div class="flex flex-col gap-6" {
                             div class="glass-card shadow-md" {
                                 div class="card-header border-b border-border-color pb-3" {
                                     h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Cloud Gateway Sync Log feed" }
@@ -963,8 +963,8 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                         }
                     }
 
-                    div class="grid grid-cols-1 lg:grid-cols-12 gap-6" {
-                        div class="lg:col-span-8 flex flex-col gap-6" {
+                    div class="flex flex-col gap-6" {
+                        div class="flex flex-col gap-6" {
                             div class="glass-card shadow-md" {
                                 div class="card-header border-b border-border-color pb-3" {
                                     h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "L3 TimescaleDB Archive settings" }
@@ -1004,7 +1004,7 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                             }
                         }
 
-                        div class="lg:col-span-4 flex flex-col gap-6" {
+                        div class="flex flex-col gap-6" {
                             div class="glass-card shadow-md" {
                                 div class="card-header border-b border-border-color pb-3" {
                                     h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Historical Archiving Live logs" }
