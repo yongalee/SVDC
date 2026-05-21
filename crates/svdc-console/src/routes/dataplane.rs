@@ -41,6 +41,7 @@ pub fn router() -> Router {
         .route("/api/dataplane/status.json", get(status_json))
         .route("/api/dataplane/tamper", post(tamper))
         .route("/api/dataplane/reset", post(reset))
+        .route("/api/dataplane/vendor", post(set_vendor))
         .route("/api/dataplane/historian.csv", get(historian_csv))
         .with_state(pipe)
 }
@@ -75,6 +76,27 @@ async fn tamper(State(pipe): State<Arc<DataPipeline>>) -> Markup {
 
 async fn reset(State(pipe): State<Arc<DataPipeline>>) -> Markup {
     pipe.reset();
+    status_panel(&pipe.snapshot())
+}
+
+#[derive(serde::Deserialize)]
+struct VendorForm {
+    vendor: String,
+}
+
+async fn set_vendor(
+    State(pipe): State<Arc<DataPipeline>>,
+    axum::Form(form): axum::Form<VendorForm>,
+) -> Markup {
+    // "none" / empty resets to the generic DATAPLANE_DEMO svID.
+    let preset = if form.vendor.is_empty() || form.vendor == "none" {
+        None
+    } else {
+        Some(form.vendor.as_str())
+    };
+    let _ = pipe.set_vendor(preset);
+    // Re-render the status panel so the operator sees the new vendor
+    // label immediately, even before the next htmx poll.
     status_panel(&pipe.snapshot())
 }
 
@@ -138,6 +160,7 @@ fn body(snap: &DataPipelineSnapshot) -> Markup {
                     "Download historian CSV"
                 }
             }
+            (vendor_selector(crate::dataplane::global().selected_vendor_name()))
             (status_panel(snap))
         }
         section.config-section {
@@ -183,6 +206,66 @@ fn body(snap: &DataPipelineSnapshot) -> Markup {
             }
         }
         (PreEscaped(POLL_JS))
+    }
+}
+
+/// Vendor preset selector + paste-ready simulator command line.
+/// The dropdown drives the synthetic loop's svID via
+/// `set_vendor`; the command line is the operator's hint for
+/// what to type in Terminal A when running the real simulator
+/// against the daemon's `--ingress-udp` port.
+fn vendor_selector(current: Option<&str>) -> Markup {
+    let presets = ssiec_sv_publisher::vendor::ALL;
+    let active = current.unwrap_or("none");
+    html! {
+        div.dp-vendor {
+            div.dp-vendor-head {
+                h3 { "Vendor preset" }
+                p.muted {
+                    "Switches the synthetic loop's svID + APPID + VLAN + "
+                    "sample-rate to the chosen vendor convention. The "
+                    "buffer rolls within seconds; the new svID appears "
+                    "on " a href="/south/mus" { "Merging Units" } "."
+                }
+            }
+            form
+                method="post"
+                action="/api/dataplane/vendor"
+                hx-post="/api/dataplane/vendor"
+                hx-target="#dp-status"
+                hx-swap="outerHTML"
+            {
+                label for="dp-vendor-select" { "Active preset:" }
+                select.dp-vendor-select id="dp-vendor-select" name="vendor" onchange="this.form.requestSubmit()" {
+                    option value="none" selected[active == "none"] {
+                        "(none — generic DATAPLANE_DEMO svID)"
+                    }
+                    @for v in presets {
+                        option value=(v.name) selected[active == v.name] {
+                            (v.name) " — " (v.notes)
+                        }
+                    }
+                }
+            }
+            div.dp-vendor-cmd {
+                strong { "Equivalent simulator command (real UDP feed):" }
+                @match current {
+                    Some(name) => pre {
+                        "cargo run --release -p ssiec-sv-publisher -- udp 127.0.0.1:9100 \\\n    --vendor " (name) " --duration 3600"
+                    },
+                    None => pre {
+                        "cargo run --release -p ssiec-sv-publisher -- udp 127.0.0.1:9100 \\\n    --vendor abb_relion_670 --duration 3600"
+                    },
+                }
+                p.muted {
+                    "Then start the daemon with "
+                    code { "--ingress-udp 127.0.0.1:9100" }
+                    ". See "
+                    a href="/" { "Dashboard" }
+                    " for the live-feed badge."
+                }
+            }
+        }
     }
 }
 
@@ -309,6 +392,12 @@ const POLL_JS: &str = r#"
 .dp-status-value.ok { color: #2f8f4d; }
 .dp-status-value.degraded { color: #b4541f; font-weight: 600; }
 .dp-status-integrity { margin-top: 6px; padding-top: 8px; border-top: 1px solid #e0e3e9; }
+.dp-vendor { border: 1px solid #d8dce4; border-radius: 4px; padding: 14px 18px; background: #fff; margin: 12px 0; }
+.dp-vendor-head h3 { margin: 0 0 6px 0; font-size: 14px; }
+.dp-vendor form { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+.dp-vendor-select { padding: 6px 10px; border: 1px solid #c0c4cd; border-radius: 4px; font-family: inherit; font-size: 13px; min-width: 360px; }
+.dp-vendor-cmd { margin-top: 12px; }
+.dp-vendor-cmd pre { background: #0b1f3a; color: #f7f4ed; padding: 12px 16px; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; line-height: 1.5; overflow-x: auto; }
 </style>
 "#;
 

@@ -69,7 +69,14 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
         if angle > 2.0 * std::f32::consts::PI {
             angle -= 2.0 * std::f32::consts::PI;
         }
-        let wave_event = build_waveform_event(now_ms, angle, v_peak, i_peak, pi_2_3);
+        let wave_event = build_waveform_event(
+            &crate::dataplane::global(),
+            now_ms,
+            angle,
+            v_peak,
+            i_peak,
+            pi_2_3,
+        );
         if let Ok(json_str) = serde_json::to_string(&wave_event) {
             let _ = tx.send(json_str);
         }
@@ -251,13 +258,13 @@ fn iso8601_from_unix_ms(unix_ms: u64) -> String {
 /// divide by the scale to produce f32 engineering units the UI's
 /// existing polar diagram expects.
 fn build_waveform_event(
+    pipe: &crate::dataplane::DataPipeline,
     now_ms: u64,
     angle: f32,
     v_peak: f32,
     i_peak: f32,
     pi_2_3: f32,
 ) -> SsePayload {
-    let pipe = crate::dataplane::global();
     let recent = pipe.buffer.recent(1);
     if let Some(tick) = recent.into_iter().next() {
         let live = tick.live_samples();
@@ -354,9 +361,11 @@ mod tests {
 
     #[test]
     fn waveform_falls_back_to_synthetic_when_buffer_is_empty() {
-        crate::dataplane::global().reset();
-        crate::dataplane::global().clear_seen_mus();
+        // Construct a fresh local pipeline so the test does not
+        // race other tests on the global singleton.
+        let pipe = crate::dataplane::DataPipeline::new();
         let event = build_waveform_event(
+            &pipe,
             1_700_000_000_000,
             0.0,
             155.5,
@@ -376,9 +385,7 @@ mod tests {
     #[test]
     fn waveform_reads_live_samples_when_buffer_non_empty() {
         use svdc_core::{Sample, SampleOrigin, TickRecord};
-        let pipe = crate::dataplane::global();
-        pipe.reset();
-        pipe.clear_seen_mus();
+        let pipe = crate::dataplane::DataPipeline::new();
         pipe.note_mu_observed("E2E_TEST_MU");
         let mut tick = TickRecord::empty(1, 1_700_000_000_000_000_000);
         tick.n_channels = 8;
@@ -394,6 +401,7 @@ mod tests {
         pipe.buffer.push(tick);
 
         let event = build_waveform_event(
+            &pipe,
             1_700_000_000_000,
             0.0,
             155.5,
