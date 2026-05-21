@@ -8,7 +8,7 @@
 //!
 //! OWNER: claude-code (WBS-9.6a).
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 use super::MergingUnit;
 
@@ -55,6 +55,17 @@ impl ChannelRegistry {
 
 /// Shared handle used by axum handlers.
 pub type SharedRegistry = Arc<ChannelRegistry>;
+
+/// Process-wide singleton used by every route that needs to look up
+/// MUs by id (config, mu_detail, soon mus_list when Antigravity wires
+/// it). One `ChannelRegistry` per process keeps the state consistent
+/// across screens.
+pub fn global() -> SharedRegistry {
+    static INSTANCE: OnceLock<SharedRegistry> = OnceLock::new();
+    INSTANCE
+        .get_or_init(|| Arc::new(ChannelRegistry::new()))
+        .clone()
+}
 
 #[cfg(test)]
 mod tests {

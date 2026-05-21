@@ -9,8 +9,6 @@
 //! API, the sample SCD shortcut, and the manual-register API. WBS-9.6b
 //! (Antigravity) refines the upload form / About page on top.
 
-use std::sync::Arc;
-
 use axum::extract::{Multipart, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -19,14 +17,13 @@ use axum::{Json, Router};
 use maud::{html, Markup};
 use serde::{Deserialize, Serialize};
 
-use crate::scd::registry::{ChannelRegistry, SharedRegistry};
+use crate::scd::registry::{self as registry_mod, SharedRegistry};
 use crate::scd::sample::SAMPLE_SCD_XML;
 use crate::scd::{self, Channel, ChannelUnit, MergingUnit};
 use crate::templates::base::{layout, Section};
 
-/// Build the Configuration sub-router with shared registry state.
+/// Build the Configuration sub-router using the process-wide registry.
 pub fn router() -> Router {
-    let state: SharedRegistry = Arc::new(ChannelRegistry::new());
     Router::new()
         .route("/config", get(config_index))
         .route("/api/config/scd", post(api_upload_scd))
@@ -36,7 +33,7 @@ pub fn router() -> Router {
             post(api_register_mu).delete(api_clear_registry),
         )
         .route("/api/config/channels", get(api_channels))
-        .with_state(state)
+        .with_state(registry_mod::global())
 }
 
 async fn config_index(State(registry): State<SharedRegistry>) -> Markup {
@@ -543,7 +540,6 @@ fn parse_mac_string(s: &str) -> Option<[u8; 6]> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scd::registry::ChannelRegistry;
     use crate::scd::{Channel, ChannelUnit};
 
     fn make_mu(id: &str) -> MergingUnit {
@@ -584,10 +580,19 @@ mod tests {
 
     #[test]
     fn config_index_shows_empty_state_when_no_mus() {
-        let registry: SharedRegistry = Arc::new(ChannelRegistry::new());
+        let registry: SharedRegistry =
+            std::sync::Arc::new(crate::scd::registry::ChannelRegistry::new());
         let body = tokio_test_block_on(config_index(State(registry)));
         let s = body.into_string();
         assert!(s.contains("(none"));
+    }
+
+    #[test]
+    fn registry_global_is_a_singleton() {
+        let a = registry_mod::global();
+        let b = registry_mod::global();
+        // Both handles point at the same allocation.
+        assert!(std::sync::Arc::ptr_eq(&a, &b));
     }
 
     #[test]

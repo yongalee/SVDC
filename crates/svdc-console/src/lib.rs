@@ -18,6 +18,9 @@
 
 /// Embedded static assets (CSS, JS, fonts) served from the binary.
 pub mod assets;
+/// SVDC-local operational state (calibration triples, subscription flags).
+/// Distinct from the SCD-derived registry — SCD is immutable per IEC 61850-6.
+pub mod operational;
 /// HTTP route handlers, one module per UI screen plus assets and SSE.
 pub mod routes;
 /// IEC 61850 SCL/SCD parser and the in-process channel registry.
@@ -41,6 +44,7 @@ pub fn router() -> Router {
         .merge(routes::northbound::router())
         .merge(routes::monitoring::router())
         .merge(routes::config::router())
+        .merge(routes::calibration::router())
         .merge(routes::sse::router())
         .merge(routes::assets::router())
 }

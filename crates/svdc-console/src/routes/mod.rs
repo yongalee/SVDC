@@ -4,6 +4,7 @@
 //! single lane. This file is structural and is owned by Claude (WBS-9.1a).
 
 pub mod assets;
+pub mod calibration;
 pub mod config;
 pub mod dashboard;
 pub mod monitoring;
