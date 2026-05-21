@@ -916,7 +916,9 @@ tbody tr:hover {
 
 /* Custom mini inputs for calibration */
 .mini-num-input {
-    width: 60px;
+    width: 80px;
+    max-width: 80px;
+    flex-shrink: 0;
     font-family: var(--font-mono);
     font-size: 0.725rem;
     padding: 0.15rem 0.35rem;
@@ -924,6 +926,7 @@ tbody tr:hover {
     border-radius: 4px;
     background-color: var(--bg-secondary);
     color: var(--text-primary);
+    text-align: right;
 }
 
 .mini-num-input:focus {
