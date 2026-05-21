@@ -158,11 +158,6 @@ async fn dashboard_page() -> Html<String> {
             // Top Status & Overview Row (High Density Banner)
             div class="glass-card p-3 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs shadow-sm" {
                 div class="flex items-center gap-3" {
-                    span class="brand-logo w-8 h-8 flex items-center justify-center bg-accent-blue-dim text-accent-blue border border-accent-blue rounded" {
-                        svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
-                            path stroke-linecap="round" stroke-linejoin="round" d="M19.5 12c0-1.232-.046-2.453-.138-3.662a4.006 4.006 0 00-3.7-3.7 48.656 48.656 0 00-7.324 0 4.006 4.006 0 00-3.7 3.7c-.017.22-.032.441-.046.662M19.5 12l3-3m-3 3l-3-3M4.5 12c0 1.232.046 2.453.138 3.662a4.006 4.006 0 003.7 3.7 48.656 48.656 0 007.324 0 4.006 4.006 0 003.7-3.7c.017-.22.032-.441.046-.662M4.5 12l-3 3m3-3l3 3" {}
-                        }
-                    }
                     div {
                         h2 class="text-xs font-bold tracking-tight text-text-primary" { "IEC 61850-9-2 Sampled Values Data Concentrator (SVDC)" }
                         p class="text-text-secondary text-[11px]" {
@@ -206,7 +201,7 @@ async fn dashboard_page() -> Html<String> {
                             }
                         }
                         table class="text-[10px] w-full font-mono mt-2 border-none" style="table-layout: fixed;" {
-                            colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
+                            colgroup { col style="width: 50%;" {} col style="width: 50%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-3 text-text-secondary border-none" { "PTP Offset:" }
@@ -244,7 +239,7 @@ async fn dashboard_page() -> Html<String> {
                                  style="width: 2.4%" {}
                         }
                         table class="text-[10px] w-full font-mono mt-2 border-none" style="table-layout: fixed;" {
-                            colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
+                            colgroup { col style="width: 50%;" {} col style="width: 50%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-3 text-text-secondary border-none" { "Ring Capacity:" }
@@ -279,7 +274,7 @@ async fn dashboard_page() -> Html<String> {
                             }
                         }
                         table class="text-[10px] w-full font-mono mt-2 border-none" style="table-layout: fixed;" {
-                            colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
+                            colgroup { col style="width: 50%;" {} col style="width: 50%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-3 text-text-secondary border-none" { "Corrections Injected:" }
@@ -326,7 +321,7 @@ async fn dashboard_page() -> Html<String> {
                             }
                         }
                         table class="text-[10px] w-full font-mono mt-2 border-none" style="table-layout: fixed;" {
-                            colgroup { col style="width: 55%;" {} col style="width: 45%;" {} }
+                            colgroup { col style="width: 50%;" {} col style="width: 50%;" {} }
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-3 text-text-secondary border-none" { "Active Applications:" }

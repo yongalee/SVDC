@@ -433,11 +433,11 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                         span class="font-bold text-accent-red" { "Phase A Voltage (Va)" }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Magnitude Multiplier" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input text-right" x-model="rms_va";
+                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="rms_va";
                                         }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Phase Angle Offset" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input text-right" x-model="angle_va";
+                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="angle_va";
                                         }
                                     }
 
@@ -446,11 +446,11 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                         span class="font-bold text-accent-green" { "Phase B Voltage (Vb)" }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Magnitude Multiplier" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input text-right" x-model="rms_vb";
+                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="rms_vb";
                                         }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Phase Angle Offset" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input text-right" x-model="angle_vb";
+                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="angle_vb";
                                         }
                                     }
 
@@ -459,11 +459,11 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                         span class="font-bold text-accent-blue" { "Phase C Voltage (Vc)" }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Magnitude Multiplier" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input text-right" x-model="rms_vc";
+                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="rms_vc";
                                         }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Phase Angle Offset" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input text-right" x-model="angle_vc";
+                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="angle_vc";
                                         }
                                     }
 
@@ -480,11 +480,11 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                         span class="font-bold text-[#d97706]" { "Phase A Current (Ia)" }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Magnitude Multiplier" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input text-right" x-model="rms_ia";
+                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="rms_ia";
                                         }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Phase Angle Offset" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input text-right" x-model="angle_ia";
+                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="angle_ia";
                                         }
                                     }
 
@@ -493,11 +493,11 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                         span class="font-bold text-[#8b5cf6]" { "Phase B Current (Ib)" }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Magnitude Multiplier" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input text-right" x-model="rms_ib";
+                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="rms_ib";
                                         }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Phase Angle Offset" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input text-right" x-model="angle_ib";
+                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="angle_ib";
                                         }
                                     }
 
@@ -506,11 +506,11 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                         span class="font-bold text-[#14b8a6]" { "Phase C Current (Ic)" }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Magnitude Multiplier" }
-                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input text-right" x-model="rms_ic";
+                                            input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="rms_ic";
                                         }
                                         div class="flex items-center justify-between gap-2" {
                                             span class="text-[9px] text-text-secondary" { "Phase Angle Offset" }
-                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input text-right" x-model="angle_ic";
+                                            input type="number" min="-30" max="30" step="0.5" class="mini-num-input" style="width:80px;max-width:80px;text-align:right;" x-model="angle_ic";
                                         }
                                     }
 
