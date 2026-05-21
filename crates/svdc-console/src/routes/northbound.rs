@@ -6,7 +6,8 @@
 
 use axum::{
     extract::Path,
-    response::Html,
+    http::StatusCode,
+    response::{Html, IntoResponse},
     routing::{get, post},
     Form, Router,
 };
@@ -323,6 +324,12 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                     showToast: false,
                     toastMsg: '',
                     writeConfiguration() {{
+                        if (!this.path || this.path.trim() === '') {{
+                            this.toastMsg = 'Error: Path cannot be empty';
+                            this.showToast = true;
+                            setTimeout(() => {{ this.showToast = false; }}, 4000);
+                            return;
+                        }}
                         if (this.saving) return;
                         this.saving = true;
                         this.progress = 0;
@@ -340,9 +347,15 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                                     method: 'POST',
                                     headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
                                     body: formData
-                                }}).then(() => {{
+                                }}).then(response => {{
+                                    if (!response.ok) throw new Error('Server returned ' + response.status);
                                     this.saving = false;
                                     this.toastMsg = 'L0 Shared Memory RingBuffer configuration saved successfully.';
+                                    this.showToast = true;
+                                    setTimeout(() => {{ this.showToast = false; }}, 4000);
+                                }}).catch(err => {{
+                                    this.saving = false;
+                                    this.toastMsg = 'Failed to save: ' + err.message;
                                     this.showToast = true;
                                     setTimeout(() => {{ this.showToast = false; }}, 4000);
                                 }});
@@ -523,6 +536,15 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                     showToast: false,
                     toastMsg: '',
                     writeConfiguration() {{
+                        if (!this.address || this.address.trim() === '') {{
+                            this.toastMsg = 'Error: Server Bind Address cannot be empty';
+                            this.showToast = true;
+                            setTimeout(() => {{ this.showToast = false; }}, 4000);
+                            return;
+                        }}
+                        if (!confirm('Applying new endpoints will cause active SCADA sessions to restart. Proceed?')) {{
+                            return;
+                        }}
                         if (this.saving) return;
                         this.saving = true;
                         this.progress = 0;
@@ -541,9 +563,15 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                                     method: 'POST',
                                     headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
                                     body: formData
-                                }}).then(() => {{
+                                }}).then(response => {{
+                                    if (!response.ok) throw new Error('Server returned ' + response.status);
                                     this.saving = false;
                                     this.toastMsg = 'L1 OPC UA Server configuration saved successfully.';
+                                    this.showToast = true;
+                                    setTimeout(() => {{ this.showToast = false; }}, 4000);
+                                }}).catch(err => {{
+                                    this.saving = false;
+                                    this.toastMsg = 'Failed to save: ' + err.message;
                                     this.showToast = true;
                                     setTimeout(() => {{ this.showToast = false; }}, 4000);
                                 }});
@@ -713,6 +741,12 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                     showToast: false,
                     toastMsg: '',
                     writeConfiguration() {{
+                        if (!this.broker || this.broker.trim() === '') {{
+                            this.toastMsg = 'Error: Broker URL cannot be empty';
+                            this.showToast = true;
+                            setTimeout(() => {{ this.showToast = false; }}, 4000);
+                            return;
+                        }}
                         if (this.saving) return;
                         this.saving = true;
                         this.progress = 0;
@@ -732,9 +766,15 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                                     method: 'POST',
                                     headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
                                     body: formData
-                                }}).then(() => {{
+                                }}).then(response => {{
+                                    if (!response.ok) throw new Error('Server returned ' + response.status);
                                     this.saving = false;
                                     this.toastMsg = 'L2 MQTT Cloud Publisher configuration saved successfully.';
+                                    this.showToast = true;
+                                    setTimeout(() => {{ this.showToast = false; }}, 4000);
+                                }}).catch(err => {{
+                                    this.saving = false;
+                                    this.toastMsg = 'Failed to save: ' + err.message;
                                     this.showToast = true;
                                     setTimeout(() => {{ this.showToast = false; }}, 4000);
                                 }});
@@ -902,6 +942,12 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                     showToast: false,
                     toastMsg: '',
                     writeConfiguration() {{
+                        if (!this.connString || this.connString.trim() === '') {{
+                            this.toastMsg = 'Error: Connection string cannot be empty';
+                            this.showToast = true;
+                            setTimeout(() => {{ this.showToast = false; }}, 4000);
+                            return;
+                        }}
                         if (this.saving) return;
                         this.saving = true;
                         this.progress = 0;
@@ -921,9 +967,15 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                                     method: 'POST',
                                     headers: {{ 'Content-Type': 'application/x-www-form-urlencoded' }},
                                     body: formData
-                                }}).then(() => {{
+                                }}).then(response => {{
+                                    if (!response.ok) throw new Error('Server returned ' + response.status);
                                     this.saving = false;
                                     this.toastMsg = 'L3 TimescaleDB Archive configuration saved successfully.';
+                                    this.showToast = true;
+                                    setTimeout(() => {{ this.showToast = false; }}, 4000);
+                                }}).catch(err => {{
+                                    this.saving = false;
+                                    this.toastMsg = 'Failed to save: ' + err.message;
                                     this.showToast = true;
                                     setTimeout(() => {{ this.showToast = false; }}, 4000);
                                 }});
@@ -1091,39 +1143,51 @@ async fn toggle_adapter(Path(layer): Path<String>) -> Html<String> {
 }
 
 // POST Save settings endpoints
-async fn save_l0_settings(Form(payload): Form<L0Form>) -> Html<String> {
+async fn save_l0_settings(Form(payload): Form<L0Form>) -> impl IntoResponse {
+    if payload.path.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, Html("Path cannot be empty".to_string()));
+    }
     *get_l0_path().lock().unwrap() = payload.path;
     *L0_BUFFER_SIZE.lock().unwrap() = payload.buffer_size;
     L0_LOCK_MODE.store(payload.lock_mode.is_some(), Ordering::Relaxed);
     *get_l0_sync_mode().lock().unwrap() = payload.sync_mode;
-    Html("OK".to_string())
+    (StatusCode::OK, Html("OK".to_string()))
 }
 
-async fn save_l1_settings(Form(payload): Form<L1Form>) -> Html<String> {
+async fn save_l1_settings(Form(payload): Form<L1Form>) -> impl IntoResponse {
+    if payload.address.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, Html("Address cannot be empty".to_string()));
+    }
     *get_l1_address().lock().unwrap() = payload.address;
     *get_l1_namespace().lock().unwrap() = payload.namespace;
     *get_l1_security().lock().unwrap() = payload.security;
     *L1_MAX_SESSIONS.lock().unwrap() = payload.max_sessions;
     *L1_PUB_INTERVAL.lock().unwrap() = payload.pub_interval;
-    Html("OK".to_string())
+    (StatusCode::OK, Html("OK".to_string()))
 }
 
-async fn save_l2_settings(Form(payload): Form<L2Form>) -> Html<String> {
+async fn save_l2_settings(Form(payload): Form<L2Form>) -> impl IntoResponse {
+    if payload.broker.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, Html("Broker cannot be empty".to_string()));
+    }
     *get_l2_broker().lock().unwrap() = payload.broker;
     *get_l2_topic().lock().unwrap() = payload.topic;
     *L2_QOS.lock().unwrap() = payload.qos;
     *L2_KEEP_ALIVE.lock().unwrap() = payload.keep_alive;
     L2_CLEAN_SESSION.store(payload.clean_session.is_some(), Ordering::Relaxed);
     *L2_PUBLISH_RATE.lock().unwrap() = payload.pub_rate;
-    Html("OK".to_string())
+    (StatusCode::OK, Html("OK".to_string()))
 }
 
-async fn save_l3_settings(Form(payload): Form<L3Form>) -> Html<String> {
+async fn save_l3_settings(Form(payload): Form<L3Form>) -> impl IntoResponse {
+    if payload.conn_string.trim().is_empty() {
+        return (StatusCode::BAD_REQUEST, Html("Connection string cannot be empty".to_string()));
+    }
     *get_l3_conn_string().lock().unwrap() = payload.conn_string;
     *get_l3_target_table().lock().unwrap() = payload.target_table;
     *L3_BATCH_SIZE.lock().unwrap() = payload.batch_size;
     *L3_DELAY_LIMIT.lock().unwrap() = payload.delay_limit;
     *L3_RETENTION_DAYS.lock().unwrap() = payload.retention_days;
     *L3_POOL_SIZE.lock().unwrap() = payload.pool_size;
-    Html("OK".to_string())
+    (StatusCode::OK, Html("OK".to_string()))
 }
