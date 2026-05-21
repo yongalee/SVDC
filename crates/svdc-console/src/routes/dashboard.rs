@@ -503,7 +503,13 @@ async fn dashboard_page() -> Html<String> {
                                 }
 
                                 // System Metrics
-                                table class="text-[9px] w-full font-mono mt-3 border-none" {
+                                table class="text-[9px] w-full font-mono mt-3 border-none" style="table-layout: fixed;" {
+                                    colgroup {
+                                        col style="width: 25%;" {}
+                                        col style="width: 25%;" {}
+                                        col style="width: 25%;" {}
+                                        col style="width: 25%;" {}
+                                    }
                                     tbody {
                                         tr class="border-none hover:bg-transparent" {
                                             td class="py-0.5 px-0 text-text-muted border-none" { "Frequency:" }
