@@ -57,7 +57,43 @@ async fn dashboard_page() -> Html<String> {
                 { name: 'Phasor Computation Module', status: 'ACTIVE', lag_ms: 0.28, poll_rate: '4000 Hz', margin_pct: 99.5, type: 'PCM' },
                 { name: 'Transient Recorder', status: 'ARMED (Trigger Idle)', lag_ms: 0.0, poll_rate: 'Event-Triggered', margin_pct: 100.0, type: 'TR' },
                 { name: 'Fault Locator', status: 'ACTIVE (Background)', lag_ms: 0.39, poll_rate: 'Dynamic Poll', margin_pct: 98.9, type: 'FL' }
-            ]
+            ],
+            phasors: {
+                va_rms: 110.2, va_ang: 0.0,
+                vb_rms: 109.8, vb_ang: -120.1,
+                vc_rms: 110.5, vc_ang: 119.8,
+                ia_rms: 4.82, ia_ang: -30.2,
+                ib_rms: 4.79, ib_ang: -150.5,
+                ic_rms: 4.88, ic_ang: 89.4,
+                v1: 110.16, v2: 0.34, v0: 0.12,
+                freq: 59.998, rocof: -0.002,
+                mw: 1.54, mvar: 0.31, pf: 0.98
+            },
+            prp: {
+                mu01_lan_a: true, mu01_lan_b: true, mu01_errors: 0, mu01_discards: 12,
+                mu02_lan_a: true, mu02_lan_b: false, mu02_errors: 2, mu02_discards: 3,
+                mu03_lan_a: false, mu03_lan_b: false, mu03_errors: 0, mu03_discards: 0
+            },
+            cb_sync: {
+                mirror_state: 'IN_SYNC',
+                active_mirror: 'CB-A',
+                replica_mirror: 'CB-B',
+                write_ptr: 148202,
+                ebp_margin: 24, pcm_margin: 56, tr_margin: 0, fl_margin: 92,
+                ebp_zero_alloc: true, pcm_zero_alloc: true, tr_zero_alloc: true, fl_zero_alloc: true
+            },
+            getVectorX(rms, angle, isVoltage) {
+                const scale = isVoltage ? (70 / 120) : (70 / 6);
+                const r = Math.min(75, rms * scale);
+                const rad = angle * Math.PI / 180;
+                return (100 + r * Math.cos(rad)).toFixed(1);
+            },
+            getVectorY(rms, angle, isVoltage) {
+                const scale = isVoltage ? (70 / 120) : (70 / 6);
+                const r = Math.min(75, rms * scale);
+                const rad = angle * Math.PI / 180;
+                return (100 - r * Math.sin(rad)).toFixed(1);
+            }
         }"
         "x-init" "
             const es = new EventSource('/api/events');
@@ -75,6 +111,37 @@ async fn dashboard_page() -> Html<String> {
                         subscribers[0].lag_ms = +(0.08 + Math.random() * 0.04).toFixed(3);
                         subscribers[1].lag_ms = +(0.22 + Math.random() * 0.08).toFixed(2);
                         subscribers[3].lag_ms = +(0.32 + Math.random() * 0.12).toFixed(2);
+                        
+                        // Fluctuate electrical phasors realistically
+                        phasors.va_rms = +(110.0 + Math.random() * 0.5).toFixed(2);
+                        phasors.vb_rms = +(109.5 + Math.random() * 0.6).toFixed(2);
+                        phasors.vc_rms = +(110.1 + Math.random() * 0.6).toFixed(2);
+                        phasors.va_ang = +(0.0 + (Math.random() - 0.5) * 0.1).toFixed(2);
+                        phasors.vb_ang = +(-120.0 + (Math.random() - 0.5) * 0.1).toFixed(2);
+                        phasors.vc_ang = +(120.0 + (Math.random() - 0.5) * 0.1).toFixed(2);
+                        
+                        phasors.ia_rms = +(4.75 + Math.random() * 0.1).toFixed(2);
+                        phasors.ib_rms = +(4.70 + Math.random() * 0.1).toFixed(2);
+                        phasors.ic_rms = +(4.80 + Math.random() * 0.1).toFixed(2);
+                        phasors.ia_ang = +(-30.0 + (Math.random() - 0.5) * 0.2).toFixed(2);
+                        phasors.ib_ang = +(-150.0 + (Math.random() - 0.5) * 0.2).toFixed(2);
+                        phasors.ic_ang = +(90.0 + (Math.random() - 0.5) * 0.2).toFixed(2);
+                        
+                        // Symmetrical components calculations based on nominal inputs
+                        phasors.v1 = +((phasors.va_rms + phasors.vb_rms + phasors.vc_rms) / 3).toFixed(2);
+                        phasors.v2 = +(0.28 + Math.random() * 0.1).toFixed(2);
+                        phasors.v0 = +(0.10 + Math.random() * 0.05).toFixed(2);
+                        
+                        phasors.freq = +(59.995 + Math.random() * 0.01).toFixed(3);
+                        phasors.rocof = +((Math.random() - 0.5) * 0.004).toFixed(3);
+                        phasors.mw = +(1.51 + Math.random() * 0.05).toFixed(2);
+                        phasors.mvar = +(0.29 + Math.random() * 0.03).toFixed(2);
+                        phasors.pf = +(0.978 + Math.random() * 0.004).toFixed(3);
+                        
+                        // Increment discards and write pointer
+                        prp.mu01_discards += Math.random() > 0.7 ? 1 : 0;
+                        prp.mu02_errors += Math.random() > 0.95 ? 1 : 0;
+                        cb_sync.write_ptr += Math.floor(Math.random() * 40) + 10;
                         
                         const topBar = document.getElementById('topbar-ptp-status');
                         if (topBar) {
@@ -283,74 +350,292 @@ async fn dashboard_page() -> Html<String> {
             // 3. Two-Column SCADA Operator Layout
             div class="grid grid-cols-1 lg:grid-cols-3 gap-6" {
 
-                // Left Column: Process Bus Stream Matrix & Real-time Downsampled Waveforms (2/3 width)
+                // Left Column: Polar Vector Grid, Diagnostics Table, and PRP/HSR Routing (2/3 width)
                 div class="lg:col-span-2 flex flex-col gap-6" {
 
-                    // High-density Process Bus stream diagnostics table
+                    // High-density Polar Vector Diagram & Electrical Diagnostics Card
+                    div class="glass-card shadow-md" {
+                        div class="card-header flex justify-between items-center border-b border-border-color pb-3" {
+                            div class="flex items-center gap-2" {
+                                span class="card-icon" {
+                                    svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
+                                        path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" {}
+                                        path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" {}
+                                    }
+                                }
+                                h2 class="card-title" { "3-Phase Polar Phasor Vector & Symmetrical Components Grid" }
+                            }
+                            span class="text-[10px] font-mono bg-bg-primary border border-border-color px-2 py-1 rounded text-text-secondary" {
+                                "Real-Time Vector Ingestion Monitor"
+                            }
+                        }
+
+                        div class="card-body mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 items-start" {
+                            // Polar Diagram Canvas
+                            div class="flex flex-col items-center justify-center p-3 bg-chart-bg rounded-lg border border-border-color relative" {
+                                svg viewBox="0 0 200 200" class="w-full max-w-[220px] h-auto block" style="background: transparent;" {
+                                    // Concentric grid circles: 30V/1.5A, 60V/3A, 90V/4.5A, 120V/6A (radius 20, 40, 60, 80 centered at 100, 100)
+                                    circle cx="100" cy="100" r="20" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
+                                    circle cx="100" cy="100" r="40" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
+                                    circle cx="100" cy="100" r="60" class="stroke-grid-secondary" fill="none" stroke-dasharray="2" {}
+                                    circle cx="100" cy="100" r="80" class="stroke-grid-primary" fill="none" {}
+
+                                    // Polar degree axis lines every 30 degrees (30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330)
+                                    // 0-180 horizontal line
+                                    line x1="20" y1="100" x2="180" y2="100" class="stroke-grid-secondary" stroke-dasharray="2" {}
+                                    // 90-270 vertical line
+                                    line x1="100" y1="20" x2="100" y2="180" class="stroke-grid-secondary" stroke-dasharray="2" {}
+
+                                    // Diagonal 30-210 degree lines
+                                    line x1="30.7" y1="140" x2="169.3" y2="60" class="stroke-grid-secondary" stroke-dasharray="1" {}
+                                    // 60-240 line
+                                    line x1="60" y1="169.3" x2="140" y2="30.7" class="stroke-grid-secondary" stroke-dasharray="1" {}
+                                    // 120-300 line
+                                    line x1="60" y1="30.7" x2="140" y2="169.3" class="stroke-grid-secondary" stroke-dasharray="1" {}
+                                    // 150-330 line
+                                    line x1="30.7" y1="60" x2="169.3" y2="140" class="stroke-grid-secondary" stroke-dasharray="1" {}
+
+                                    // Polar Degree Labels
+                                    text x="183" y="103" class="text-grid text-[8px] font-mono font-bold" { "0°" }
+                                    text x="96" y="15" class="text-grid text-[8px] font-mono font-bold" { "90°" }
+                                    text x="5" y="103" class="text-grid text-[8px] font-mono font-bold" { "180°" }
+                                    text x="93" y="193" class="text-grid text-[8px] font-mono font-bold" { "270°" }
+
+                                    // Dynamically bound voltage vectors
+                                    // Va Voltage Vector (Solid Red)
+                                    line x1="100" y1="100"
+                                         x-bind:x2="getVectorX(phasors.va_rms, phasors.va_ang, true)"
+                                         x-bind:y2="getVectorY(phasors.va_rms, phasors.va_ang, true)"
+                                         stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" {}
+                                    // Vb Voltage Vector (Solid Green)
+                                    line x1="100" y1="100"
+                                         x-bind:x2="getVectorX(phasors.vb_rms, phasors.vb_ang, true)"
+                                         x-bind:y2="getVectorY(phasors.vb_rms, phasors.vb_ang, true)"
+                                         stroke="#059669" stroke-width="2.5" stroke-linecap="round" {}
+                                    // Vc Voltage Vector (Solid Blue)
+                                    line x1="100" y1="100"
+                                         x-bind:x2="getVectorX(phasors.vc_rms, phasors.vc_ang, true)"
+                                         x-bind:y2="getVectorY(phasors.vc_rms, phasors.vc_ang, true)"
+                                         stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" {}
+
+                                    // Dynamically bound current vectors
+                                    // Ia Current Vector (Dashed Amber)
+                                    line x1="100" y1="100"
+                                         x-bind:x2="getVectorX(phasors.ia_rms, phasors.ia_ang, false)"
+                                         x-bind:y2="getVectorY(phasors.ia_rms, phasors.ia_ang, false)"
+                                         stroke="#d97706" stroke-width="1.8" stroke-dasharray="2" stroke-linecap="round" {}
+                                    // Ib Current Vector (Dashed Purple)
+                                    line x1="100" y1="100"
+                                         x-bind:x2="getVectorX(phasors.ib_rms, phasors.ib_ang, false)"
+                                         x-bind:y2="getVectorY(phasors.ib_rms, phasors.ib_ang, false)"
+                                         stroke="#8b5cf6" stroke-width="1.8" stroke-dasharray="2" stroke-linecap="round" {}
+                                    // Ic Current Vector (Dashed Teal)
+                                    line x1="100" y1="100"
+                                         x-bind:x2="getVectorX(phasors.ic_rms, phasors.ic_ang, false)"
+                                         x-bind:y2="getVectorY(phasors.ic_rms, phasors.ic_ang, false)"
+                                         stroke="#14b8a6" stroke-width="1.8" stroke-dasharray="2" stroke-linecap="round" {}
+                                }
+                                div class="flex flex-wrap gap-x-3 gap-y-1 justify-center mt-3 text-[9px] font-mono w-full" {
+                                    span class="flex items-center gap-1" {
+                                        span class="w-2 h-0.5 bg-[#dc2626]" {}
+                                        span class="text-text-primary" { "Va" }
+                                    }
+                                    span class="flex items-center gap-1" {
+                                        span class="w-2 h-0.5 bg-[#059669]" {}
+                                        span class="text-text-primary" { "Vb" }
+                                    }
+                                    span class="flex items-center gap-1" {
+                                        span class="w-2 h-0.5 bg-[#2563eb]" {}
+                                        span class="text-text-primary" { "Vc" }
+                                    }
+                                    span class="flex items-center gap-1" {
+                                        span class="w-2 h-0.5 border-t border-dashed border-[#d97706]" {}
+                                        span class="text-text-primary" { "Ia" }
+                                    }
+                                    span class="flex items-center gap-1" {
+                                        span class="w-2 h-0.5 border-t border-dashed border-[#8b5cf6]" {}
+                                        span class="text-text-primary" { "Ib" }
+                                    }
+                                    span class="flex items-center gap-1" {
+                                        span class="w-2 h-0.5 border-t border-dashed border-[#14b8a6]" {}
+                                        span class="text-text-primary" { "Ic" }
+                                    }
+                                }
+                            }
+
+                            // Electrical Telemetry & Diagnostics Table
+                            div class="w-full" {
+                                table class="industrial-grid text-[10px] w-full font-mono mt-0 border-none" {
+                                    thead {
+                                        tr {
+                                            th class="py-1 px-1.5 text-left text-text-muted" { "Parameter" }
+                                            th class="py-1 px-1.5 text-right text-text-muted" { "RMS Value" }
+                                            th class="py-1 px-1.5 text-right text-text-muted" { "Angle" }
+                                        }
+                                    }
+                                    tbody {
+                                        tr {
+                                            td class="py-1 px-1.5 text-left border-b border-border-color" { "Voltage Phase A (Va)" }
+                                            td class="py-1 px-1.5 text-right font-bold text-accent-red border-b border-border-color" x-text="phasors.va_rms + ' V'" { "110.20 V" }
+                                            td class="py-1 px-1.5 text-right text-text-secondary border-b border-border-color" x-text="phasors.va_ang + '°'" { "0.00°" }
+                                        }
+                                        tr {
+                                            td class="py-1 px-1.5 text-left border-b border-border-color" { "Voltage Phase B (Vb)" }
+                                            td class="py-1 px-1.5 text-right font-bold text-accent-green border-b border-border-color" x-text="phasors.vb_rms + ' V'" { "109.80 V" }
+                                            td class="py-1 px-1.5 text-right text-text-secondary border-b border-border-color" x-text="phasors.vb_ang + '°'" { "-120.10°" }
+                                        }
+                                        tr {
+                                            td class="py-1 px-1.5 text-left border-b border-border-color" { "Voltage Phase C (Vc)" }
+                                            td class="py-1 px-1.5 text-right font-bold text-accent-blue border-b border-border-color" x-text="phasors.vc_rms + ' V'" { "110.50 V" }
+                                            td class="py-1 px-1.5 text-right text-text-secondary border-b border-border-color" x-text="phasors.vc_ang + '°'" { "119.80°" }
+                                        }
+                                        tr {
+                                            td class="py-1 px-1.5 text-left border-b border-border-color" { "Current Phase A (Ia)" }
+                                            td class="py-1 px-1.5 text-right font-bold text-accent-yellow border-b border-border-color" x-text="phasors.ia_rms + ' A'" { "4.82 A" }
+                                            td class="py-1 px-1.5 text-right text-text-secondary border-b border-border-color" x-text="phasors.ia_ang + '°'" { "-30.20°" }
+                                        }
+                                        tr {
+                                            td class="py-1 px-1.5 text-left border-b border-border-color" { "Current Phase B (Ib)" }
+                                            td class="py-1 px-1.5 text-right font-bold text-[#8b5cf6] border-b border-border-color" x-text="phasors.ib_rms + ' A'" { "4.79 A" }
+                                            td class="py-1 px-1.5 text-right text-text-secondary border-b border-border-color" x-text="phasors.ib_ang + '°'" { "-150.50°" }
+                                        }
+                                        tr {
+                                            td class="py-1 px-1.5 text-left border-b border-border-color" { "Current Phase C (Ic)" }
+                                            td class="py-1 px-1.5 text-right font-bold text-[#14b8a6] border-b border-border-color" x-text="phasors.ic_rms + ' A'" { "4.88 A" }
+                                            td class="py-1 px-1.5 text-right text-text-secondary border-b border-border-color" x-text="phasors.ic_ang + '°'" { "89.40°" }
+                                        }
+                                    }
+                                }
+
+                                // Symmetrical Components Grid Section
+                                div class="mt-3 grid grid-cols-3 gap-2 p-2 bg-bg-primary rounded border border-border-color" {
+                                    div class="text-center font-mono text-[9px]" {
+                                        span class="block text-text-muted" { "Positive (V1)" }
+                                        strong class="text-text-primary text-[10px]" x-text="phasors.v1 + ' V'" { "110.16 V" }
+                                    }
+                                    div class="text-center font-mono text-[9px]" {
+                                        span class="block text-text-muted" { "Negative (V2)" }
+                                        strong class="text-text-primary text-[10px]" x-text="phasors.v2 + ' V'" { "0.34 V" }
+                                    }
+                                    div class="text-center font-mono text-[9px]" {
+                                        span class="block text-text-muted" { "Zero (V0)" }
+                                        strong class="text-text-primary text-[10px]" x-text="phasors.v0 + ' V'" { "0.12 V" }
+                                    }
+                                }
+
+                                // Total System Metrics Table
+                                table class="text-[9px] w-full font-mono mt-3 border-none" {
+                                    tbody {
+                                        tr class="border-none hover:bg-transparent" {
+                                            td class="py-0.5 px-0 text-text-muted border-none" { "Frequency:" }
+                                            td class="py-0.5 px-0 text-right font-bold text-text-primary border-none" x-text="phasors.freq.toFixed(3) + ' Hz'" { "59.998 Hz" }
+                                            td class="py-0.5 px-0 text-text-muted border-none pl-3" { "Active Power:" }
+                                            td class="py-0.5 px-0 text-right font-bold text-text-primary border-none" x-text="phasors.mw + ' MW'" { "1.54 MW" }
+                                        }
+                                        tr class="border-none hover:bg-transparent" {
+                                            td class="py-0.5 px-0 text-text-muted border-none" { "ROCOF:" }
+                                            td class="py-0.5 px-0 text-right font-semibold text-text-primary border-none" x-text="phasors.rocof.toFixed(3) + ' Hz/s'" { "-0.002 Hz/s" }
+                                            td class="py-0.5 px-0 text-text-muted border-none pl-3" { "Reactive Power:" }
+                                            td class="py-0.5 px-0 text-right font-bold text-text-primary border-none" x-text="phasors.mvar + ' MVAR'" { "0.31 MVAR" }
+                                        }
+                                        tr class="border-none hover:bg-transparent" {
+                                            td class="py-0.5 px-0 text-text-muted border-none" { "Power Factor:" }
+                                            td class="py-0.5 px-0 text-right font-bold text-accent-green border-none" x-text="phasors.pf" { "0.980" }
+                                            td class="py-0.5 px-0 text-text-muted border-none pl-3" { "System Angle Drift:" }
+                                            td class="py-0.5 px-0 text-right font-semibold text-text-primary border-none" { "0.015°/sec" }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Combined Process Bus Alignment & Redundant PRP/HSR Routing Table
                     div class="glass-card shadow-md" {
                         div class="card-header flex items-center gap-2 border-b border-border-color pb-3" {
                             span class="card-icon" {
-                                svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
-                                    path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" {}
+                                svg class="w-4 h-4 text-accent-green" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
+                                    path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21V9.75M20.716 14.253a9.004 9.004 0 01-17.432 0M20.716 14.253A8.995 8.995 0 0021 12M3.284 14.253A8.995 8.995 0 013 12m18 0a9 9 0 00-9-9m9 9a9.004 9.004 0 00-8.716 6.747M12 3a9 9 0 00-9 9m9-9v6.75" {}
                                 }
                             }
-                            h2 class="card-title" { "Process Bus Telemetry & Stream Alignment Matrix" }
+                            h2 class="card-title" { "Process Bus Ingestion & Redundant PRP/HSR Routing Topology" }
                         }
                         div class="card-body mt-4 overflow-x-auto" {
-                            table class="industrial-grid text-[11px]" {
+                            table class="industrial-grid text-[10px] w-full" {
                                 thead {
                                     tr {
-                                        th { "MU Identifier" }
-                                        th { "MAC Address" }
-                                        th { "IP Address" }
-                                        th { "LAN Path (PRP)" }
-                                        th { "Rate" }
-                                        th { "Offset vs PTP" }
-                                        th { "Drift Jitter" }
-                                        th { "Stream State" }
+                                        th class="text-left" { "MU ID & Feed Location" }
+                                        th class="text-left font-mono" { "MAC & IP Connection" }
+                                        th class="text-center" { "PRP LAN A" }
+                                        th class="text-center" { "PRP LAN B" }
+                                        th class="text-right" { "Out-of-Seq" }
+                                        th class="text-right" { "Duplicates Discarded" }
+                                        th class="text-right" { "Sync Offset" }
+                                        th class="text-center" { "Alignment State" }
                                     }
                                 }
                                 tbody {
                                     tr {
-                                        td class="font-semibold" { "MU-01 (Feeder Line A)" }
-                                        td class="font-mono text-xs text-text-secondary" { "00:0a:35:01:02:01" }
-                                        td class="font-mono text-xs text-text-secondary" { "192.168.1.101" }
-                                        td class="font-semibold text-accent-green" { "LAN A & B Active" }
-                                        td class="font-semibold text-accent-blue" { "4000 sps" }
-                                        td class="font-mono text-accent-green" { "+12 ns" }
-                                        td class="font-mono" { "0.3 μs" }
-                                        td {
-                                            span class="status-badge status-badge-healthy" {
+                                        td class="font-semibold text-text-primary" { "MU-01 (Feeder Line A)" }
+                                        td class="font-mono text-xs text-text-secondary" {
+                                            div { "00:0a:35:01:02:01" }
+                                            div class="text-[9px] text-text-muted" { "192.168.1.101" }
+                                        }
+                                        td class="text-center" {
+                                            span class="inline-block w-2.5 h-2.5 rounded-full bg-accent-green" x-bind:class="prp.mu01_lan_a ? 'bg-accent-green' : 'bg-accent-red'" {}
+                                        }
+                                        td class="text-center" {
+                                            span class="inline-block w-2.5 h-2.5 rounded-full bg-accent-green" x-bind:class="prp.mu01_lan_b ? 'bg-accent-green' : 'bg-accent-red'" {}
+                                        }
+                                        td class="text-right font-mono font-semibold" x-text="prp.mu01_errors" { "0" }
+                                        td class="text-right font-mono font-semibold text-accent-blue" x-text="prp.mu01_discards" { "12" }
+                                        td class="text-right font-mono text-accent-green" { "+12 ns" }
+                                        td class="text-center" {
+                                            span class="status-badge status-badge-healthy px-1.5 py-0.5" {
                                                 span class="status-dot-pulse" {}
                                                 "ALIGNED"
                                             }
                                         }
                                     }
                                     tr {
-                                        td class="font-semibold" { "MU-02 (Feeder Line B)" }
-                                        td class="font-mono text-xs text-text-secondary" { "00:0a:35:01:02:02" }
-                                        td class="font-mono text-xs text-text-secondary" { "192.168.1.102" }
-                                        td class="font-semibold text-accent-yellow" { "LAN A Only (Degraded)" }
-                                        td class="font-semibold text-accent-blue" { "4000 sps" }
-                                        td class="font-mono text-accent-yellow" { "+18 ns" }
-                                        td class="font-mono" { "2.1 μs" }
-                                        td {
-                                            span class="status-badge status-badge-degraded" {
+                                        td class="font-semibold text-text-primary" { "MU-02 (Feeder Line B)" }
+                                        td class="font-mono text-xs text-text-secondary" {
+                                            div { "00:0a:35:01:02:02" }
+                                            div class="text-[9px] text-text-muted" { "192.168.1.102" }
+                                        }
+                                        td class="text-center" {
+                                            span class="inline-block w-2.5 h-2.5 rounded-full bg-accent-green" x-bind:class="prp.mu02_lan_a ? 'bg-accent-green' : 'bg-accent-red'" {}
+                                        }
+                                        td class="text-center" {
+                                            span class="inline-block w-2.5 h-2.5 rounded-full bg-accent-red" x-bind:class="prp.mu02_lan_b ? 'bg-accent-green' : 'bg-accent-red'" {}
+                                        }
+                                        td class="text-right font-mono font-semibold text-accent-yellow" x-text="prp.mu02_errors" { "2" }
+                                        td class="text-right font-mono font-semibold text-text-muted" x-text="prp.mu02_discards" { "0" }
+                                        td class="text-right font-mono text-accent-yellow" { "+18 ns" }
+                                        td class="text-center" {
+                                            span class="status-badge status-badge-degraded px-1.5 py-0.5" {
                                                 span class="status-dot-pulse" {}
                                                 "DEGRADED"
                                             }
                                         }
                                     }
                                     tr {
-                                        td class="font-semibold" { "MU-03 (Busbar Coupling)" }
-                                        td class="font-mono text-xs text-text-secondary" { "00:0a:35:01:02:03" }
-                                        td class="font-mono text-xs text-text-secondary" { "192.168.1.103" }
-                                        td class="font-semibold text-accent-red" { "Offline" }
-                                        td class="font-semibold text-text-muted" { "0 sps" }
-                                        td class="font-mono text-accent-red" { "--" }
-                                        td class="font-mono text-text-muted" { "0.0 μs" }
-                                        td {
-                                            span class="status-badge status-badge-fault" {
+                                        td class="font-semibold text-text-primary" { "MU-03 (Busbar Coupling)" }
+                                        td class="font-mono text-xs text-text-secondary" {
+                                            div { "00:0a:35:01:02:03" }
+                                            div class="text-[9px] text-text-muted" { "192.168.1.103" }
+                                        }
+                                        td class="text-center" {
+                                            span class="inline-block w-2.5 h-2.5 rounded-full bg-accent-red" x-bind:class="prp.mu03_lan_a ? 'bg-accent-green' : 'bg-accent-red'" {}
+                                        }
+                                        td class="text-center" {
+                                            span class="inline-block w-2.5 h-2.5 rounded-full bg-accent-red" x-bind:class="prp.mu03_lan_b ? 'bg-accent-green' : 'bg-accent-red'" {}
+                                        }
+                                        td class="text-right font-mono font-semibold text-text-muted" x-text="prp.mu03_errors" { "0" }
+                                        td class="text-right font-mono font-semibold text-text-muted" x-text="prp.mu03_discards" { "0" }
+                                        td class="text-right font-mono text-accent-red" { "--" }
+                                        td class="text-center" {
+                                            span class="status-badge status-badge-fault px-1.5 py-0.5" {
                                                 "DISCONNECTED"
                                             }
                                         }
@@ -359,149 +644,86 @@ async fn dashboard_page() -> Html<String> {
                             }
                         }
                     }
-
-                    // High-fidelity Live SVG Reconstructed Sine Waveforms Section
-                    div class="glass-card shadow-md" {
-                        div class="card-header flex justify-between items-center" {
-                            div class="flex items-center gap-2" {
-                                span class="card-icon" {
-                                    svg class="w-4 h-4 text-accent-green" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
-                                        path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" {}
-                                    }
-                                }
-                                h2 class="card-title" { "Reconstructed 3-Phase AC Waveforms (10 Hz Monitor)" }
-                            }
-                            span class="text-[10px] font-mono bg-bg-primary border border-border-color px-2 py-1 rounded text-text-secondary" {
-                                "Real-Time Ingest Stream"
-                            }
-                        }
-
-                        // SVG Waveform canvas that subscribes to waveform SSE data and draws them in real-time
-                        div class="card-body mt-4 flex flex-col lg:flex-row gap-6 items-center"
-                             "x-data" "{
-                                 points: [], 
-                                 width: 800, 
-                                 height: 180,
-                                 maxPoints: 80,
-                                 scaleY: 0.5
-                             }"
-                             "x-init" "
-                                 // Listen to high-speed 10 Hz waveform packets
-                                 es.addEventListener('message', (e) => {
-                                     try {
-                                         const payload = JSON.parse(e.data);
-                                         if (payload.event_type === 'Waveform') {
-                                             points.push(payload.data);
-                                             if (points.length > maxPoints) {
-                                                 points.shift();
-                                             }
-                                         }
-                                     } catch(err) {}
-                                 });
-                             " {
-
-                             // SVG Grid Waveform Display
-                             div class="flex-1 w-full bg-chart-bg rounded-lg border border-border-color p-2 relative overflow-hidden" {
-                                  // Responsive inline SVG
-                                  svg viewBox="0 0 800 180" class="w-full h-auto block" style="background: transparent;" {
-                                      // Grid lines
-                                      line x1="0" y1="90" x2="800" y2="90" class="stroke-grid-primary" stroke-dasharray="4" {}
-                                      line x1="200" y1="0" x2="200" y2="180" class="stroke-grid-secondary" stroke-dasharray="2" {}
-                                      line x1="400" y1="0" x2="400" y2="180" class="stroke-grid-secondary" stroke-dasharray="2" {}
-                                      line x1="600" y1="0" x2="600" y2="180" class="stroke-grid-secondary" stroke-dasharray="2" {}
-
-                                      // Voltage Waves: Va (Red), Vb (Green), Vc (Blue)
-                                      path x-bind:d="points.reduce((acc, p, idx) => { const x = (idx / (maxPoints - 1)) * 800; const y = 90 - (p.v1 * scaleY); return acc + (idx === 0 ? 'M' : 'L') + ' ' + x + ' ' + y; }, '')" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" {}
-
-                                      path x-bind:d="points.reduce((acc, p, idx) => { const x = (idx / (maxPoints - 1)) * 800; const y = 90 - (p.v2 * scaleY); return acc + (idx === 0 ? 'M' : 'L') + ' ' + x + ' ' + y; }, '')" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" {}
-
-                                      path x-bind:d="points.reduce((acc, p, idx) => { const x = (idx / (maxPoints - 1)) * 800; const y = 90 - (p.v3 * scaleY); return acc + (idx === 0 ? 'M' : 'L') + ' ' + x + ' ' + y; }, '')" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" {}
-                                  }
-                             }
-
-                             // Waveform Legend Panel
-                             div class="w-full lg:w-48 grid grid-cols-3 lg:flex lg:flex-col gap-3 text-xs font-mono text-text-secondary" {
-                                  div class="flex items-center gap-2" {
-                                      span class="w-2.5 h-2.5 rounded-full bg-[#dc2626]" {}
-                                      div {
-                                          span class="block text-text-primary font-semibold text-[11px]" { "Phase A (Va)" }
-                                          span class="text-[9px]" { "110V RMS (Nom)" }
-                                      }
-                                  }
-                                  div class="flex items-center gap-2" {
-                                      span class="w-2.5 h-2.5 rounded-full bg-[#059669]" {}
-                                      div {
-                                          span class="block text-text-primary font-semibold text-[11px]" { "Phase B (Vb)" }
-                                          span class="text-[9px]" { "120° Shifted" }
-                                      }
-                                  }
-                                  div class="flex items-center gap-2" {
-                                      span class="w-2.5 h-2.5 rounded-full bg-[#2563eb]" {}
-                                      div {
-                                          span class="block text-text-primary font-semibold text-[11px]" { "Phase C (Vc)" }
-                                          span class="text-[9px]" { "-120° Shifted" }
-                                      }
-                                  }
-                             }
-                        }
-                    }
                 }
 
-                // Right Column: EBP northbound subscribers and QSE self-healing activities (1/3 width)
+                // Right Column: Circular Buffer Mirror Sync & Active Application Readers & QSE Overrides (1/3 width)
                 div class="flex flex-col gap-6" {
 
-                    // Northbound local core subscriber matrix
+                    // Circular Buffer Mirror Synchronization Panel
                     div class="glass-card shadow-md flex-1" {
                         div class="card-header flex items-center gap-2 border-b border-border-color pb-3" {
                             span class="card-icon" {
-                                svg class="w-4 h-4 text-accent-green" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
-                                    path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" {}
+                                svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
+                                    path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" {}
                                 }
                             }
-                            h2 class="card-title" { "Northbound Subscriber Matrix" }
+                            h2 class="card-title" { "Circular Buffer Mirror Sync & Active Readers Matrix" }
                         }
-                        div class="card-body mt-3 overflow-x-auto" {
-                            table class="industrial-grid text-[10px]" {
+                        div class="card-body mt-4 flex flex-col gap-4" {
+                            // Ring Synchronization Status block
+                            div class="flex items-center justify-between p-2.5 bg-bg-primary rounded border border-border-color" {
+                                div class="font-mono text-[9px]" {
+                                    span class="block text-text-muted" { "Active Ingest Mirror" }
+                                    strong class="text-accent-blue" x-text="cb_sync.active_mirror" { "CB-A" }
+                                    span class="text-text-muted" { " -> Replica: " }
+                                    strong class="text-text-secondary" x-text="cb_sync.replica_mirror" { "CB-B" }
+                                }
+                                span class="status-badge status-badge-healthy px-1.5 py-0.5 text-[8px]" {
+                                    span class="status-dot-pulse" {}
+                                    span x-text="cb_sync.mirror_state.replace('_', ' ')" { "IN SYNC" }
+                                }
+                            }
+
+                            // Write index pointer
+                            div class="flex justify-between items-center text-[10px] font-mono" {
+                                span class="text-text-muted" { "Global Ring Write Index Pointer:" }
+                                strong class="text-text-primary" x-text="cb_sync.write_ptr" { "148,202" }
+                            }
+
+                            // High-density subscriber readers matrix
+                            table class="industrial-grid text-[10px] mt-2 w-full" {
                                 thead {
                                     tr {
-                                        th { "Subscriber Name" }
-                                        th { "Lag" }
-                                        th { "Safety Margin" }
+                                        th class="text-left py-1" { "Application Subscriber" }
+                                        th class="text-right py-1" { "Lag (Frames)" }
+                                        th class="text-center py-1" { "Zero-Alloc" }
                                     }
                                 }
                                 tbody {
                                     tr {
-                                        td class="font-semibold text-text-primary" { "EBP Protection Relay" }
-                                        td class="font-mono text-accent-green" {
-                                            span x-text="subscribers[0].lag_ms" { "0.102" } " ms"
+                                        td class="font-semibold text-text-primary py-1.5" { "EBP Protection Relay" }
+                                        td class="text-right font-mono text-accent-green py-1.5" {
+                                            strong x-text="cb_sync.ebp_margin" { "24" } " / 256k"
                                         }
-                                        td {
-                                            span class="status-badge status-badge-healthy text-[9px] px-1.5 py-0.5" { "99.8% OK" }
-                                        }
-                                    }
-                                    tr {
-                                        td class="font-semibold text-text-primary" { "Phasor Computation Module" }
-                                        td class="font-mono text-accent-green" {
-                                            span x-text="subscribers[1].lag_ms" { "0.28" } " ms"
-                                        }
-                                        td {
-                                            span class="status-badge status-badge-healthy text-[9px] px-1.5 py-0.5" { "99.5% OK" }
+                                        td class="text-center py-1.5" {
+                                            span class="inline-flex items-center justify-center text-[8px] bg-accent-green-dim text-accent-green border border-accent-green/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider" x-show="cb_sync.ebp_zero_alloc" { "Lock-free" }
                                         }
                                     }
                                     tr {
-                                        td class="font-semibold text-text-primary" { "Transient Recorder" }
-                                        td class="font-mono text-text-muted" { "0.0 ms" }
-                                        td {
-                                            span class="status-badge status-badge-healthy text-[9px] px-1.5 py-0.5" { "100% IDLE" }
+                                        td class="font-semibold text-text-primary py-1.5" { "Phasor Computation Module" }
+                                        td class="text-right font-mono text-accent-green py-1.5" {
+                                            strong x-text="cb_sync.pcm_margin" { "56" } " / 256k"
+                                        }
+                                        td class="text-center py-1.5" {
+                                            span class="inline-flex items-center justify-center text-[8px] bg-accent-green-dim text-accent-green border border-accent-green/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider" x-show="cb_sync.pcm_zero_alloc" { "Lock-free" }
                                         }
                                     }
                                     tr {
-                                        td class="font-semibold text-text-primary" { "Fault Locator" }
-                                        td class="font-mono text-accent-yellow" {
-                                            span x-text="subscribers[3].lag_ms" { "0.39" } " ms"
+                                        td class="font-semibold text-text-primary py-1.5" { "Transient Recorder" }
+                                        td class="text-right font-mono text-text-muted py-1.5" {
+                                            strong x-text="cb_sync.tr_margin" { "0" } " / 256k"
                                         }
-                                        td {
-                                            span class="status-badge status-badge-degraded text-[9px] px-1.5 py-0.5" { "98.9% WARN" }
+                                        td class="text-center py-1.5" {
+                                            span class="inline-flex items-center justify-center text-[8px] bg-accent-yellow-dim text-accent-yellow border border-accent-yellow/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider" x-show="cb_sync.tr_zero_alloc" { "Armed" }
+                                        }
+                                    }
+                                    tr {
+                                        td class="font-semibold text-text-primary py-1.5" { "Fault Locator" }
+                                        td class="text-right font-mono text-accent-yellow py-1.5" {
+                                            strong x-text="cb_sync.fl_margin" { "92" } " / 256k"
+                                        }
+                                        td class="text-center py-1.5" {
+                                            span class="inline-flex items-center justify-center text-[8px] bg-accent-green-dim text-accent-green border border-accent-green/20 px-1 py-0.2 rounded font-bold uppercase tracking-wider" x-show="cb_sync.fl_zero_alloc" { "Lock-free" }
                                         }
                                     }
                                 }
@@ -509,7 +731,7 @@ async fn dashboard_page() -> Html<String> {
                         }
                     }
 
-                    // QSE write-back loop live activity feed
+                    // QSE Quasi-dynamic State Estimator Self-Healing Log Terminal
                     div class="glass-card shadow-md flex-1" {
                         div class="card-header flex items-center gap-2 border-b border-border-color pb-3" {
                             span class="card-icon" {
@@ -517,9 +739,9 @@ async fn dashboard_page() -> Html<String> {
                                     path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.751h-.152c-3.196 0-6.1-1.249-8.25-3.286z" {}
                                 }
                             }
-                            h2 class="card-title" { "QSE Self-Healing Activity" }
+                            h2 class="card-title" { "QSE Self-Healing Overrides & State Estimator Logs" }
                         }
-                        div class="card-body mt-3 font-mono text-[10px] text-text-secondary bg-[#0f172a] p-3 rounded border border-border-color h-40 overflow-y-auto flex flex-col gap-1.5 shadow-inner" {
+                        div class="card-body mt-3 font-mono text-[9px] text-text-secondary bg-[#0f172a] p-3 rounded border border-border-color h-[155px] overflow-y-auto flex flex-col gap-1.5 shadow-inner" {
                             div {
                                 span class="text-[#888880]" { "[13:58:12] " }
                                 span class="text-accent-yellow font-semibold" { "[ESTIMATE] " }
