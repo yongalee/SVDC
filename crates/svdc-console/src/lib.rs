@@ -20,6 +20,8 @@
 pub mod assets;
 /// HTTP route handlers, one module per UI screen plus assets and SSE.
 pub mod routes;
+/// IEC 61850 SCL/SCD parser and the in-process channel registry.
+pub mod scd;
 /// Typed Server-Sent Event payloads and the background emitter.
 pub mod sse;
 /// maud template fragments: base layout and reusable components.
