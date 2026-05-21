@@ -34,7 +34,19 @@ async fn monitoring_page() -> Html<String> {
                 { timestamp: '2026-05-21 09:29:10', wbs: 'Gate G0', operation: 'Provisional Spec-Lock decision', target: 'SSIEC local node settings', operator: 'claude-code', result: 'LOCKED', result_color: 'text-accent-green' }
             ],
             search_query: '',
+            mgmt_health: null,
+            mgmt_channels: null,
+            async fetchMgmt() {
+                try {
+                    const r1 = await fetch('/api/mgmt/health');
+                    if (r1.ok) this.mgmt_health = await r1.json();
+                    const r2 = await fetch('/api/mgmt/channels');
+                    if (r2.ok) this.mgmt_channels = await r2.json();
+                } catch(e) {}
+            },
             init() {
+                this.fetchMgmt();
+                setInterval(() => this.fetchMgmt(), 1000);
                 const evtSource = new EventSource('/api/events');
                 evtSource.onmessage = (event) => {
                     try {
@@ -62,6 +74,10 @@ async fn monitoring_page() -> Html<String> {
                         }
                     } catch(e) {}
                 };
+            },
+            getJitterMax(histogram) {
+                if (!histogram || histogram.length === 0) return 10;
+                return Math.max(...histogram, 10);
             },
             getJitterPath(histogram) {
                 if (!histogram || histogram.length === 0) return '';
@@ -181,7 +197,7 @@ async fn monitoring_page() -> Html<String> {
                                 h4 class="font-bold text-text-primary" x-text="mu.mu_id" {}
                                 span class="text-xs font-mono text-text-secondary" x-text="mu.ptp_sync" {}
                             }
-                            
+
                             // Metrics Grid
                             div class="grid grid-cols-2 gap-2 text-sm font-mono" {
                                 div class="flex flex-col" {
@@ -201,13 +217,13 @@ async fn monitoring_page() -> Html<String> {
                                     span class="text-text-primary font-semibold" x-text="mu.qse_corrections" {}
                                 }
                             }
-                            
+
                             // Calibration Triple
                             div class="flex flex-col gap-1 border-t border-border-color pt-2" {
                                 span class="text-text-muted text-xs font-mono" { "Calibration [Gain, Offset, Scale]" }
                                 span class="text-text-primary text-xs font-mono" x-text="'[' + mu.calibration[0].toFixed(4) + ', ' + mu.calibration[1].toFixed(2) + ', ' + mu.calibration[2].toFixed(1) + ']'" {}
                             }
-                            
+
                             // Jitter Histogram
                             div class="flex flex-col gap-1" {
                                 span class="text-text-muted text-xs font-mono" { "Arrival Jitter Histogram" }
@@ -216,12 +232,14 @@ async fn monitoring_page() -> Html<String> {
                                           line x1="0" y1="80" x2="200" y2="80" class="stroke-grid-primary" stroke-width="1" {}
                                           path x-bind:d="getJitterPath(mu.jitter_histogram)"
                                                fill="#8b5cf6" opacity="0.8" {}
-                                          // Y-axis label
-                                          text x="2" y="10" fill="var(--text-muted)" font-size="8" font-family="monospace" { "Count" }
+                                          // Y-axis label & guidelines
+                                          text x="2" y="10" fill="var(--text-muted)" font-size="6" font-family="monospace" { "Count" }
+                                          line x1="20" y1="20" x2="200" y2="20" class="stroke-border-color" stroke-width="0.5" stroke-dasharray="2,2" {}
+                                          text x="2" y="24" fill="var(--text-muted)" font-size="6" font-family="monospace" x-text="getJitterMax(mu.jitter_histogram)" {}
                                           // X-axis labels
-                                          text x="0" y="92" fill="var(--text-muted)" font-size="8" font-family="monospace" { "0μs" }
-                                          text x="90" y="92" fill="var(--text-muted)" font-size="8" font-family="monospace" { "100μs" }
-                                          text x="170" y="92" fill="var(--text-muted)" font-size="8" font-family="monospace" { ">200μs" }
+                                          text x="0" y="92" fill="var(--text-muted)" font-size="6" font-family="monospace" { "0μs" }
+                                          text x="90" y="92" fill="var(--text-muted)" font-size="6" font-family="monospace" { "100μs" }
+                                          text x="170" y="92" fill="var(--text-muted)" font-size="6" font-family="monospace" { ">200μs" }
                                       }
                                   }
                             }
@@ -270,6 +288,55 @@ async fn monitoring_page() -> Html<String> {
                                     td class="px-4 py-3" { span x-bind:class="log.result_color + ' font-semibold'" x-text="log.result" {} }
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+
+            // 3. Management API Integration (svdc-api)
+            div class="glass-card shadow-lg mt-6" id="mgmt-api-dashboard" {
+                div class="card-header flex justify-between items-center border-b border-border-color pb-3" {
+                    h2 class="card-title" { "Management API (svdc-api) Integration Dashboard" }
+                    span class="text-xs font-semibold text-accent-blue" { "Polled via HTTP GET" }
+                }
+                div class="card-body mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4" {
+                    // Health Endpoint
+                    div class="bg-bg-secondary border border-border-color rounded p-4 flex flex-col gap-2" {
+                        h3 class="font-bold text-sm text-text-primary mb-2 flex items-center justify-between" {
+                            "Endpoint: /health"
+                            a href="/api/mgmt/health" target="_blank" class="text-xs font-mono text-accent-blue hover:underline" { "View JSON" }
+                        }
+                        template x-if="mgmt_health" {
+                            div class="font-mono text-xs text-text-secondary flex flex-col gap-1" {
+                                div class="flex justify-between" { span { "Status:" } span x-bind:class="mgmt_health.status === 'ok' ? 'text-accent-green' : 'text-accent-red'" x-text="mgmt_health.status.toUpperCase()" {} }
+                                div class="flex justify-between" { span { "Uptime:" } span x-text="(mgmt_health.uptime_ms / 1000).toFixed(1) + ' s'" {} }
+                                div class="flex justify-between" { span { "Buffer Len:" } span x-text="mgmt_health.data_plane.tick_buffer_len + ' / ' + mgmt_health.data_plane.tick_buffer_capacity" {} }
+                                div class="flex justify-between" { span { "Integrity Violations:" } span x-text="mgmt_health.data_plane.integrity_violations" x-bind:class="mgmt_health.data_plane.integrity_violations > 0 ? 'text-accent-red font-bold' : ''" {} }
+                            }
+                        }
+                        template x-if="!mgmt_health" {
+                            div class="text-xs text-text-muted italic" { "Fetching..." }
+                        }
+                    }
+
+                    // Channels Endpoint
+                    div class="bg-bg-secondary border border-border-color rounded p-4 flex flex-col gap-2" {
+                        h3 class="font-bold text-sm text-text-primary mb-2 flex items-center justify-between" {
+                            "Endpoint: /channels"
+                            a href="/api/mgmt/channels" target="_blank" class="text-xs font-mono text-accent-blue hover:underline" { "View JSON" }
+                        }
+                        template x-if="mgmt_channels" {
+                            div class="font-mono text-xs text-text-secondary flex flex-col gap-1" {
+                                div class="flex justify-between" { span { "Registry Status:" } span x-text="mgmt_channels.status" {} }
+                                div class="flex justify-between" { span { "Total Channels:" } span x-text="mgmt_channels.channels ? mgmt_channels.channels.length : 0" {} }
+                                template x-if="mgmt_channels.channels && mgmt_channels.channels.length === 0" {
+                                    div class="text-text-muted mt-2" { "(Phase 0: No channels registered yet)" }
+                                }
+                            }
+                        }
+                        template x-if="!mgmt_channels" {
+                            div class="text-xs text-text-muted italic" { "Fetching..." }
                         }
                     }
                 }

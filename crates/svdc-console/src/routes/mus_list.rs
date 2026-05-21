@@ -11,8 +11,7 @@ use crate::templates::base;
 
 /// Register routes related to southbound Merging Units list and actions
 pub fn register(router: Router) -> Router {
-    router
-        .route("/south/mus", get(mus_list_page))
+    router.route("/south/mus", get(mus_list_page))
 }
 
 /// Renders the Southbound Merging Units page
@@ -94,8 +93,8 @@ async fn mus_list_page() -> Html<String> {
             }
 
             // Grid Controls (Search and Filters)
-            div class="flex flex-col md:flex-row gap-4 items-center justify-between" {
-                div class="flex items-center gap-2 w-full md:w-auto" {
+            div class="flex flex-row gap-4 items-center justify-between w-full" {
+                div class="flex items-center gap-2" {
                     span class="text-xs font-semibold text-text-secondary uppercase tracking-wider" { "Filters:" }
                     div class="filter-chip-group" {
                         button class="filter-chip" x-bind:class="statusFilter === 'all' ? 'active' : ''" x-on:click="statusFilter = 'all'" { "All MUs" }
@@ -105,8 +104,11 @@ async fn mus_list_page() -> Html<String> {
                     }
                 }
 
-                div class="search-box w-full md:w-64" style="max-width: 300px;" {
-                    input type="text" placeholder="Search by ID, IP, MAC..." class="w-full text-xs" x-model="searchQuery";
+                div class="flex items-center gap-2 flex-nowrap shrink-0" {
+                    div class="search-box w-64" style="max-width: 300px;" {
+                        input type="text" placeholder="Search by ID, IP, MAC..." class="w-full" x-model="searchQuery";
+                    }
+                    a href="/south/mus/new" class="btn btn-primary text-xs whitespace-nowrap px-4 py-2.5" { "Add MU" }
                 }
             }
 

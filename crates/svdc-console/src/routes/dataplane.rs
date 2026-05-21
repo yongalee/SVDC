@@ -92,9 +92,22 @@ async fn historian_csv(State(pipe): State<Arc<DataPipeline>>) -> Response {
             bytes,
         )
             .into_response(),
-        Err(_) => (
-            StatusCode::NOT_FOUND,
-            "historian CSV does not exist yet; start the pipeline first",
+        Err(e) => (
+            StatusCode::OK,
+            [
+                (
+                    header::CONTENT_TYPE,
+                    "text/plain; charset=utf-8".to_string(),
+                ),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=svdc-dataplane-error.txt".to_string(),
+                ),
+            ],
+            format!(
+                "historian CSV could not be read: {}\nStart the pipeline first.",
+                e
+            ),
         )
             .into_response(),
     }
@@ -134,8 +147,14 @@ fn body(snap: &DataPipelineSnapshot) -> Markup {
                         "Reset"
                     }
                 }
-                a.btn.btn-link href="/api/dataplane/historian.csv" download="svdc-dataplane-demo.csv" {
-                    "Download historian CSV"
+                @if snap.historian_exists {
+                    a.btn.btn-link href="/api/dataplane/historian.csv" download="svdc-dataplane-demo.csv" {
+                        "Download historian CSV"
+                    }
+                } @else {
+                    span.btn.btn-link.muted style="cursor: not-allowed;" title="Start pipeline first to generate CSV" {
+                        "Download historian CSV"
+                    }
                 }
             }
             (status_panel(snap))
@@ -157,13 +176,13 @@ fn body(snap: &DataPipelineSnapshot) -> Markup {
                 tbody {
                     tr {
                         td { "GET" }
-                        td { a href="/api/mgmt/health" target="_blank" { "/api/mgmt/health" } }
-                        td { "Liveness + integrity verdict (JSON)" }
+                        td { a href="/api/mgmt/health" target="_blank" class="text-accent-blue" { "/api/mgmt/health" } }
+                        td { "Liveness + integrity verdict " a href="/monitoring#mgmt-api-dashboard" class="text-xs ml-2 underline" { "(View Dashboard)" } }
                     }
                     tr {
                         td { "GET" }
-                        td { a href="/api/mgmt/channels" target="_blank" { "/api/mgmt/channels" } }
-                        td { "Channel registry snapshot (Phase 0 empty)" }
+                        td { a href="/api/mgmt/channels" target="_blank" class="text-accent-blue" { "/api/mgmt/channels" } }
+                        td { "Channel registry snapshot " a href="/monitoring#mgmt-api-dashboard" class="text-xs ml-2 underline" { "(View Dashboard)" } }
                     }
                     tr {
                         td { "GET" }

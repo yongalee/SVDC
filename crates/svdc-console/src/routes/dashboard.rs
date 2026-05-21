@@ -208,7 +208,7 @@ async fn dashboard_page() -> Html<String> {
                             }
                         }
                         table class="text-[10px] font-mono mt-2 border-none" {
-                            
+
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-3 text-text-secondary border-none" style="width:240px;" { "PTP Offset:" }
@@ -250,7 +250,7 @@ async fn dashboard_page() -> Html<String> {
                                  style="width: 2.4%" {}
                         }
                         table class="text-[10px] font-mono mt-2 border-none" {
-                            
+
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-3 text-text-secondary border-none" style="width:240px;" { "Ring Capacity:" }
@@ -292,7 +292,7 @@ async fn dashboard_page() -> Html<String> {
                             }
                         }
                         table class="text-[10px] font-mono mt-2 border-none" {
-                            
+
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-3 text-text-secondary border-none" style="width:240px;" { "Corrections Injected:" }
@@ -343,7 +343,7 @@ async fn dashboard_page() -> Html<String> {
                             }
                         }
                         table class="text-[10px] font-mono mt-2 border-none" {
-                            
+
                             tbody {
                                 tr class="border-none hover:bg-transparent" {
                                     td class="py-1 px-3 text-text-secondary border-none" style="width:240px;" { "Active Applications:" }

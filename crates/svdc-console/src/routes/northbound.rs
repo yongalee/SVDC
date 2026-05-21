@@ -1145,7 +1145,10 @@ async fn toggle_adapter(Path(layer): Path<String>) -> Html<String> {
 // POST Save settings endpoints
 async fn save_l0_settings(Form(payload): Form<L0Form>) -> impl IntoResponse {
     if payload.path.trim().is_empty() {
-        return (StatusCode::BAD_REQUEST, Html("Path cannot be empty".to_string()));
+        return (
+            StatusCode::BAD_REQUEST,
+            Html("Path cannot be empty".to_string()),
+        );
     }
     *get_l0_path().lock().unwrap() = payload.path;
     *L0_BUFFER_SIZE.lock().unwrap() = payload.buffer_size;
@@ -1156,7 +1159,10 @@ async fn save_l0_settings(Form(payload): Form<L0Form>) -> impl IntoResponse {
 
 async fn save_l1_settings(Form(payload): Form<L1Form>) -> impl IntoResponse {
     if payload.address.trim().is_empty() {
-        return (StatusCode::BAD_REQUEST, Html("Address cannot be empty".to_string()));
+        return (
+            StatusCode::BAD_REQUEST,
+            Html("Address cannot be empty".to_string()),
+        );
     }
     *get_l1_address().lock().unwrap() = payload.address;
     *get_l1_namespace().lock().unwrap() = payload.namespace;
@@ -1168,7 +1174,10 @@ async fn save_l1_settings(Form(payload): Form<L1Form>) -> impl IntoResponse {
 
 async fn save_l2_settings(Form(payload): Form<L2Form>) -> impl IntoResponse {
     if payload.broker.trim().is_empty() {
-        return (StatusCode::BAD_REQUEST, Html("Broker cannot be empty".to_string()));
+        return (
+            StatusCode::BAD_REQUEST,
+            Html("Broker cannot be empty".to_string()),
+        );
     }
     *get_l2_broker().lock().unwrap() = payload.broker;
     *get_l2_topic().lock().unwrap() = payload.topic;
@@ -1181,7 +1190,10 @@ async fn save_l2_settings(Form(payload): Form<L2Form>) -> impl IntoResponse {
 
 async fn save_l3_settings(Form(payload): Form<L3Form>) -> impl IntoResponse {
     if payload.conn_string.trim().is_empty() {
-        return (StatusCode::BAD_REQUEST, Html("Connection string cannot be empty".to_string()));
+        return (
+            StatusCode::BAD_REQUEST,
+            Html("Connection string cannot be empty".to_string()),
+        );
     }
     *get_l3_conn_string().lock().unwrap() = payload.conn_string;
     *get_l3_target_table().lock().unwrap() = payload.target_table;

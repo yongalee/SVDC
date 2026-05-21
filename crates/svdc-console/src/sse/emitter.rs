@@ -7,9 +7,9 @@
 use crate::sse::{DashboardMetrics, SsePayload, WaveformSample};
 use std::sync::OnceLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use svdc_subscribe::{ChannelSet, Subscriber};
 use tokio::sync::broadcast;
 use tokio::time;
-use svdc_subscribe::{ChannelSet, Subscriber};
 
 static EMITTER_TX: OnceLock<broadcast::Sender<String>> = OnceLock::new();
 
@@ -49,11 +49,46 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
 
     let mut last_qse_time = Instant::now();
     let qse_operations = [
-        ("WBS-9.3c", "Phase A Transient Correction", "QSE Estimator Core", "Substation QSE", "HEALED", "text-accent-green"),
-        ("WBS-9.3a", "Out-of-window Frame Rejected", "Circular Buffer", "svdc-ingest", "DROPPED", "text-accent-yellow"),
-        ("WBS-9.3c", "Residual Variance Warning", "Diagnostic Core", "Substation QSE", "WARN", "text-accent-yellow"),
-        ("WBS-9.1b", "Lock-Free Synchronization Adjust", "Time Aligner", "PTP Daemon", "SYNCED", "text-accent-blue"),
-        ("Gate G0", "Spec-Lock Integrity Verification", "SSIEC Node Settings", "claude-code", "LOCKED", "text-accent-green"),
+        (
+            "WBS-9.3c",
+            "Phase A Transient Correction",
+            "QSE Estimator Core",
+            "Substation QSE",
+            "HEALED",
+            "text-accent-green",
+        ),
+        (
+            "WBS-9.3a",
+            "Out-of-window Frame Rejected",
+            "Circular Buffer",
+            "svdc-ingest",
+            "DROPPED",
+            "text-accent-yellow",
+        ),
+        (
+            "WBS-9.3c",
+            "Residual Variance Warning",
+            "Diagnostic Core",
+            "Substation QSE",
+            "WARN",
+            "text-accent-yellow",
+        ),
+        (
+            "WBS-9.1b",
+            "Lock-Free Synchronization Adjust",
+            "Time Aligner",
+            "PTP Daemon",
+            "SYNCED",
+            "text-accent-blue",
+        ),
+        (
+            "Gate G0",
+            "Spec-Lock Integrity Verification",
+            "SSIEC Node Settings",
+            "claude-code",
+            "LOCKED",
+            "text-accent-green",
+        ),
     ];
     let mut qse_index = 0;
 
@@ -68,9 +103,11 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
             .unwrap_or_default()
             .as_millis() as u64;
 
+        let mut has_real_data = false;
         if pipeline.has_external_feed() {
             let records = sub.read_since();
             if !records.is_empty() {
+                has_real_data = true;
                 // Throttle SSE: take up to 20 samples per 100ms
                 let step = std::cmp::max(1, records.len() / 20);
                 for r in records.iter().step_by(step) {
@@ -91,7 +128,9 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
                     }
                 }
             }
-        } else {
+        }
+
+        if !has_real_data {
             // 1. Simulate 3-phase AC voltage and current waveforms at 10 Hz (WBS-9.3b)
             angle += 0.2; // increment angle for sine generation
             if angle > 2.0 * std::f32::consts::PI {
@@ -108,21 +147,41 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
             let i3 = i_peak * (angle + pi_2_3 - 0.1).sin();
             let i0 = i1 + i2 + i3;
 
-            let wave_event = SsePayload::Waveform(WaveformSample {
-                mu_id: "MU-01".to_string(),
-                timestamp_ms: now_ms,
-                v1,
-                v2,
-                v3,
-                v0,
-                i1,
-                i2,
-                i3,
-                i0,
-            });
-
-            if let Ok(json_str) = serde_json::to_string(&wave_event) {
-                let _ = tx.send(json_str);
+            let snapshot = crate::scd::registry::global().snapshot();
+            if snapshot.is_empty() {
+                let wave_event = SsePayload::Waveform(WaveformSample {
+                    mu_id: "MU-SIM".to_string(),
+                    timestamp_ms: now_ms,
+                    v1,
+                    v2,
+                    v3,
+                    v0,
+                    i1,
+                    i2,
+                    i3,
+                    i0,
+                });
+                if let Ok(json_str) = serde_json::to_string(&wave_event) {
+                    let _ = tx.send(json_str);
+                }
+            } else {
+                for mu in snapshot {
+                    let wave_event = SsePayload::Waveform(WaveformSample {
+                        mu_id: mu.id.clone(),
+                        timestamp_ms: now_ms,
+                        v1,
+                        v2,
+                        v3,
+                        v0,
+                        i1,
+                        i2,
+                        i3,
+                        i0,
+                    });
+                    if let Ok(json_str) = serde_json::to_string(&wave_event) {
+                        let _ = tx.send(json_str);
+                    }
+                }
             }
         }
 
@@ -148,7 +207,7 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
             if let Ok(json_str) = serde_json::to_string(&metrics_event) {
                 let _ = tx.send(json_str);
             }
-            
+
             // MuMetrics dummy data
             let mut jitter1 = vec![0; 10];
             let mut jitter2 = vec![0; 10];
@@ -156,7 +215,7 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
                 jitter1[i] = ((now_ms / 100 + i as u64 * 3) % 40) as u32;
                 jitter2[i] = ((now_ms / 100 + i as u64 * 7) % 30) as u32;
             }
-            
+
             let mu_metrics = vec![
                 crate::sse::MuTelemetry {
                     mu_id: "MU-01".to_string(),
@@ -177,24 +236,29 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
                     jitter_histogram: jitter2,
                     ptp_sync: "Locked (15 ns)".to_string(),
                     calibration: (0.9998, 0.05, 1.0),
-                }
+                },
             ];
             let mu_event = SsePayload::MuMetrics(mu_metrics);
             if let Ok(json_str) = serde_json::to_string(&mu_event) {
                 let _ = tx.send(json_str);
             }
         }
-        
+
         // 3. Simulate random QSE Audit Logs every few seconds
         if last_qse_time.elapsed() >= Duration::from_secs(3 + (now_ms % 4)) {
             last_qse_time = Instant::now();
             let op = qse_operations[qse_index % qse_operations.len()];
             qse_index += 1;
-            
+
             // Format current time without chrono
             let secs = now_ms / 1000;
-            let datetime = format!("2026-05-22 {:02}:{:02}:{:02}", (secs / 3600) % 24, (secs / 60) % 60, secs % 60);
-            
+            let datetime = format!(
+                "2026-05-22 {:02}:{:02}:{:02}",
+                (secs / 3600) % 24,
+                (secs / 60) % 60,
+                secs % 60
+            );
+
             let qse_event = SsePayload::Qse(crate::sse::QseLog {
                 timestamp: datetime,
                 wbs: op.0.to_string(),
@@ -204,7 +268,7 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
                 result: op.4.to_string(),
                 result_color: op.5.to_string(),
             });
-            
+
             if let Ok(json_str) = serde_json::to_string(&qse_event) {
                 let _ = tx.send(json_str);
             }
