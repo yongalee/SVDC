@@ -11,11 +11,12 @@
 //! NFR-10: English-only.
 
 pub mod registry;
+pub mod sample;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// A single signal channel from an SCL DataSet's FCDA entry.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Channel {
     /// Fully qualified channel name (`<prefix><lnClass><lnInst>.<doName>.<fc>`),
     /// matching IEC 61850-7-4 reference style.
@@ -25,7 +26,7 @@ pub struct Channel {
 }
 
 /// Coarse unit classification. Heuristic per `doName` prefix per IEC 61850-7-4.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ChannelUnit {
     /// Voltage (PhV.*, Vol.* etc.).
@@ -50,7 +51,7 @@ impl ChannelUnit {
 }
 
 /// A Merging Unit parsed from an SCL/SCD document.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MergingUnit {
     /// IED name (used as the MU id throughout the system).
     pub id: String,
