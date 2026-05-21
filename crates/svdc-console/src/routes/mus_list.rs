@@ -262,13 +262,13 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
             
             getWaveformPath(rms, angle, phaseShift) {{
                 let points = [];
-                let width = 240;
-                let height = 60;
-                let centerY = 30;
+                let width = 600;
+                let height = 150;
+                let centerY = 75;
                 let scaleX = width / 360;
-                let scaleY = 14;
+                let scaleY = 35;
                 let shiftRad = (parseFloat(phaseShift) + parseFloat(angle)) * Math.PI / 180;
-                for (let deg = 0; deg <= 360; deg += 10) {{
+                for (let deg = 0; deg <= 360; deg += 3) {{
                     let rad = deg * Math.PI / 180;
                     let y = centerY - Math.sin(rad - shiftRad) * scaleY * parseFloat(rms);
                     points.push((deg * scaleX).toFixed(1) + ',' + y.toFixed(1));
@@ -533,19 +533,19 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                         div class="card-body mt-3 flex flex-col items-center gap-3" {
                             div class="waveform-container" {
                                 // SVG waveform canvas
-                                svg viewBox="0 0 240 60" class="waveform-svg" {
+                                svg viewBox="0 0 600 150" class="waveform-svg" {
                                     // Zero line grid
-                                    line x1="0" y1="30" x2="240" y2="30" stroke="#cbd5e1" stroke-width="0.3" stroke-dasharray="2" {}
+                                    line x1="0" y1="75" x2="600" y2="75" stroke="#cbd5e1" stroke-width="0.5" stroke-dasharray="4" {}
 
                                     // Dynamic Phase Paths (Voltage sine waves Va, Vb, Vc)
                                     path x-bind:d="getWaveformPath(rms_va, angle_va, 0)"
-                                         fill="none" stroke="#ef4444" stroke-width="0.5" stroke-linecap="round" {}
+                                         fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" {}
 
                                     path x-bind:d="getWaveformPath(rms_vb, angle_vb, 120)"
-                                         fill="none" stroke="#22c55e" stroke-width="0.5" stroke-linecap="round" {}
+                                         fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" {}
 
                                     path x-bind:d="getWaveformPath(rms_vc, angle_vc, 240)"
-                                         fill="none" stroke="#3b82f6" stroke-width="0.5" stroke-linecap="round" {}
+                                         fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" {}
                                 }
                             }
 
