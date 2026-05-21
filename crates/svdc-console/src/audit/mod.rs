@@ -7,17 +7,25 @@
 //! so events still show up in logs / journald. The web UI consumes
 //! the ring via `GET /api/audit`.
 //!
-//! Phase 0 scope: in-memory only. Phase 5 will add disk persistence
-//! (rotating JSONL file) so audit survives daemon restart.
+//! Phase 5 extension: when `configure_persistence(path)` has been
+//! called (typically by the daemon at startup), every event is also
+//! appended to a JSONL file at `path`. On startup the file is
+//! replayed into the ring so audit history survives daemon restart.
+//! The in-memory ring stays bounded; the on-disk file grows
+//! unbounded — rotation lands in a later phase when retention policy
+//! is defined.
 //!
 //! OWNER: claude-code.
 //! NFR-10: English-only.
 
 use std::collections::VecDeque;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::fs::{File, OpenOptions};
+use std::io::{BufRead, BufReader, LineWriter, Write};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Default ring capacity. ~1000 events is small enough that the
 /// `/api/audit` payload is bounded, large enough to cover several
@@ -25,12 +33,13 @@ use serde::Serialize;
 pub const DEFAULT_CAPACITY: usize = 1000;
 
 /// One audit entry: typed event plus a Unix-millis timestamp.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditRecord {
     /// Unix milliseconds at the time the event was recorded.
     pub timestamp_ms: u64,
     /// Monotonic per-process sequence number. Useful for clients that
-    /// want gap detection.
+    /// want gap detection. Sequence numbers continue from the highest
+    /// loaded value when persistence is configured.
     pub seq: u64,
     /// The event payload.
     #[serde(flatten)]
@@ -41,7 +50,7 @@ pub struct AuditRecord {
 ///
 /// New variants land here when a new write path is added; the route
 /// handler imports `AuditEvent::*` and calls `audit::record(...)`.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum AuditEvent {
     /// SCD file uploaded via the multipart endpoint.
@@ -141,10 +150,50 @@ impl AuditEvent {
     }
 }
 
+/// Errors raised by persistence setup. Errors during ongoing record
+/// writes are not surfaced — they log and are swallowed so an audit
+/// failure cannot block an operator action.
+#[derive(Debug)]
+pub enum PersistError {
+    /// I/O failure opening or reading the JSONL file.
+    Io(std::io::Error),
+    /// One of the lines in the JSONL file failed JSON parse.
+    BadLine {
+        /// 1-based line number that failed.
+        line: usize,
+        /// Underlying serde error.
+        source: serde_json::Error,
+    },
+}
+
+impl std::fmt::Display for PersistError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PersistError::Io(e) => write!(f, "audit persistence I/O error: {e}"),
+            PersistError::BadLine { line, source } => {
+                write!(
+                    f,
+                    "audit persistence: invalid JSON at line {line}: {source}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for PersistError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            PersistError::Io(e) => Some(e),
+            PersistError::BadLine { source, .. } => Some(source),
+        }
+    }
+}
+
 /// Bounded in-memory ring of audit records.
 #[derive(Debug)]
 pub struct AuditLog {
     inner: RwLock<Inner>,
+    writer: Mutex<Option<PersistWriter>>,
     capacity: usize,
 }
 
@@ -152,6 +201,12 @@ pub struct AuditLog {
 struct Inner {
     ring: VecDeque<AuditRecord>,
     next_seq: u64,
+}
+
+#[derive(Debug)]
+struct PersistWriter {
+    path: PathBuf,
+    file: LineWriter<File>,
 }
 
 impl AuditLog {
@@ -162,12 +217,84 @@ impl AuditLog {
                 ring: VecDeque::with_capacity(capacity),
                 next_seq: 1,
             }),
+            writer: Mutex::new(None),
             capacity,
         }
     }
 
+    /// Configure this log to persist every recorded event as one JSON
+    /// line appended to `path`.
+    ///
+    /// If `path` already exists, its lines are parsed and the most
+    /// recent `capacity` records are loaded into the ring. The next
+    /// sequence number is set to `max(loaded seq) + 1` so on-disk and
+    /// in-memory sequences stay monotonic across restarts.
+    ///
+    /// Returns the number of records loaded.
+    pub fn configure_persistence(&self, path: PathBuf) -> Result<usize, PersistError> {
+        let loaded = if path.exists() {
+            self.replay_from_file(&path)?
+        } else {
+            if let Some(parent) = path.parent() {
+                if !parent.as_os_str().is_empty() {
+                    std::fs::create_dir_all(parent).map_err(PersistError::Io)?;
+                }
+            }
+            0
+        };
+        let file = OpenOptions::new()
+            .append(true)
+            .create(true)
+            .open(&path)
+            .map_err(PersistError::Io)?;
+        let mut slot = self.writer.lock().expect("audit writer lock poisoned");
+        *slot = Some(PersistWriter {
+            path,
+            file: LineWriter::new(file),
+        });
+        Ok(loaded)
+    }
+
+    fn replay_from_file(&self, path: &Path) -> Result<usize, PersistError> {
+        let f = File::open(path).map_err(PersistError::Io)?;
+        let reader = BufReader::new(f);
+        let mut records: Vec<AuditRecord> = Vec::new();
+        for (idx, line) in reader.lines().enumerate() {
+            let line = line.map_err(PersistError::Io)?;
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let rec: AuditRecord =
+                serde_json::from_str(trimmed).map_err(|source| PersistError::BadLine {
+                    line: idx + 1,
+                    source,
+                })?;
+            records.push(rec);
+        }
+        let max_seq = records.iter().map(|r| r.seq).max().unwrap_or(0);
+        let total = records.len();
+        let mut g = self.inner.write().expect("audit log lock poisoned");
+        g.ring.clear();
+        for rec in records.into_iter().rev().take(self.capacity).rev() {
+            g.ring.push_back(rec);
+        }
+        g.next_seq = max_seq + 1;
+        Ok(total)
+    }
+
+    /// Current persistence path, if configured. Test helper.
+    pub fn persistence_path(&self) -> Option<PathBuf> {
+        self.writer
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().map(|w| w.path.clone()))
+    }
+
     /// Record one event. Also emits `tracing::info!` so the same line
-    /// shows up in stderr / journald with structured fields.
+    /// shows up in stderr / journald with structured fields. If
+    /// persistence is configured, the record is appended to the JSONL
+    /// file (best-effort: I/O errors warn and are swallowed).
     pub fn record(&self, event: AuditEvent) {
         let now_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -188,12 +315,38 @@ impl AuditLog {
             }
             rec
         };
+        self.persist_line(&record);
         tracing::info!(
             audit.seq = record.seq,
             audit.ts_ms = record.timestamp_ms,
             audit.summary = %record.event.summary(),
             "audit"
         );
+    }
+
+    fn persist_line(&self, record: &AuditRecord) {
+        let mut slot = match self.writer.lock() {
+            Ok(g) => g,
+            Err(_) => return,
+        };
+        let Some(w) = slot.as_mut() else { return };
+        match serde_json::to_string(record) {
+            Ok(line) => {
+                if let Err(e) = writeln!(w.file, "{line}") {
+                    tracing::warn!(
+                        path = %w.path.display(),
+                        error = %e,
+                        "audit persistence write failed; subsequent events may be lost"
+                    );
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "audit persistence: could not serialise record"
+                );
+            }
+        }
     }
 
     /// Get the newest `n` records, newest first. Pass `usize::MAX` for
@@ -350,5 +503,135 @@ mod tests {
         assert_eq!(log.len(), 1);
         log.clear();
         assert!(log.is_empty());
+    }
+
+    fn unique_audit_path(tag: &str) -> PathBuf {
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("svdc-audit-{tag}-{ts}.jsonl"))
+    }
+
+    #[test]
+    fn configure_persistence_round_trips() {
+        let path = unique_audit_path("roundtrip");
+        let _ = std::fs::remove_file(&path);
+
+        // Process A: records events, all of which append to disk.
+        let log_a = AuditLog::with_capacity(100);
+        let loaded = log_a.configure_persistence(path.clone()).unwrap();
+        assert_eq!(loaded, 0, "fresh file → no records loaded");
+        log_a.record(AuditEvent::ScdLoadSample { mu_count: 3 });
+        log_a.record(AuditEvent::NorthboundStateChange {
+            layer: "L1".into(),
+            enabled: true,
+        });
+        log_a.record(AuditEvent::CalibrationSet {
+            mu_id: "MU-A".into(),
+            channel_idx: 0,
+            gain: 1.05,
+            offset: 0.0,
+            unit_scale: 0.01,
+        });
+        drop(log_a);
+
+        // File must have exactly 3 non-empty lines.
+        let body = std::fs::read_to_string(&path).unwrap();
+        let lines: Vec<&str> = body.lines().filter(|s| !s.trim().is_empty()).collect();
+        assert_eq!(lines.len(), 3);
+        // Sanity: each line is valid JSON with the tagged variant.
+        assert!(lines[0].contains(r#""event":"scd_load_sample""#));
+        assert!(lines[2].contains(r#""mu_id":"MU-A""#));
+
+        // Process B: starts up, configure_persistence replays the file.
+        let log_b = AuditLog::with_capacity(100);
+        let loaded = log_b.configure_persistence(path.clone()).unwrap();
+        assert_eq!(loaded, 3, "all three records replay");
+        let recent = log_b.recent(usize::MAX);
+        assert_eq!(recent.len(), 3);
+        // recent() is newest-first → seq 3 first.
+        assert_eq!(recent[0].seq, 3);
+        assert_eq!(recent[2].seq, 1);
+        // New record continues the sequence at 4.
+        log_b.record(AuditEvent::RegistryCleared { removed: 0 });
+        let recent = log_b.recent(usize::MAX);
+        assert_eq!(recent[0].seq, 4);
+
+        // File now has 4 lines.
+        drop(log_b);
+        let body = std::fs::read_to_string(&path).unwrap();
+        let n = body.lines().filter(|s| !s.trim().is_empty()).count();
+        assert_eq!(n, 4);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn replay_keeps_only_capacity_newest_records() {
+        let path = unique_audit_path("cap");
+        let _ = std::fs::remove_file(&path);
+
+        // Write 6 records on disk with capacity 4.
+        let log_a = AuditLog::with_capacity(100);
+        log_a.configure_persistence(path.clone()).unwrap();
+        for i in 0..6u64 {
+            log_a.record(AuditEvent::ScdUpload {
+                mu_count: i as usize,
+            });
+        }
+        drop(log_a);
+
+        // Smaller capacity ring on restart.
+        let log_b = AuditLog::with_capacity(4);
+        let loaded = log_b.configure_persistence(path.clone()).unwrap();
+        assert_eq!(loaded, 6, "configure_persistence reports total on disk");
+        assert_eq!(log_b.len(), 4, "ring keeps only the newest 4");
+        let recent = log_b.recent(usize::MAX);
+        // The kept seq values are 6, 5, 4, 3 (newest-first).
+        assert_eq!(recent[0].seq, 6);
+        assert_eq!(recent[3].seq, 3);
+        // Next record should be seq 7.
+        log_b.record(AuditEvent::RegistryCleared { removed: 0 });
+        assert_eq!(log_b.recent(1)[0].seq, 7);
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn corrupt_line_surfaces_bad_line_error() {
+        let path = unique_audit_path("corrupt");
+        std::fs::write(&path, "{not json}\n").unwrap();
+        let log = AuditLog::with_capacity(8);
+        let err = log.configure_persistence(path.clone()).unwrap_err();
+        match err {
+            PersistError::BadLine { line, .. } => assert_eq!(line, 1),
+            other => panic!("expected BadLine, got {other:?}"),
+        }
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn empty_lines_in_file_are_skipped() {
+        let path = unique_audit_path("empty");
+        // Hand-crafted file with a blank between two records.
+        let line1 = serde_json::to_string(&AuditRecord {
+            timestamp_ms: 1_700_000_000_000,
+            seq: 1,
+            event: AuditEvent::ScdUpload { mu_count: 1 },
+        })
+        .unwrap();
+        let line2 = serde_json::to_string(&AuditRecord {
+            timestamp_ms: 1_700_000_000_500,
+            seq: 2,
+            event: AuditEvent::RegistryCleared { removed: 1 },
+        })
+        .unwrap();
+        std::fs::write(&path, format!("{line1}\n\n{line2}\n")).unwrap();
+
+        let log = AuditLog::with_capacity(8);
+        let loaded = log.configure_persistence(path.clone()).unwrap();
+        assert_eq!(loaded, 2);
+        let _ = std::fs::remove_file(&path);
     }
 }
