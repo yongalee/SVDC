@@ -44,7 +44,8 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
     let mut qse_seq: u64 = 0;
     let mut angle: f32 = 0.0;
 
-    // Simulated constants
+    // Simulated constants (used as a fallback when no live tick is
+    // available — see `build_waveform_event`).
     let v_peak = 110.0 * 1.414; // Peak voltage (110V RMS)
     let i_peak = 5.0 * 1.414; // Peak current (5A RMS)
     let pi_2_3 = 2.0 * std::f32::consts::PI / 3.0; // 120 degrees in radians
@@ -57,35 +58,18 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
             .unwrap_or_default()
             .as_millis() as u64;
 
-        // 1. Simulate 3-phase AC voltage and current waveforms at 10 Hz (WBS-9.3b)
-        angle += 0.2; // increment angle for sine generation
+        // 1. Waveform event at 10 Hz. PR E: when the data plane
+        //    has a recent TickRecord, derive the per-phase values
+        //    from `live_samples()` (channel order Ia Ib Ic In Va
+        //    Vb Vc Vn) and tag the event with the latest observed
+        //    svID. Otherwise fall back to the synthetic sinusoid
+        //    so the polar diagram never goes blank during
+        //    pre-pipeline startup.
+        angle += 0.2;
         if angle > 2.0 * std::f32::consts::PI {
             angle -= 2.0 * std::f32::consts::PI;
         }
-
-        let v1 = v_peak * angle.sin();
-        let v2 = v_peak * (angle - pi_2_3).sin();
-        let v3 = v_peak * (angle + pi_2_3).sin();
-        let v0 = v1 + v2 + v3; // Neutral voltage should sum to nearly 0 in balanced state
-
-        let i1 = i_peak * (angle - 0.1).sin(); // 0.1 rad lag for inductive load power factor
-        let i2 = i_peak * (angle - pi_2_3 - 0.1).sin();
-        let i3 = i_peak * (angle + pi_2_3 - 0.1).sin();
-        let i0 = i1 + i2 + i3;
-
-        let wave_event = SsePayload::Waveform(WaveformSample {
-            mu_id: "MU-01".to_string(),
-            timestamp_ms: now_ms,
-            v1,
-            v2,
-            v3,
-            v0,
-            i1,
-            i2,
-            i3,
-            i0,
-        });
-
+        let wave_event = build_waveform_event(now_ms, angle, v_peak, i_peak, pi_2_3);
         if let Ok(json_str) = serde_json::to_string(&wave_event) {
             let _ = tx.send(json_str);
         }
@@ -251,6 +235,79 @@ fn iso8601_from_unix_ms(unix_ms: u64) -> String {
     format!("{year:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}.{millis:03}Z")
 }
 
+/// Build the next `Waveform` event. PR E: prefer the latest
+/// `TickRecord` from the shared `DataPipeline` buffer; fall back
+/// to a synthetic 60 Hz sinusoid when the buffer is empty (no
+/// producer attached).
+///
+/// Channel mapping per SDD §7.1 + the publisher's order in
+/// `SampleData::NOMINAL_3PH`:
+///
+///   samples[0]=Ia samples[1]=Ib samples[2]=Ic samples[3]=In
+///   samples[4]=Va samples[5]=Vb samples[6]=Vc samples[7]=Vn
+///
+/// The publisher emits raw integers in 9-2 LE scaled units
+/// (currents = 0.001 A / LSB, voltages = 0.01 V / LSB); we
+/// divide by the scale to produce f32 engineering units the UI's
+/// existing polar diagram expects.
+fn build_waveform_event(
+    now_ms: u64,
+    angle: f32,
+    v_peak: f32,
+    i_peak: f32,
+    pi_2_3: f32,
+) -> SsePayload {
+    let pipe = crate::dataplane::global();
+    let recent = pipe.buffer.recent(1);
+    if let Some(tick) = recent.into_iter().next() {
+        let live = tick.live_samples();
+        if live.len() >= 8 {
+            let mu_id = pipe
+                .seen_mus()
+                .first()
+                .map(|m| m.sv_id.clone())
+                .unwrap_or_else(|| "MU-01".to_string());
+            // Currents: 0.001 A per LSB. Voltages: 0.01 V per LSB.
+            let i_scale = 0.001_f32;
+            let v_scale = 0.01_f32;
+            return SsePayload::Waveform(WaveformSample {
+                mu_id,
+                timestamp_ms: now_ms,
+                i1: live[0].value_q as f32 * i_scale,
+                i2: live[1].value_q as f32 * i_scale,
+                i3: live[2].value_q as f32 * i_scale,
+                i0: live[3].value_q as f32 * i_scale,
+                v1: live[4].value_q as f32 * v_scale,
+                v2: live[5].value_q as f32 * v_scale,
+                v3: live[6].value_q as f32 * v_scale,
+                v0: live[7].value_q as f32 * v_scale,
+            });
+        }
+    }
+    // Fallback: synthetic sinusoid so the polar diagram never
+    // sits empty before the producer attaches.
+    let v1 = v_peak * angle.sin();
+    let v2 = v_peak * (angle - pi_2_3).sin();
+    let v3 = v_peak * (angle + pi_2_3).sin();
+    let v0 = v1 + v2 + v3;
+    let i1 = i_peak * (angle - 0.1).sin();
+    let i2 = i_peak * (angle - pi_2_3 - 0.1).sin();
+    let i3 = i_peak * (angle + pi_2_3 - 0.1).sin();
+    let i0 = i1 + i2 + i3;
+    SsePayload::Waveform(WaveformSample {
+        mu_id: "MU-01".to_string(),
+        timestamp_ms: now_ms,
+        v1,
+        v2,
+        v3,
+        v0,
+        i1,
+        i2,
+        i3,
+        i0,
+    })
+}
+
 // Custom type-alias for Instant to ensure standard library compilation
 type Instant = std::time::Instant;
 
@@ -293,5 +350,67 @@ mod tests {
         assert!(json.contains(r#""event_type":"Qse""#));
         assert!(json.contains(r#""result_color":"green""#));
         assert!(json.contains(r#""operation":"set_calibration""#));
+    }
+
+    #[test]
+    fn waveform_falls_back_to_synthetic_when_buffer_is_empty() {
+        crate::dataplane::global().reset();
+        crate::dataplane::global().clear_seen_mus();
+        let event = build_waveform_event(
+            1_700_000_000_000,
+            0.0,
+            155.5,
+            7.0,
+            2.0 * std::f32::consts::PI / 3.0,
+        );
+        match event {
+            SsePayload::Waveform(w) => {
+                assert_eq!(w.mu_id, "MU-01");
+                // Synthetic v1 = v_peak * sin(0) = 0
+                assert!(w.v1.abs() < 1e-3, "v1 ≈ 0 at angle 0, got {}", w.v1);
+            }
+            _ => panic!("expected Waveform variant"),
+        }
+    }
+
+    #[test]
+    fn waveform_reads_live_samples_when_buffer_non_empty() {
+        use svdc_core::{Sample, SampleOrigin, TickRecord};
+        let pipe = crate::dataplane::global();
+        pipe.reset();
+        pipe.clear_seen_mus();
+        pipe.note_mu_observed("E2E_TEST_MU");
+        let mut tick = TickRecord::empty(1, 1_700_000_000_000_000_000);
+        tick.n_channels = 8;
+        for i in 0..8 {
+            tick.samples[i] = Sample {
+                value_q: (i as i32 + 1) * 100,
+                quality: 0,
+                origin: SampleOrigin::Live.as_u8(),
+                reserved: 0,
+            };
+        }
+        tick.stamp_crc();
+        pipe.buffer.push(tick);
+
+        let event = build_waveform_event(
+            1_700_000_000_000,
+            0.0,
+            155.5,
+            7.0,
+            2.0 * std::f32::consts::PI / 3.0,
+        );
+        match event {
+            SsePayload::Waveform(w) => {
+                assert_eq!(w.mu_id, "E2E_TEST_MU");
+                // i1 = ch0.value_q (100) * 0.001 = 0.1 A
+                assert!((w.i1 - 0.1).abs() < 1e-4, "i1 = {}", w.i1);
+                // v1 = ch4.value_q (500) * 0.01 = 5.0 V
+                assert!((w.v1 - 5.0).abs() < 1e-4, "v1 = {}", w.v1);
+            }
+            _ => panic!("expected Waveform variant"),
+        }
+        pipe.reset();
+        pipe.clear_seen_mus();
     }
 }
