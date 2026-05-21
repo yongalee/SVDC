@@ -82,6 +82,12 @@ pub struct DataPipeline {
     /// Populates the auto-observed section of `/south/mus` (PR D)
     /// and the `active_mus` count on the Dashboard.
     seen_mus: Mutex<BTreeMap<String, MuObservation>>,
+    /// Currently selected vendor preset for the synthetic loop.
+    /// `None` = the generic `DATAPLANE_DEMO` svID (default).
+    /// Operator picks from the `/dataplane` vendor selector
+    /// (PR F). Real UDP ingress ignores this — vendor identity
+    /// there is whatever the simulator emits.
+    selected_vendor: Mutex<Option<&'static ssiec_sv_publisher::VendorProfile>>,
 }
 
 /// One row in [`DataPipeline::seen_mus`]. Tracks first-seen,
@@ -118,7 +124,38 @@ impl DataPipeline {
             last_violations: AtomicU64::new(0),
             external_feed_active: AtomicBool::new(false),
             seen_mus: Mutex::new(BTreeMap::new()),
+            selected_vendor: Mutex::new(None),
         }
+    }
+
+    /// Set the synthetic-loop vendor preset by name (case-insensitive
+    /// match against `vendor::lookup`). Pass `None` to revert to the
+    /// generic `DATAPLANE_DEMO` svID.
+    pub fn set_vendor(&self, name: Option<&str>) -> Result<(), &'static str> {
+        let resolved = match name {
+            None | Some("") | Some("none") => None,
+            Some(n) => Some(ssiec_sv_publisher::vendor::lookup(n).ok_or("unknown vendor preset")?),
+        };
+        if let Ok(mut g) = self.selected_vendor.lock() {
+            *g = resolved;
+            Ok(())
+        } else {
+            Err("vendor lock poisoned")
+        }
+    }
+
+    /// Current vendor preset name (`None` for the generic demo).
+    pub fn selected_vendor_name(&self) -> Option<&'static str> {
+        self.selected_vendor
+            .lock()
+            .ok()
+            .and_then(|g| g.map(|v| v.name))
+    }
+
+    /// The current vendor preset, used by the synthetic loop's
+    /// frame builder to stamp the svID + rate.
+    fn current_vendor(&self) -> Option<&'static ssiec_sv_publisher::VendorProfile> {
+        self.selected_vendor.lock().ok().and_then(|g| *g)
     }
 
     /// Record one observation of `sv_id`. Called from the ingress
@@ -385,7 +422,7 @@ async fn run_pipeline(pipe: Arc<DataPipeline>) {
     let mut smp_cnt: u32 = 0;
     while pipe.running.load(Ordering::Relaxed) {
         ticker.tick().await;
-        let frame = synth_frame(smp_cnt, period_ns);
+        let frame = synth_frame(smp_cnt, period_ns, pipe.current_vendor());
         for asdu in &frame.samples {
             pipe.note_mu_observed(&asdu.sv_id);
         }
@@ -407,7 +444,11 @@ async fn run_pipeline(pipe: Arc<DataPipeline>) {
     }
 }
 
-fn synth_frame(smp_cnt: u32, period_ns: u64) -> IngressFrame {
+fn synth_frame(
+    smp_cnt: u32,
+    period_ns: u64,
+    vendor: Option<&'static ssiec_sv_publisher::VendorProfile>,
+) -> IngressFrame {
     // Three-phase 60 Hz sinusoids in publisher-scale units. Same
     // amplitude conventions as `SampleData::NOMINAL_3PH` but
     // rotated through one cycle per second of demo time so the
@@ -437,14 +478,26 @@ fn synth_frame(smp_cnt: u32, period_ns: u64) -> IngressFrame {
             ChannelSample::good(vn),
         ],
     };
+    let (sv_id, conf_rev, smp_rate) = match vendor {
+        Some(v) => (
+            v.svid_for("DATAPLANE_DEMO"),
+            v.default_conf_rev,
+            v.default_smp_rate_hz as u16,
+        ),
+        None => (
+            "DATAPLANE_DEMO".into(),
+            1,
+            (1_000_000_000 / period_ns) as u16,
+        ),
+    };
     IngressFrame {
         timestamp: IngressTimestamp::from_unix_ns(now_ns()),
         samples: vec![DecodedSample {
-            sv_id: "DATAPLANE_DEMO".into(),
+            sv_id,
             smp_cnt: smp_cnt as u16,
-            conf_rev: 1,
+            conf_rev,
             smp_synch: 2,
-            smp_rate: (1_000_000_000 / period_ns) as u16,
+            smp_rate,
             samples,
         }],
     }
@@ -559,5 +612,26 @@ mod tests {
         assert_eq!(p.distinct_mu_count(), 2);
         p.clear_seen_mus();
         assert_eq!(p.distinct_mu_count(), 0);
+    }
+
+    #[test]
+    fn set_vendor_resolves_preset_names_case_insensitively() {
+        let p = DataPipeline::new();
+        assert_eq!(p.selected_vendor_name(), None);
+        p.set_vendor(Some("abb_relion_670")).unwrap();
+        assert_eq!(p.selected_vendor_name(), Some("abb_relion_670"));
+        p.set_vendor(Some("SEL_2240")).unwrap();
+        assert_eq!(p.selected_vendor_name(), Some("sel_2240"));
+        p.set_vendor(None).unwrap();
+        assert_eq!(p.selected_vendor_name(), None);
+        p.set_vendor(Some("none")).unwrap();
+        assert_eq!(p.selected_vendor_name(), None);
+    }
+
+    #[test]
+    fn set_vendor_rejects_unknown_preset() {
+        let p = DataPipeline::new();
+        assert!(p.set_vendor(Some("nonsense_vendor")).is_err());
+        assert_eq!(p.selected_vendor_name(), None);
     }
 }
