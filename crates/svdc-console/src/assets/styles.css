@@ -412,3 +412,47 @@ button:disabled { opacity: 0.55; cursor: progress; }
     font-family: 'JetBrains Mono', monospace;
 }
 .mu-link:hover { text-decoration: underline; }
+
+/* Layer (Northbound) table — clickable rows + identity tags */
+.layer-table tbody tr.layer-row {
+    cursor: pointer;
+    transition: background-color 0.12s ease;
+}
+.layer-table tbody tr.layer-row:hover {
+    background-color: rgba(37, 99, 235, 0.04);
+}
+.layer-table tbody tr.layer-row:focus {
+    outline: 2px solid rgba(37, 99, 235, 0.4);
+    outline-offset: -2px;
+}
+.layer-table .col-rx, .layer-table .col-fps { width: 110px; text-align: right; }
+.layer-table .endpoint-cell code {
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12px;
+    color: var(--text-strong);
+    white-space: nowrap;
+}
+.layer-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(37, 99, 235, 0.10);
+    color: var(--accent-blue);
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+}
+.layer-link {
+    color: var(--text-strong);
+    text-decoration: none;
+    font-weight: 600;
+}
+.layer-link:hover { color: var(--accent-blue); text-decoration: underline; }
+.layer-detail-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px;
+}
+.layer-detail-actions { display: flex; gap: 8px; align-items: center; }
