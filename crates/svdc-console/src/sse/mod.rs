@@ -38,6 +38,15 @@ pub struct DashboardMetrics {
     /// Whether the L3 TimescaleDB northbound sidecar is enabled and
     /// successfully writing rows.
     pub l3_timescaledb_active: bool,
+    /// Number of records in the TickBuffer whose CRC failed the most
+    /// recent integrity sweep. Zero = healthy. Source: PR #49.
+    #[serde(default)]
+    pub integrity_violations: usize,
+    /// `true` when the daemon's `--ingress-udp` listener is feeding
+    /// the buffer; `false` when the in-process synthetic demo is the
+    /// only producer (or no producer is active). Per ADR-0015 §3.
+    #[serde(default)]
+    pub live_feed_active: bool,
 }
 
 /// One 8-channel sample tuple for the MU-detail live waveform.
