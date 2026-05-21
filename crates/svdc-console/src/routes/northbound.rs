@@ -20,6 +20,7 @@ use axum::{Json, Router};
 use maud::{html, Markup, PreEscaped};
 use serde::{Deserialize, Serialize};
 
+use crate::audit::{self, AuditEvent};
 use crate::templates::base::{layout, Section};
 
 /// Northbound layer identifier per UI Doc §3.
@@ -428,11 +429,10 @@ fn api_toggle(state: AppState, code: &str, target: bool) -> (StatusCode, Json<La
     let prev = state.set(layer, target);
     let changed = prev != target;
     if changed {
-        tracing::info!(
-            audit.layer = %layer.code(),
-            audit.action = if target { "enable" } else { "disable" },
-            "northbound state changed"
-        );
+        audit::record(AuditEvent::NorthboundStateChange {
+            layer: layer.code().to_string(),
+            enabled: target,
+        });
     }
     (
         StatusCode::OK,

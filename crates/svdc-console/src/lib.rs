@@ -18,6 +18,8 @@
 
 /// Embedded static assets (CSS, JS, fonts) served from the binary.
 pub mod assets;
+/// Audit log: typed in-memory ring of operator state changes.
+pub mod audit;
 /// SVDC-local operational state (calibration triples, subscription flags).
 /// Distinct from the SCD-derived registry — SCD is immutable per IEC 61850-6.
 pub mod operational;
@@ -45,6 +47,7 @@ pub fn router() -> Router {
         .merge(routes::monitoring::router())
         .merge(routes::config::router())
         .merge(routes::calibration::router())
+        .merge(routes::audit::router())
         .merge(routes::sse::router())
         .merge(routes::assets::router())
 }
