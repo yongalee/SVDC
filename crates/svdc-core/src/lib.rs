@@ -13,6 +13,10 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod integrity;
+
+pub use integrity::{crc32_ieee, Crc32};
+
 /// Maximum number of channels in one [`TickRecord`].
 ///
 /// SDD §7.1 specifies `samples[MAX_CH]` as a fixed-size array so the
@@ -163,7 +167,76 @@ impl TickRecord {
         let n = n.min(MAX_CHANNELS);
         &self.samples[..n]
     }
+
+    /// Compute CRC-32 (IEEE) over the populated samples
+    /// (`samples[..n_channels]`). Each [`Sample`] is hashed in its
+    /// SDD §7.1 byte layout: `value_q` little-endian (4 B), `quality`
+    /// (1 B), `origin` (1 B), `reserved` little-endian (2 B). The
+    /// metadata header (`tick_id`, `ts_utc_ns`, etc.) is **not**
+    /// covered — the CRC's job is to catch corruption inside the
+    /// sample payload, the field that the dual-CB swaps under load.
+    ///
+    /// Returns the same value `(de)serialize_to_le_bytes`-style tools
+    /// would produce, so external scripts can re-verify the
+    /// historian CSV's CRC column from the per-channel columns alone.
+    pub fn compute_crc(&self) -> u32 {
+        let mut crc = Crc32::new();
+        for s in self.live_samples() {
+            crc.update(&s.value_q.to_le_bytes());
+            crc.update(&[s.quality, s.origin]);
+            crc.update(&s.reserved.to_le_bytes());
+        }
+        crc.finalize()
+    }
+
+    /// Stamp [`Self::crc`] with the value [`Self::compute_crc`] would
+    /// return. Called by the aligner just before emitting a record.
+    pub fn stamp_crc(&mut self) {
+        self.crc = self.compute_crc();
+    }
+
+    /// Verify that [`Self::crc`] still matches [`Self::compute_crc`].
+    /// Returns `Ok(())` on match, [`IntegrityViolation`] on mismatch
+    /// (the caller decides whether to drop the record, mark the
+    /// surrounding window DEGRADED, or fail over to the spare buffer).
+    pub fn verify_crc(&self) -> Result<(), IntegrityViolation> {
+        let computed = self.compute_crc();
+        if computed == self.crc {
+            Ok(())
+        } else {
+            Err(IntegrityViolation {
+                tick_id: self.tick_id,
+                stored: self.crc,
+                computed,
+            })
+        }
+    }
 }
+
+/// Diagnostic reported when a [`TickRecord`]'s stored CRC does not
+/// match its recomputed value. The dual-CB failover path consumes
+/// these.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntegrityViolation {
+    /// `tick_id` of the offending record.
+    pub tick_id: u64,
+    /// CRC value as stored in the record on disk / in memory.
+    pub stored: u32,
+    /// CRC value computed from the record's current sample payload.
+    pub computed: u32,
+}
+
+impl core::fmt::Display for IntegrityViolation {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "tick {} integrity violation: stored CRC 0x{:08X} != computed 0x{:08X}",
+            self.tick_id, self.stored, self.computed
+        )
+    }
+}
+
+impl std::error::Error for IntegrityViolation {}
 
 #[cfg(test)]
 mod tests {
@@ -245,5 +318,68 @@ mod tests {
         // to 8 regardless, but pinning it here catches accidental
         // field reorderings that would break the C ABI in §8.2.
         assert_eq!(core::mem::size_of::<Sample>(), 8);
+    }
+
+    fn record_with(value_q: i32) -> TickRecord {
+        let mut r = TickRecord::empty(7, 1_700_000_000_000_000_000);
+        r.n_channels = 1;
+        r.set_flag(flags::COMPLETE);
+        r.samples[0] = Sample {
+            value_q,
+            quality: 0,
+            origin: SampleOrigin::Live.as_u8(),
+            reserved: 0,
+        };
+        r
+    }
+
+    #[test]
+    fn stamp_then_verify_round_trips() {
+        let mut r = record_with(12345);
+        assert_eq!(r.crc, 0, "fresh record has no CRC yet");
+        r.stamp_crc();
+        assert_ne!(r.crc, 0, "stamp_crc populates the field");
+        r.verify_crc().expect("stamped record verifies");
+    }
+
+    #[test]
+    fn compute_crc_is_deterministic() {
+        let a = record_with(42).compute_crc();
+        let b = record_with(42).compute_crc();
+        assert_eq!(a, b, "same payload -> same CRC");
+    }
+
+    #[test]
+    fn compute_crc_is_sensitive_to_one_byte_change() {
+        let a = record_with(0).compute_crc();
+        let b = record_with(1).compute_crc();
+        assert_ne!(a, b, "different value_q -> different CRC");
+    }
+
+    #[test]
+    fn payload_tamper_after_stamp_fails_verification() {
+        let mut r = record_with(100);
+        r.stamp_crc();
+        // Operator tampers with the sample payload directly.
+        r.samples[0].value_q = 999;
+        let err = r.verify_crc().unwrap_err();
+        assert_eq!(err.tick_id, 7);
+        assert_eq!(err.stored, r.crc);
+        assert_ne!(err.computed, err.stored);
+        // Display is non-empty and includes the tick_id.
+        let s = format!("{err}");
+        assert!(s.contains("tick 7"));
+    }
+
+    #[test]
+    fn unused_slots_do_not_contribute_to_crc() {
+        // Two records with the same n_channels and the same populated
+        // slots but different *unused* slots must produce the same
+        // CRC — the integrity check covers only the live payload.
+        let mut a = record_with(50);
+        let mut b = record_with(50);
+        a.samples[10].value_q = 9999; // unused (n_channels = 1)
+        b.samples[20].value_q = -9999; // unused
+        assert_eq!(a.compute_crc(), b.compute_crc());
     }
 }
