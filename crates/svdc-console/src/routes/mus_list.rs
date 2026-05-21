@@ -261,6 +261,10 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
             rms_ib: 1.000, dc_ib: 0.000, angle_ib: 0.0,
             rms_ic: 1.000, dc_ic: 0.000, angle_ic: 0.0,
             
+            // Waveform visibility toggles
+            show_va: true, show_vb: true, show_vc: true,
+            show_ia: false, show_ib: false, show_ic: false,
+            
             saving: false,
             progress: 0,
             showToast: false,
@@ -546,37 +550,73 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                             h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Interactive Waveform Plot" }
                         }
                         div class="card-body mt-3 flex flex-col gap-3" {
-                            div class="waveform-container" {
-                                // SVG waveform canvas
-                                svg viewBox="0 0 600 150" class="waveform-svg" {
-                                    // Zero line grid
-                                    line x1="0" y1="75" x2="600" y2="75" stroke="#cbd5e1" stroke-width="0.5" stroke-dasharray="4" {}
-
-                                    // Dynamic Phase Paths (Voltage sine waves Va, Vb, Vc)
-                                    path x-bind:d="getWaveformPath(rms_va, angle_va, 0)"
-                                         fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" {}
-
-                                    path x-bind:d="getWaveformPath(rms_vb, angle_vb, 120)"
-                                         fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" {}
-
-                                    path x-bind:d="getWaveformPath(rms_vc, angle_vc, 240)"
-                                         fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" {}
+                            div class="flex gap-3" {
+                                // Left: Channel checkboxes
+                                div class="flex flex-col gap-1.5 pt-1" style="min-width:90px;" {
+                                    span class="text-[9px] font-bold text-text-secondary uppercase tracking-wider mb-0.5" { "Voltage" }
+                                    label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
+                                        input type="checkbox" x-model="show_va" class="accent-[#ef4444]";
+                                        span class="w-2 h-2 rounded-full bg-[#ef4444] inline-block" {}
+                                        span class="font-semibold" { "Va" }
+                                    }
+                                    label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
+                                        input type="checkbox" x-model="show_vb" class="accent-[#22c55e]";
+                                        span class="w-2 h-2 rounded-full bg-[#22c55e] inline-block" {}
+                                        span class="font-semibold" { "Vb" }
+                                    }
+                                    label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
+                                        input type="checkbox" x-model="show_vc" class="accent-[#3b82f6]";
+                                        span class="w-2 h-2 rounded-full bg-[#3b82f6] inline-block" {}
+                                        span class="font-semibold" { "Vc" }
+                                    }
+                                    span class="text-[9px] font-bold text-text-secondary uppercase tracking-wider mt-1.5 mb-0.5" { "Current" }
+                                    label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
+                                        input type="checkbox" x-model="show_ia" class="accent-[#f59e0b]";
+                                        span class="w-2 h-2 rounded-full bg-[#f59e0b] inline-block" {}
+                                        span class="font-semibold" { "Ia" }
+                                    }
+                                    label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
+                                        input type="checkbox" x-model="show_ib" class="accent-[#8b5cf6]";
+                                        span class="w-2 h-2 rounded-full bg-[#8b5cf6] inline-block" {}
+                                        span class="font-semibold" { "Ib" }
+                                    }
+                                    label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
+                                        input type="checkbox" x-model="show_ic" class="accent-[#14b8a6]";
+                                        span class="w-2 h-2 rounded-full bg-[#14b8a6] inline-block" {}
+                                        span class="font-semibold" { "Ic" }
+                                    }
                                 }
-                            }
 
-                            // Waveform Legend
-                            div class="flex justify-center gap-4 text-[10px] font-semibold w-full border-t border-border-color pt-2" {
-                                div class="flex items-center gap-1.5" {
-                                    span class="w-2.5 h-1.5 rounded-full bg-accent-red" {}
-                                    span { "Va Phase A" }
-                                }
-                                div class="flex items-center gap-1.5" {
-                                    span class="w-2.5 h-1.5 rounded-full bg-accent-green" {}
-                                    span { "Vb Phase B" }
-                                }
-                                div class="flex items-center gap-1.5" {
-                                    span class="w-2.5 h-1.5 rounded-full bg-accent-blue" {}
-                                    span { "Vc Phase C" }
+                                // Right: SVG waveform canvas
+                                div class="flex-1" {
+                                    div class="waveform-container" {
+                                        svg viewBox="0 0 600 150" class="waveform-svg" {
+                                            // Zero line grid
+                                            line x1="0" y1="75" x2="600" y2="75" stroke="#cbd5e1" stroke-width="0.5" stroke-dasharray="4" {}
+
+                                            // Voltage waveforms (solid lines)
+                                            path x-show="show_va"
+                                                 x-bind:d="getWaveformPath(rms_va, angle_va, 0)"
+                                                 fill="none" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round" {}
+                                            path x-show="show_vb"
+                                                 x-bind:d="getWaveformPath(rms_vb, angle_vb, 120)"
+                                                 fill="none" stroke="#22c55e" stroke-width="1.5" stroke-linecap="round" {}
+                                            path x-show="show_vc"
+                                                 x-bind:d="getWaveformPath(rms_vc, angle_vc, 240)"
+                                                 fill="none" stroke="#3b82f6" stroke-width="1.5" stroke-linecap="round" {}
+
+                                            // Current waveforms (dashed lines)
+                                            path x-show="show_ia"
+                                                 x-bind:d="getWaveformPath(rms_ia, angle_ia, -30)"
+                                                 fill="none" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="6,3" {}
+                                            path x-show="show_ib"
+                                                 x-bind:d="getWaveformPath(rms_ib, angle_ib, 90)"
+                                                 fill="none" stroke="#8b5cf6" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="6,3" {}
+                                            path x-show="show_ic"
+                                                 x-bind:d="getWaveformPath(rms_ic, angle_ic, 210)"
+                                                 fill="none" stroke="#14b8a6" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="6,3" {}
+                                        }
+                                    }
                                 }
                             }
                         }
