@@ -39,6 +39,10 @@ fn print_help() {
     println!("                                   feed received SV payloads into the data plane.");
     println!("                                   See docs/simulator-runbook.md (ADR-0015).");
     println!("                                   Example: --ingress-udp 239.0.0.1:9100");
+    println!("        --enable-l0-demo           Spawn the L0 reference in-process subscriber");
+    println!("                                   (svdc-subscribe::InProcessSubscriber). Prints");
+    println!("                                   tick summaries to stdout. See");
+    println!("                                   docs/northbound-simulators.md (ADR-0016).");
     println!();
     println!("ENVIRONMENT VARIABLES:");
     println!("    SVDC_UI=1                      Enables the Operator Console");
@@ -47,6 +51,7 @@ fn print_help() {
     println!("    SVDC_OPERATIONAL_CONFIG        Path equivalent of --operational-config");
     println!("    SVDC_AUDIT_LOG                 Path equivalent of --audit-log");
     println!("    SVDC_INGRESS_UDP               Path equivalent of --ingress-udp");
+    println!("    SVDC_ENABLE_L0_DEMO=1          Path equivalent of --enable-l0-demo");
 }
 
 #[derive(Debug)]
@@ -56,6 +61,7 @@ struct Config {
     operational_path: Option<PathBuf>,
     audit_log_path: Option<PathBuf>,
     ingress_udp: Option<SocketAddr>,
+    enable_l0_demo: bool,
 }
 
 #[derive(Debug)]
@@ -77,6 +83,7 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
     let mut cli_op_path: Option<PathBuf> = None;
     let mut cli_audit_path: Option<PathBuf> = None;
     let mut cli_ingress_udp: Option<String> = None;
+    let mut cli_enable_l0_demo: Option<bool> = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -129,6 +136,9 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
                 }
                 cli_ingress_udp = Some(args[i].clone());
             }
+            "--enable-l0-demo" => {
+                cli_enable_l0_demo = Some(true);
+            }
             other => return Err(ConfigError::UnknownArg(other.to_string())),
         }
         i += 1;
@@ -172,12 +182,19 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
         None => None,
     };
 
+    let env_enable_l0_demo = env::var("SVDC_ENABLE_L0_DEMO")
+        .ok()
+        .filter(|v| v == "1")
+        .map(|_| true);
+    let enable_l0_demo = cli_enable_l0_demo.or(env_enable_l0_demo).unwrap_or(false);
+
     Ok(Config {
         ui_enabled,
         ui_bind,
         operational_path,
         audit_log_path,
         ingress_udp,
+        enable_l0_demo,
     })
 }
 
@@ -290,6 +307,7 @@ fn main() -> ExitCode {
     // the same TickBuffer the UI exposes via
     // svdc_console::dataplane::global().
     let ingress_udp = cfg.ingress_udp;
+    let enable_l0_demo = cfg.enable_l0_demo;
     let bind = cfg.ui_bind;
     let result = rt.block_on(async move {
         if let Some(addr) = ingress_udp {
@@ -298,6 +316,9 @@ fn main() -> ExitCode {
                 return Err(std::io::Error::other(format!("ingress-udp: {e}")));
             }
             println!("svdc: --ingress-udp {addr} bound; live feed active");
+        }
+        if enable_l0_demo {
+            spawn_l0_demo();
         }
         println!("svdc: Operator Console enabled at http://{bind}");
         svdc_console::start_console(bind).await
@@ -420,6 +441,59 @@ fn spawn_udp_ingress(addr: std::net::SocketAddr) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Spawn the L0 reference in-process subscriber demo (ADR-0016).
+///
+/// Subscribes to the shared `TickBuffer` via
+/// `svdc-subscribe::InProcessSubscriber`, then loops every 100 ms
+/// calling `read_since()` and printing a one-line summary of each
+/// freshly arrived tick to stdout. This is the reference consumer a
+/// real EBP relay (or any zero-network-hop subscriber) would build
+/// on — except a relay would feed each tick into a protection
+/// algorithm instead of printing it.
+///
+/// Output format (one line per tick, every 10th tick by default to
+/// keep stdout readable at 4800 Hz):
+///
+/// ```text
+/// svdc-l0-demo: tick_id=480  ts=1717603200000000000 ch0=4811 ch4=22987 lag=0
+/// ```
+///
+/// `lag` reports the number of fresh ticks delivered in this
+/// `read_since` batch minus one — i.e. how far behind the consumer
+/// was when the read drained.
+fn spawn_l0_demo() {
+    use svdc_subscribe::{ChannelSet, InProcessSubscriber, Subscriber};
+
+    let pipeline = svdc_console::dataplane::global();
+    let buffer = std::sync::Arc::clone(&pipeline.buffer);
+    let factory = InProcessSubscriber::new(buffer);
+
+    tokio::spawn(async move {
+        let mut subscription = factory.subscribe(ChannelSet::all());
+        println!("svdc-l0-demo: subscribed (cursor = 0)");
+        let mut emitted: u64 = 0;
+        let print_every: u64 = 10;
+        loop {
+            let batch = subscription.read_since();
+            let batch_len = batch.len();
+            for tick in batch {
+                if emitted % print_every == 0 {
+                    let live = tick.live_samples();
+                    let ch0 = live.first().map(|s| s.value_q).unwrap_or(0);
+                    let ch4 = live.get(4).map(|s| s.value_q).unwrap_or(0);
+                    let lag = batch_len.saturating_sub(1);
+                    println!(
+                        "svdc-l0-demo: tick_id={} ts={} ch0={} ch4={} lag={}",
+                        tick.tick_id, tick.ts_utc_ns, ch0, ch4, lag
+                    );
+                }
+                emitted = emitted.wrapping_add(1);
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -520,5 +594,32 @@ mod tests {
     fn default_has_no_ingress_udp() {
         let cfg = resolve_config(&args(&[])).unwrap();
         assert!(cfg.ingress_udp.is_none());
+    }
+
+    #[test]
+    fn enable_l0_demo_defaults_off() {
+        let cfg = resolve_config(&args(&[])).unwrap();
+        assert!(!cfg.enable_l0_demo);
+    }
+
+    #[test]
+    fn enable_l0_demo_flag_turns_it_on() {
+        let cfg = resolve_config(&args(&["--enable-l0-demo"])).unwrap();
+        assert!(cfg.enable_l0_demo);
+    }
+
+    #[test]
+    fn enable_l0_demo_composes_with_ingress_udp() {
+        let cfg = resolve_config(&args(&[
+            "--ingress-udp",
+            "239.0.0.1:9100",
+            "--enable-l0-demo",
+        ]))
+        .unwrap();
+        assert!(cfg.enable_l0_demo);
+        assert_eq!(
+            cfg.ingress_udp.map(|a| a.to_string()),
+            Some("239.0.0.1:9100".to_string())
+        );
     }
 }
