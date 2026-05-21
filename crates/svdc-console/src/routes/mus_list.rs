@@ -531,7 +531,7 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                         div class="card-header border-b border-border-color pb-3" {
                             h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Interactive Waveform Plot" }
                         }
-                        div class="card-body mt-3 flex flex-col items-center gap-3" {
+                        div class="card-body mt-3 flex flex-col gap-3" {
                             div class="waveform-container" {
                                 // SVG waveform canvas
                                 svg viewBox="0 0 600 150" class="waveform-svg" {
