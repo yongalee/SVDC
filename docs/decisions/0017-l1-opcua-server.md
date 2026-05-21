@@ -84,50 +84,49 @@ cannot meet, a follow-on ADR (likely numbered 0023+) will revisit
 this decision; the AddressSpace mapping locked below is library-
 neutral and survives a swap.
 
-**Library follow-up note (PR L, added 2026-05-22).** PR L tried to
-add the `opcua` crate (the older `locka99/opcua` 0.12, sync API
-with the `add_polling_action` example matching §2's walkthrough)
-to `svdc-opcua`'s dependency list. The empirical result on the
-project's primary Windows dev machine:
+**Library follow-up resolution (PR L+, 2026-05-22).** PR L tried
+the older `locka99/opcua` 0.12 (sync API matching §2's
+walkthrough) and hit a hard transitive dep on `openssl-sys`. The
+`vendored-openssl` rebuild needs Strawberry-Perl-grade modules
+that MSYS perl ships without. PR L+ picked option (2) from the
+PR L follow-up paths — migrate to **`async-opcua` 0.18** (the
+freeopcua org fork) — and landed the real server task on top.
 
-- `opcua` 0.12 transitively requires `openssl-sys`, even when
-  every cipher is disabled and the server runs SecurityPolicy
-  `None`.
-- The `vendored-openssl` feature can rebuild OpenSSL from source
-  to avoid system installs, but the OpenSSL build script
-  requires Strawberry-Perl-grade `Locale::Maketext::Simple` on
-  Windows. Git Bash's bundled MSYS perl ships without it.
-- The newer fork (`async-opcua` 0.18, freeopcua org) is the more
-  obvious long-term direction (the locka99 README points to it),
-  but its API differs from §2's worked example and its own crypto
-  story still needs to be verified end-to-end.
+What the migration actually changed:
 
-This is the kind of FFI baggage the §1 trade-off matrix flagged
-as a `open62541` risk; the takeaway is that "Rust-native" is not
-synonymous with "FFI-free" in this corner of the ecosystem. To
-avoid blocking the rest of the workstream while the environment
-is sorted out:
+- **No `openssl-sys` dep.** async-opcua's `async-opcua-crypto`
+  uses pure-Rust crypto (`rsa`, `aes`, `sha2`). Clean `cargo
+  build` on Windows without system perl / OpenSSL.
+- **`[lib] name = "opcua"` preserved.** Code under
+  `crates/svdc-opcua/src/server.rs` uses `opcua::server::*` even
+  though the dep is `async-opcua`, so the §2 / §7 walkthroughs
+  survive the swap.
+- **API differences from §2's walkthrough**:
+  - `ServerBuilder::new_anonymous(name)` replaces the
+    `new()` + manual endpoint config dance — the simpler
+    constructor pre-populates an anonymous + no-security
+    endpoint plus the required discovery URLs. Without it the
+    builder rejects with "Server configuration is invalid. It
+    defines no endpoints".
+  - `address_space.set_variable_value(...)` is replaced by
+    `manager.set_values(&subscriptions, iter)` where each iter
+    entry is `(&NodeId, Option<&NumericRange>, DataValue)`. PR L+
+    builds the `(NodeId, DataValue)` pairs first and references
+    them at the call site to satisfy the lifetimes.
+  - `server.run()` is `async` (was sync in 0.12). PR L+ keeps
+    the inner server running on its own tokio task and a
+    parallel bridge task copies the latest `TickRecord` into a
+    shared `LatestTickSnapshot` that the server's internal
+    publisher consumes.
+- **No PubSub support today** — same trade-off as in §1's
+  matrix; revisit at Phase 5.
 
-- **PR L** lands the architecture only: DataPipeline atomics, the
-  `--enable-opcua` / `--allow-insecure-bind` CLI flags with the
-  non-loopback bind guard, the `/north/L1` UI transition to
-  Wired-stub mode, and the documentation here. The flag activates
-  a stub task that flips `l1_opcua_active = true` and prints a
-  one-line "deferred to PR L+" notice — no OPC UA traffic flows.
-- **PR L+** picks one of the three resolutions and lands the real
-  server task:
-  1. Install Strawberry Perl on the dev / CI machines and use
-     `opcua` 0.12 + `vendored-openssl` (smallest API drift from
-     §2's walkthrough).
-  2. Migrate to `async-opcua` 0.18 (the freeopcua fork rename).
-     Slightly different API; needs an §1 trade-off re-eval.
-  3. Wait for `async-opcua` to publish a rustls-only feature
-     gate, or contribute one. Keeps the dev story pure Rust.
-
-The architecture in PR L is library-agnostic: any of the three
-resolutions can land without touching the AddressSpace mapping
-(`crates/svdc-opcua/src/address_space.rs`), the quality/timestamp
-maps, or the CLI surface.
+The PR K AddressSpace builder, quality table, and timestamp
+conversion all survived the library swap unchanged — that was
+the whole point of keeping the mapping library-neutral. PR L's
+`--enable-opcua` flag, `--allow-insecure-bind` guard, and the
+`/north/L1` UI all kept their PR L semantics; PR L+ just swapped
+the stub task for a real server in `svdc-bin`.
 
 ### 2. AddressSpace: OPC 10040 IEC 61850 mapping, deterministic node IDs
 

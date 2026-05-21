@@ -430,7 +430,7 @@ fn main() -> ExitCode {
                      --allow-insecure-bind; L1 traffic is unencrypted and unauthenticated."
                 );
             }
-            spawn_l1_opcua_stub(addr);
+            spawn_l1_opcua_server(addr);
         }
         println!("svdc: Operator Console enabled at http://{bind}");
         svdc_console::start_console(bind).await
@@ -609,27 +609,91 @@ fn spawn_l0_demo() {
     });
 }
 
-/// L1 OPC UA server stub (PR L). Marks the layer as "active" on
-/// the dataplane so `/north/L1` knows the operator opted into L1,
-/// but does not yet serve OPC UA traffic. The actual server task
-/// is deferred to PR L+ pending an OpenSSL build environment per
-/// ADR-0017 §1 (the `opcua` crate's transitive `openssl-sys`
-/// dependency needs Strawberry Perl on Windows or a swap to
-/// `async-opcua` with rustls — both options are larger than this
-/// PR can absorb).
+/// Spawn the L1 OPC UA server (PR L+ — replaces PR L's stub).
 ///
-/// Counters stay at zero by design; the UI distinguishes "stub"
-/// from "running" by treating `active && total_publishes == 0` as
-/// stub mode. PR L+ will replace this with a real server task
-/// that calls `record_l1_opcua_publish(tick_id)` per published
-/// tick.
-fn spawn_l1_opcua_stub(addr: std::net::SocketAddr) {
+/// Builds the server via `svdc-opcua::start_server`, then runs a
+/// background task that drains the shared `TickBuffer` via an
+/// `InProcessSubscriber` and writes the latest tick into the
+/// server's `LatestTickSnapshot`. The server's own publisher task
+/// then pushes those values into the OPC UA AddressSpace at the
+/// configured cadence (10 Hz default per ADR-0017 §4).
+///
+/// Per-publish counters (`l1_opcua_last_tick_id`,
+/// `l1_opcua_total_publishes`) are incremented inside the
+/// snapshot-update loop so the UI's stub-vs-running distinction
+/// flips automatically the moment the first sample lands.
+fn spawn_l1_opcua_server(addr: std::net::SocketAddr) {
+    use svdc_opcua::{start_server, OpcuaServerConfig};
+    use svdc_subscribe::{ChannelSet, InProcessSubscriber, Subscriber};
+
     let pipeline = svdc_console::dataplane::global();
-    pipeline.mark_l1_opcua_active(true);
-    println!(
-        "svdc-l1-opcua: stub mode at {addr} \u{2014} actual server deferred to PR L+ \
-         (see ADR-0017 §1 follow-up; openssl-sys build env)"
-    );
+    let buffer = std::sync::Arc::clone(&pipeline.buffer);
+    let factory = InProcessSubscriber::new(buffer);
+    let pipe_for_task = std::sync::Arc::clone(&pipeline);
+
+    // Default to the first MU we've observed; otherwise the
+    // canonical demo svID. Multi-MU federation is ADR-0017
+    // "Out of scope" §1, so the first slice ships single-MU.
+    let sv_id = pipe_for_task
+        .seen_mus()
+        .first()
+        .map(|obs| obs.sv_id.clone())
+        .unwrap_or_else(|| "SVDC_DEMO_PB_MU".to_string());
+
+    let cfg = OpcuaServerConfig::reference(addr, &sv_id);
+
+    let server = match start_server(cfg) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("svdc-l1-opcua: failed to start server: {e}");
+            return;
+        }
+    };
+
+    pipe_for_task.mark_l1_opcua_active(true);
+    println!("svdc-l1-opcua: server bound at {addr}; anonymous, no security (ADR-0017 §5)");
+
+    // Bridge task: drain ticks from the shared TickBuffer and
+    // overwrite the server's snapshot. The server's own internal
+    // publisher (10 Hz) then pushes the snapshot into the address
+    // space; this loop runs slightly faster so we never block the
+    // publisher waiting on fresh data.
+    let latest = server.latest.clone();
+    tokio::spawn(async move {
+        let mut subscription = factory.subscribe(ChannelSet::all());
+        loop {
+            let batch = subscription.read_since();
+            if let Some(tick) = batch.last() {
+                let snap = build_snapshot(tick);
+                pipe_for_task.record_l1_opcua_publish(snap.tick_id);
+                *latest.lock() = snap;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+    });
+
+    // Hold the server alive on the runtime — dropping the
+    // OpcuaServer struct here would cancel both internal tasks.
+    std::mem::forget(server.server_task);
+    std::mem::forget(server.publisher_task);
+    std::mem::forget(server.server_handle);
+}
+
+/// Convert a `TickRecord` into the snapshot shape `svdc-opcua`
+/// publishes. Calibration is unity for the thin slice; PR L++
+/// may consume the operational-state scale/offset triple.
+fn build_snapshot(tick: &svdc_core::TickRecord) -> svdc_opcua::LatestTickSnapshot {
+    let samples: Vec<(i32, f32, u8, u8)> = tick
+        .live_samples()
+        .iter()
+        .map(|s| (s.value_q, s.value_q as f32, s.quality, s.origin))
+        .collect();
+    svdc_opcua::LatestTickSnapshot {
+        tick_id: tick.tick_id,
+        ts_utc_ns: tick.ts_utc_ns,
+        n_channels: tick.n_channels,
+        samples,
+    }
 }
 
 #[cfg(test)]

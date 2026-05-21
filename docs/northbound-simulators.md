@@ -50,7 +50,7 @@ client binaries are named by their layer.
 | Layer | Server side                  | Client simulator binary       | Status              |
 | ----- | ---------------------------- | ----------------------------- | ------------------- |
 | L0    | `svdc-subscribe` (PR #47)    | `svdc-bin --enable-l0-demo`   | **Wired (PR H)**    |
-| L1    | `svdc-opcua` (PR K scaffold; PR L stub; PR L+ server) | `svdc-l1-opcua-client` (PR M) | **Stubbed (PR L)** |
+| L1    | `svdc-opcua` (PR K mapping, PR L flag, PR L+ async-opcua server) | `svdc-l1-opcua-client` (PR M) | **Wired (PR L+)** |
 | L2    | `svdc-mqtt` (Phase 4)        | `svdc-l2-mqtt-subscriber`     | Phase 4 (paired)    |
 | L3    | `svdc-historian-tsdb` (Phase 4) | `svdc-l3-historian-query`  | Phase 4 (paired)    |
 | C37.118 | Phasor Computation Module (Phase 4) | `svdc-c37118-pdc-sim` | Phase 4 (paired)    |
@@ -117,23 +117,31 @@ of printing.
 
 ## L1 — OPC UA SCADA client
 
-Status: **Stub mode (PR L)**. The `--enable-opcua` CLI flag is
-parsed, the `/north/L1` UI reflects whether it was set, and the
-`crates/svdc-opcua/` AddressSpace builder (PR K) is unit-tested
-against ADR-0017 §2. The actual OPC UA server task is deferred
-to PR L+ pending an OpenSSL build environment — see ADR-0017 §1
-"Library follow-up note" for the three resolution paths.
+Status: **Wired (PR L+)**. The L1 server task runs in `svdc-bin`
+behind `async-opcua` 0.18 — anonymous, no security, address
+space built from PR K's `build_nodes()`. PR L's stub disclosure
+is now resolved.
 
-Today, running `svdc-bin --enable-opcua 127.0.0.1:4840` produces:
+Running `svdc-bin --enable-opcua 127.0.0.1:4840` produces:
 
-- `svdc-l1-opcua: stub mode at 127.0.0.1:4840 — actual server deferred to PR L+`
-  on stdout
-- `/north/L1` shows the `Wired · stub mode` badge with a Stub
-  Mode disclosure block linking back to ADR-0017
-- No TCP socket is opened on the bind address; UA Expert cannot
-  connect
+- `svdc-l1-opcua: server bound at 127.0.0.1:4840; anonymous, no
+  security (ADR-0017 §5)` on stdout
+- A live OPC UA TCP listener on port 4840
+- `/north/L1` flips from `Wired · stub mode` → `Wired · running`
+  the moment the first tick lands and a publish increments
+  `l1_opcua_total_publishes`
 
-When PR L+ lands the server, the simulator (PR M) will:
+UA Expert can connect to `opc.tcp://127.0.0.1:4840/` and browse:
+
+```text
+Objects/Substations/Demo/<MU_svID>/ChannelRegistry/Ch00_Va/
+    instMag.i (Int32)   instMag.f (Float)   q (UInt16)
+    t (UtcTime)         tick_id (Int32)
+```
+
+per ADR-0017 §2.
+
+When PR M lands, the `svdc-l1-opcua-client` simulator will:
 
 1. Open an OPC UA session against `opc.tcp://127.0.0.1:4840`.
 2. Browse the SVDC namespace (per ADR-0017 address space mapping).
