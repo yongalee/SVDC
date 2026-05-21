@@ -550,40 +550,40 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                             h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Interactive Waveform Plot" }
                         }
                         div class="card-body mt-3 flex flex-col gap-3" {
-                            div class="flex gap-3" {
-                                // Left: Channel checkboxes
-                                div class="flex flex-col gap-1.5 pt-1" style="min-width:90px;" {
+                            div class="flex gap-3 items-center" {
+                                // Left: Channel checkboxes with line-style legends
+                                div class="flex flex-col gap-1.5" style="min-width:110px;" {
                                     span class="text-[9px] font-bold text-text-secondary uppercase tracking-wider mb-0.5" { "Voltage" }
                                     label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
                                         input type="checkbox" x-model="show_va" class="accent-[#ef4444]";
-                                        span class="w-2 h-2 rounded-full bg-[#ef4444] inline-block" {}
-                                        span class="font-semibold" { "Va" }
+                                        (PreEscaped("<svg width='20' height='8' style='flex-shrink:0'><line x1='0' y1='4' x2='20' y2='4' stroke='#ef4444' stroke-width='2'/></svg>"))
+                                        span class="font-semibold" { "Va Phase A" }
                                     }
                                     label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
                                         input type="checkbox" x-model="show_vb" class="accent-[#22c55e]";
-                                        span class="w-2 h-2 rounded-full bg-[#22c55e] inline-block" {}
-                                        span class="font-semibold" { "Vb" }
+                                        (PreEscaped("<svg width='20' height='8' style='flex-shrink:0'><line x1='0' y1='4' x2='20' y2='4' stroke='#22c55e' stroke-width='2'/></svg>"))
+                                        span class="font-semibold" { "Vb Phase B" }
                                     }
                                     label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
                                         input type="checkbox" x-model="show_vc" class="accent-[#3b82f6]";
-                                        span class="w-2 h-2 rounded-full bg-[#3b82f6] inline-block" {}
-                                        span class="font-semibold" { "Vc" }
+                                        (PreEscaped("<svg width='20' height='8' style='flex-shrink:0'><line x1='0' y1='4' x2='20' y2='4' stroke='#3b82f6' stroke-width='2'/></svg>"))
+                                        span class="font-semibold" { "Vc Phase C" }
                                     }
-                                    span class="text-[9px] font-bold text-text-secondary uppercase tracking-wider mt-1.5 mb-0.5" { "Current" }
+                                    span class="text-[9px] font-bold text-text-secondary uppercase tracking-wider mt-2 mb-0.5" { "Current" }
                                     label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
                                         input type="checkbox" x-model="show_ia" class="accent-[#f59e0b]";
-                                        span class="w-2 h-2 rounded-full bg-[#f59e0b] inline-block" {}
-                                        span class="font-semibold" { "Ia" }
+                                        (PreEscaped("<svg width='20' height='8' style='flex-shrink:0'><line x1='0' y1='4' x2='20' y2='4' stroke='#f59e0b' stroke-width='2' stroke-dasharray='4,2'/></svg>"))
+                                        span class="font-semibold" { "Ia Phase A" }
                                     }
                                     label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
                                         input type="checkbox" x-model="show_ib" class="accent-[#8b5cf6]";
-                                        span class="w-2 h-2 rounded-full bg-[#8b5cf6] inline-block" {}
-                                        span class="font-semibold" { "Ib" }
+                                        (PreEscaped("<svg width='20' height='8' style='flex-shrink:0'><line x1='0' y1='4' x2='20' y2='4' stroke='#8b5cf6' stroke-width='2' stroke-dasharray='4,2'/></svg>"))
+                                        span class="font-semibold" { "Ib Phase B" }
                                     }
                                     label class="flex items-center gap-1.5 cursor-pointer text-[10px]" {
                                         input type="checkbox" x-model="show_ic" class="accent-[#14b8a6]";
-                                        span class="w-2 h-2 rounded-full bg-[#14b8a6] inline-block" {}
-                                        span class="font-semibold" { "Ic" }
+                                        (PreEscaped("<svg width='20' height='8' style='flex-shrink:0'><line x1='0' y1='4' x2='20' y2='4' stroke='#14b8a6' stroke-width='2' stroke-dasharray='4,2'/></svg>"))
+                                        span class="font-semibold" { "Ic Phase C" }
                                     }
                                 }
 
