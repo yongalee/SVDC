@@ -117,10 +117,11 @@ fn mu_not_registered_body(id: &str) -> Markup {
             },
             register() {
                 this.isRegistering = true;
+                const targetId = window.location.pathname.split('/').pop();
                 fetch('/api/mgmt/mu/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ id: this.$el.dataset.muId })
+                    body: new URLSearchParams({ id: targetId })
                 }).then(() => {
                     window.location.reload();
                 });

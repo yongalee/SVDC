@@ -672,19 +672,20 @@ body {
 /* Action Buttons & HTMX Spinners */
 .btn-primary {
     font-family: var(--font-sans);
-    font-size: 0.75rem;
+    display: inline-flex;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--accent-blue);
     background-color: var(--accent-blue-dim);
     border: 1px solid var(--accent-blue);
-    padding: 0.35rem 0.75rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    display: inline-flex;
     align-items: center;
     justify-content: center;
     outline: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
 
 .btn-primary:hover {
@@ -694,6 +695,31 @@ body {
 }
 
 .btn-primary:active {
+    transform: scale(0.97);
+}
+
+.btn-secondary {
+    display: inline-flex;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    align-items: center;
+    justify-content: center;
+    outline: none;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background-color: var(--border-color);
+}
+
+.btn-secondary:active {
     transform: scale(0.97);
 }
 

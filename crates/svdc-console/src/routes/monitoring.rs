@@ -211,13 +211,19 @@ async fn monitoring_page() -> Html<String> {
                             // Jitter Histogram
                             div class="flex flex-col gap-1" {
                                 span class="text-text-muted text-xs font-mono" { "Arrival Jitter Histogram" }
-                                div class="bg-chart-bg rounded border border-border-color p-2 h-24" {
-                                    svg viewBox="0 0 200 80" class="w-full h-full block" {
-                                        line x1="0" y1="80" x2="200" y2="80" class="stroke-grid-primary" stroke-width="2" {}
-                                        path x-bind:d="getJitterPath(mu.jitter_histogram)"
-                                             fill="#8b5cf6" opacity="0.8" {}
-                                    }
-                                }
+                                  div class="bg-chart-bg rounded border border-border-color p-2 h-28" {
+                                      svg viewBox="0 0 200 100" class="w-full h-full block" {
+                                          line x1="0" y1="80" x2="200" y2="80" class="stroke-grid-primary" stroke-width="1" {}
+                                          path x-bind:d="getJitterPath(mu.jitter_histogram)"
+                                               fill="#8b5cf6" opacity="0.8" {}
+                                          // Y-axis label
+                                          text x="2" y="10" fill="var(--text-muted)" font-size="8" font-family="monospace" { "Count" }
+                                          // X-axis labels
+                                          text x="0" y="92" fill="var(--text-muted)" font-size="8" font-family="monospace" { "0μs" }
+                                          text x="90" y="92" fill="var(--text-muted)" font-size="8" font-family="monospace" { "100μs" }
+                                          text x="170" y="92" fill="var(--text-muted)" font-size="8" font-family="monospace" { ">200μs" }
+                                      }
+                                  }
                             }
                         }
                     }
