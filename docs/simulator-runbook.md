@@ -6,10 +6,11 @@ no hardware required. See [ADR-0015](decisions/0015-simulator-driven-live-ui.md)
 for design rationale; the same procedure with a real MU is in
 [`field-connection-guide.md`](field-connection-guide.md).
 
-Status as of this commit: this runbook describes the **target**
-flow. The wiring lands in follow-up PRs B through E (per
-ADR-0015 §"Follow-up PR plan"). Until then the operator path is
-the in-process `/dataplane` demo from PR #51.
+Status as of this commit: **Step 3 + the live `/dataplane` panel
+work today**; per-screen UI migration (Dashboard live counters,
+auto-registered MU list, live MU detail waveform) lands in PRs C
+through E per ADR-0015 §"Follow-up PR plan". The other UI screens
+continue to show mock data until those PRs land.
 
 ---
 

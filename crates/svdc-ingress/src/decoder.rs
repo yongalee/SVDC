@@ -15,7 +15,7 @@
 //!  - record a per-frame quality summary derived from per-channel
 //!    quality flags.
 
-use ssiec_sv_publisher::{decode_frame, DecodeError, SampleData};
+use ssiec_sv_publisher::{decode_frame, decode_l2_stripped_frame, DecodeError, SampleData};
 
 /// One ASDU's worth of decoded payload as the aligner sees it. Channel
 /// units and calibration are *not* applied here — that lives in
@@ -73,14 +73,26 @@ impl Decoder {
     /// returns a `Vec` so the multi-ASDU shape is stable from day 1.
     pub fn decode_frame(&self, frame: &[u8]) -> Result<Vec<DecodedSample>, DecodeFailure> {
         let dec = decode_frame(frame).map_err(DecodeFailure::Decode)?;
-        Ok(vec![DecodedSample {
-            sv_id: dec.asdu.sv_id,
-            smp_cnt: dec.asdu.smp_cnt,
-            conf_rev: dec.asdu.conf_rev,
-            smp_synch: dec.asdu.smp_synch,
-            smp_rate: dec.asdu.smp_rate,
-            samples: dec.asdu.samples,
-        }])
+        Ok(Self::lift(dec.asdu))
+    }
+
+    /// Decode an L2-stripped payload (the buffer starts at the
+    /// 9-2 LE APPID field, no Ethernet header). Use this on
+    /// payloads received via [`UdpSubscriber`](crate::UdpSubscriber).
+    pub fn decode_l2_stripped(&self, payload: &[u8]) -> Result<Vec<DecodedSample>, DecodeFailure> {
+        let dec = decode_l2_stripped_frame(payload).map_err(DecodeFailure::Decode)?;
+        Ok(Self::lift(dec.asdu))
+    }
+
+    fn lift(asdu: ssiec_sv_publisher::DecodedAsdu) -> Vec<DecodedSample> {
+        vec![DecodedSample {
+            sv_id: asdu.sv_id,
+            smp_cnt: asdu.smp_cnt,
+            conf_rev: asdu.conf_rev,
+            smp_synch: asdu.smp_synch,
+            smp_rate: asdu.smp_rate,
+            samples: asdu.samples,
+        }]
     }
 }
 

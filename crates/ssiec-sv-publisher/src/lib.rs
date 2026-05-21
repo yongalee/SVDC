@@ -581,7 +581,27 @@ pub fn decode_frame(buf: &[u8]) -> Result<DecodedFrame, DecodeError> {
     if ethertype != ETHERTYPE_SV {
         return Err(DecodeError::NotSvFrame { ethertype });
     }
+    decode_savpdu_after_ethertype(&mut r, dst_mac, src_mac)
+}
 
+/// Decode an SV payload that has already had the L2 Ethernet header
+/// (and any 802.1Q VLAN tag) stripped — for example, when frames
+/// arrive over UDP rather than raw L2 capture. The buffer must
+/// start at the 9-2 LE APPID field; the returned [`DecodedFrame`]
+/// carries zero-filled MAC addresses because the transport that
+/// stripped L2 also stripped that information.
+///
+/// Used by `svdc_ingress::UdpSubscriber` (ADR-0015 §2).
+pub fn decode_l2_stripped_frame(buf: &[u8]) -> Result<DecodedFrame, DecodeError> {
+    let mut r = Reader::new(buf);
+    decode_savpdu_after_ethertype(&mut r, [0u8; 6], [0u8; 6])
+}
+
+fn decode_savpdu_after_ethertype(
+    r: &mut Reader<'_>,
+    dst_mac: [u8; 6],
+    src_mac: [u8; 6],
+) -> Result<DecodedFrame, DecodeError> {
     let appid = r.read_u16_be()?;
     let length = r.read_u16_be()?;
     let _res1 = r.read_u16_be()?;
