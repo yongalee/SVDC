@@ -247,13 +247,19 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
             vlanPriority: 4,
             prpMode: 'PRP',
             
-            // Calibration values
-            rms_va: 1.000, angle_va: 0.0,
-            rms_vb: 1.000, angle_vb: 0.0,
-            rms_vc: 1.000, angle_vc: 0.0,
-            rms_ia: 1.000, angle_ia: 0.0,
-            rms_ib: 1.000, angle_ib: 0.0,
-            rms_ic: 1.000, angle_ic: 0.0,
+            // Instrument Transformer parameters (SDD §7.2)
+            pt_ratio: 1100.0,
+            ct_ratio: 200.0,
+            polarity_v: 'Normal',
+            polarity_i: 'Normal',
+            
+            // Calibration values (SDD §6 M4 triple: scale, offset, φ)
+            rms_va: 1.000, dc_va: 0.000, angle_va: 0.0,
+            rms_vb: 1.000, dc_vb: 0.000, angle_vb: 0.0,
+            rms_vc: 1.000, dc_vc: 0.000, angle_vc: 0.0,
+            rms_ia: 1.000, dc_ia: 0.000, angle_ia: 0.0,
+            rms_ib: 1.000, dc_ib: 0.000, angle_ib: 0.0,
+            rms_ic: 1.000, dc_ic: 0.000, angle_ic: 0.0,
             
             saving: false,
             progress: 0,
@@ -416,10 +422,45 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                         }
                     }
 
-                    // Live Calibration parameters
+                    // Instrument Transformer Parameters (SDD §7.2)
                     div class="glass-card shadow-md" {
                         div class="card-header border-b border-border-color pb-3" {
-                            h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "3. 3-Phase Calibration Magnitude & Angle Offsets" }
+                            h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "3. Instrument Transformer Parameters" }
+                        }
+                        div class="card-body mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs" {
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "PT Ratio (Voltage Transformer)" }
+                                input type="number" min="1" max="50000" step="0.1" class="w-full text-xs font-mono" x-model="pt_ratio";
+                                span class="text-[9px] text-text-secondary" { "Primary-to-secondary voltage transformer turns ratio (e.g., 1100:1)." }
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "CT Ratio (Current Transformer)" }
+                                input type="number" min="1" max="50000" step="0.1" class="w-full text-xs font-mono" x-model="ct_ratio";
+                                span class="text-[9px] text-text-secondary" { "Primary-to-secondary current transformer turns ratio (e.g., 200:1)." }
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "Voltage Channel Polarity" }
+                                select class="w-full text-xs font-mono" x-model="polarity_v" {
+                                    option value="Normal" { "Normal (+1)" }
+                                    option value="Inverted" { "Inverted (-1)" }
+                                }
+                                span class="text-[9px] text-text-secondary" { "Polarity convention of the voltage measurement channels (SDD §7.2)." }
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "Current Channel Polarity" }
+                                select class="w-full text-xs font-mono" x-model="polarity_i" {
+                                    option value="Normal" { "Normal (+1)" }
+                                    option value="Inverted" { "Inverted (-1)" }
+                                }
+                                span class="text-[9px] text-text-secondary" { "Polarity convention of the current measurement channels (SDD §7.2)." }
+                            }
+                        }
+                    }
+
+                    // Live Calibration parameters (SDD §6 M4: scale, offset, φ triple)
+                    div class="glass-card shadow-md" {
+                        div class="card-header border-b border-border-color pb-3" {
+                            h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "4. 3-Phase Calibration Triple (DC Offset / Magnitude / Angle)" }
                         }
                         div class="card-body mt-3 flex flex-col gap-3" {
 
@@ -433,6 +474,8 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                 // Phase A row
                                 div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
                                     span class="font-bold text-accent-red" style="min-width:50px;" { "Va" }
+                                    span class="text-[9px] text-text-secondary" { "DC:" }
+                                    input type="number" min="-10" max="10" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="dc_va";
                                     span class="text-[9px] text-text-secondary" { "Mag:" }
                                     input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_va";
                                     span class="text-[9px] text-text-secondary" { "Ang:" }
@@ -440,6 +483,8 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                 }
                                 div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
                                     span class="font-bold text-accent-red" style="min-width:50px;" { "Ia" }
+                                    span class="text-[9px] text-text-secondary" { "DC:" }
+                                    input type="number" min="-10" max="10" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="dc_ia";
                                     span class="text-[9px] text-text-secondary" { "Mag:" }
                                     input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_ia";
                                     span class="text-[9px] text-text-secondary" { "Ang:" }
@@ -449,6 +494,8 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                 // Phase B row
                                 div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
                                     span class="font-bold text-accent-green" style="min-width:50px;" { "Vb" }
+                                    span class="text-[9px] text-text-secondary" { "DC:" }
+                                    input type="number" min="-10" max="10" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="dc_vb";
                                     span class="text-[9px] text-text-secondary" { "Mag:" }
                                     input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_vb";
                                     span class="text-[9px] text-text-secondary" { "Ang:" }
@@ -456,6 +503,8 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                 }
                                 div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
                                     span class="font-bold text-accent-green" style="min-width:50px;" { "Ib" }
+                                    span class="text-[9px] text-text-secondary" { "DC:" }
+                                    input type="number" min="-10" max="10" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="dc_ib";
                                     span class="text-[9px] text-text-secondary" { "Mag:" }
                                     input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_ib";
                                     span class="text-[9px] text-text-secondary" { "Ang:" }
@@ -465,6 +514,8 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                 // Phase C row
                                 div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
                                     span class="font-bold text-accent-blue" style="min-width:50px;" { "Vc" }
+                                    span class="text-[9px] text-text-secondary" { "DC:" }
+                                    input type="number" min="-10" max="10" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="dc_vc";
                                     span class="text-[9px] text-text-secondary" { "Mag:" }
                                     input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_vc";
                                     span class="text-[9px] text-text-secondary" { "Ang:" }
@@ -472,6 +523,8 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                 }
                                 div class="bg-bg-secondary p-2 rounded border border-border-color flex items-center gap-2" style="flex-wrap:wrap;" {
                                     span class="font-bold text-accent-blue" style="min-width:50px;" { "Ic" }
+                                    span class="text-[9px] text-text-secondary" { "DC:" }
+                                    input type="number" min="-10" max="10" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="dc_ic";
                                     span class="text-[9px] text-text-secondary" { "Mag:" }
                                     input type="number" min="0.5" max="2.0" step="0.001" class="mini-num-input" style="width:60px;max-width:60px;text-align:right;" x-model="rms_ic";
                                     span class="text-[9px] text-text-secondary" { "Ang:" }
