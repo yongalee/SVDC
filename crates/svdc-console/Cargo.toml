@@ -9,6 +9,12 @@ description = "Operator Console for SVDC: serves the web dashboard, southbound M
 
 [dependencies]
 svdc-core = { path = "../svdc-core" }
+svdc-aligner = { path = "../svdc-aligner" }
+svdc-ingress = { path = "../svdc-ingress" }
+svdc-subscribe = { path = "../svdc-subscribe" }
+svdc-historian = { path = "../svdc-historian" }
+svdc-api = { path = "../svdc-api" }
+ssiec-sv-publisher = { path = "../ssiec-sv-publisher" }
 axum = { version = "0.7", features = ["macros", "multipart"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
