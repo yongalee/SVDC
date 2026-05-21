@@ -1,0 +1,11 @@
+# Siemens SIPROTEC 5 6MU85 calibration export — synthetic example.
+# Replace with the DIGSI 5 export on real deployment.
+channel_id,phase,quantity,ct_pt_ratio,gain,offset,unit_scale,notes
+0,A,current,1200/1,1.0,0.0,0.001,"Phase A — 1200:1 CT, Siemens"
+1,B,current,1200/1,1.0,0.0,0.001,"Phase B"
+2,C,current,1200/1,1.0,0.0,0.001,"Phase C"
+3,N,current,1200/1,1.0,0.0,0.001,"Neutral"
+4,A,voltage,110000/110,1.0,0.0,0.01,"Phase A voltage, 110 kV:110 V PT"
+5,B,voltage,110000/110,1.0,0.0,0.01,"Phase B"
+6,C,voltage,110000/110,1.0,0.0,0.01,"Phase C"
+7,N,voltage,110000/110,1.0,0.0,0.01,"Neutral"

@@ -1,0 +1,11 @@
+# GE Vernova UR-series (F60) calibration export — synthetic example.
+# Replace with the EnerVista UR Setup export on real deployment.
+channel_id,phase,quantity,ct_pt_ratio,gain,offset,unit_scale,notes
+0,A,current,2000/5,1.005,0.0,0.001,"Phase A — 0.5% gain trim from factory cal cert"
+1,B,current,2000/5,1.005,0.0,0.001,"Phase B"
+2,C,current,2000/5,1.005,0.0,0.001,"Phase C"
+3,N,current,2000/5,1.005,0.0,0.001,"Neutral (residual computed by F60)"
+4,A,voltage,230000/115,1.0,0.0,0.01,"Phase A voltage, 230 kV:115 V PT"
+5,B,voltage,230000/115,1.0,0.0,0.01,"Phase B"
+6,C,voltage,230000/115,1.0,0.0,0.01,"Phase C"
+7,N,voltage,230000/115,1.0,0.0,0.01,"Neutral PT"

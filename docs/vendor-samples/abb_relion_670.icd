@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Synthetic ABB Relion 670 / SAM600 SCL sample.
+  Sources: ABB SAM600-IO Product Guide (1MRK 511 410-BEN);
+           Relion 670 Series Communication Protocol Manual.
+  This file is NOT a real ABB deliverable; values match the
+  publisher's `vendor::ABB_RELION_670` preset.
+-->
+<SCL xmlns="http://www.iec.ch/61850/2003/SCL"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     version="2007" revision="B" release="4">
+
+  <Header id="SVDC_VENDOR_SAMPLE_ABB" nameStructure="IEDName"
+          toolID="hand-authored sample"/>
+
+  <Communication>
+    <SubNetwork name="Process_Bus_A" type="8-MMS">
+      <ConnectedAP iedName="AA1J1Q01A1" apName="P1">
+        <SMV cbName="MSVCB01" ldInst="LD0">
+          <Address>
+            <P type="VLAN-ID">0x064</P>
+            <P type="VLAN-PRIORITY">4</P>
+            <P type="MAC-Address">01-0C-CD-04-00-01</P>
+            <P type="APPID">0x4000</P>
+          </Address>
+          <MinTime unit="s" multiplier="m">10</MinTime>
+          <MaxTime unit="s" multiplier="m">10</MaxTime>
+        </SMV>
+      </ConnectedAP>
+    </SubNetwork>
+  </Communication>
+
+  <IED name="AA1J1Q01A1"
+       manufacturer="ABB"
+       type="SAM600-IO"
+       configVersion="1.0"
+       desc="ABB SAM600 stand-alone merging unit for bay AA1/J1/Q01">
+    <Services>
+      <SGEdit resvTms="true"/>
+      <ConfSG resvTms="true"/>
+      <ClientServices/>
+    </Services>
+    <AccessPoint name="P1">
+      <Server>
+        <Authentication/>
+        <LDevice inst="LD0">
+          <LN0 lnClass="LLN0" inst="" lnType="LLN0Type">
+            <DataSet name="Phsmeas9" desc="9-2 LE measured values">
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="1" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="2" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="3" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TCTR" lnInst="4" doName="Amp" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="1" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="2" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="3" doName="Vol" daName="instMag.i" fc="MX"/>
+              <FCDA ldInst="LD0" lnClass="TVTR" lnInst="4" doName="Vol" daName="instMag.i" fc="MX"/>
+            </DataSet>
+            <SampledValueControl name="MSVCB01"
+                                 smvID="AA1J1Q01A1MU01/LLN0$MX$Phsmeas9$svID"
+                                 datSet="Phsmeas9"
+                                 confRev="1"
+                                 multicast="true"
+                                 smpRate="4800"
+                                 nofASDU="1">
+              <SmvOpts refreshTime="true" sampleSynchronized="true"
+                       sampleRate="true" dataSet="true" security="false"/>
+            </SampledValueControl>
+          </LN0>
+        </LDevice>
+      </Server>
+    </AccessPoint>
+  </IED>
+</SCL>
