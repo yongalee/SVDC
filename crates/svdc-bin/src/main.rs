@@ -467,9 +467,11 @@ fn spawn_l0_demo() {
     let pipeline = svdc_console::dataplane::global();
     let buffer = std::sync::Arc::clone(&pipeline.buffer);
     let factory = InProcessSubscriber::new(buffer);
+    let pipe_for_task = std::sync::Arc::clone(&pipeline);
 
     tokio::spawn(async move {
         let mut subscription = factory.subscribe(ChannelSet::all());
+        pipe_for_task.mark_l0_demo_active(true);
         println!("svdc-l0-demo: subscribed (cursor = 0)");
         let mut emitted: u64 = 0;
         let print_every: u64 = 10;
@@ -477,6 +479,7 @@ fn spawn_l0_demo() {
             let batch = subscription.read_since();
             let batch_len = batch.len();
             for tick in batch {
+                pipe_for_task.record_l0_demo_tick(tick.tick_id);
                 if emitted % print_every == 0 {
                     let live = tick.live_samples();
                     let ch0 = live.first().map(|s| s.value_q).unwrap_or(0);
