@@ -703,6 +703,17 @@ name = "svdc-core"
 version = "0.0.1"
 
 [[package]]
+name = "svdc-historian"
+version = "0.0.1"
+dependencies = [
+ "ssiec-sv-publisher",
+ "svdc-aligner",
+ "svdc-core",
+ "svdc-ingress",
+ "svdc-subscribe",
+]
+
+[[package]]
 name = "svdc-ingress"
 version = "0.0.1"
 dependencies = [
