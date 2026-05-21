@@ -38,7 +38,7 @@ pub use buffer::TickBuffer;
 pub use calibrator::{Calibration, Calibrator};
 pub use interpolator::Interpolator;
 
-use svdc_core::TickRecord;
+use svdc_core::{flags, Sample, SampleOrigin, TickRecord, MAX_CHANNELS};
 use svdc_ingress::IngressFrame;
 
 /// Top-level aligner. Owns the four pipeline stages; callers drive it
@@ -70,16 +70,34 @@ impl Aligner {
     /// crossed several bins.
     ///
     /// Phase 0 identity behaviour: emits exactly one `TickRecord` per
-    /// input frame so the assembled scaffold can be exercised
-    /// end-to-end. Phase 2 replaces this with the real binning logic.
+    /// input frame, copying the eight 9-2 LE channels (Ia Ib Ic In
+    /// Va Vb Vc Vn) into `samples[0..8]` in publisher order and
+    /// marking each `origin = Live`. Phase 2 replaces this with the
+    /// real binner + channel-registry indexing.
     pub fn process_frame(&mut self, frame: IngressFrame) -> Vec<TickRecord> {
         let _bin = self.binner.bin_index(&frame);
         let _interpolated = self.interpolator.fill_gaps(&frame);
         let _calibrated = self.calibrator.apply(&frame);
-        let tick = TickRecord {
-            tick_id: self.next_tick_id,
-            ts_utc_ns: frame.timestamp.unix_ns(),
-        };
+
+        let mut tick = TickRecord::empty(self.next_tick_id, frame.timestamp.unix_ns());
+        tick.set_flag(flags::COMPLETE);
+
+        // Phase 0: collapse the first ASDU's eight channels into
+        // samples[0..8]. Multi-ASDU and multi-MU channel-registry
+        // indexing lands in Phase 2.
+        if let Some(asdu) = frame.samples.first() {
+            let n = asdu.samples.channels.len().min(MAX_CHANNELS);
+            for (i, ch) in asdu.samples.channels.iter().take(n).enumerate() {
+                tick.samples[i] = Sample {
+                    value_q: ch.value,
+                    quality: ch.quality as u8,
+                    origin: SampleOrigin::Live.as_u8(),
+                    reserved: 0,
+                };
+            }
+            tick.n_channels = n as u16;
+        }
+
         self.next_tick_id += 1;
         vec![tick]
     }
@@ -152,5 +170,33 @@ mod tests {
         assert_eq!(a.next_tick_id(), 2);
         a.reset();
         assert_eq!(a.next_tick_id(), 0);
+    }
+
+    #[test]
+    fn process_frame_populates_8_channels_marked_live_with_complete_flag() {
+        let mut a = Aligner::new(208_333);
+        let out = a.process_frame(dummy_frame(1_700_000_000_000_000_000));
+        let tick = &out[0];
+        assert_eq!(tick.n_channels, 8);
+        assert!(tick.has_flag(flags::COMPLETE));
+        let live = tick.live_samples();
+        assert_eq!(live.len(), 8);
+        for s in live {
+            assert_eq!(
+                s.origin,
+                SampleOrigin::Live.as_u8(),
+                "every Phase 0 sample is Live"
+            );
+        }
+        // Channel 0 = Ia in publisher order; NOMINAL_3PH puts 5000 there.
+        assert_eq!(live[0].value_q, 5000);
+        // Channel 4 = Va; nominal = 23000.
+        assert_eq!(live[4].value_q, 23000);
+        // Beyond n_channels: still Invalid origin.
+        assert_eq!(
+            tick.samples[8].origin,
+            SampleOrigin::Invalid.as_u8(),
+            "unused slots stay Invalid"
+        );
     }
 }
