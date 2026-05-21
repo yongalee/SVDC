@@ -12,6 +12,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod pcap_writer;
+pub mod waveform;
+
+pub use pcap_writer::PcapWriter;
+pub use waveform::WaveformConfig;
+
 use std::io::{self, Write};
 
 /// Ethertype assigned to IEC 61850-9-2 Sampled Values.
