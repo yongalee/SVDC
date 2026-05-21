@@ -349,10 +349,10 @@ async fn dashboard_page() -> Html<String> {
             }
 
             // 3. Two-Column SCADA Operator Layout
-            div class="grid grid-cols-1 lg:grid-cols-3 gap-6" {
+            div class="grid grid-cols-1 lg:grid-cols-2 gap-6" {
 
                 // Left Column: Polar Vector Grid, Diagnostics Table, and PRP/HSR Routing (2/3 width)
-                div class="lg:col-span-2 flex flex-col gap-6" {
+                div class="flex flex-col gap-6" {
 
                     // High-density Polar Vector Diagram & Electrical Diagnostics Card
                     div class="glass-card shadow-md" {
