@@ -1,8 +1,13 @@
 /* SVDC Operator Console Stylesheet
-   OWNER: antigravity
-   Agent: antigravity-subagent-ui-spec
+   Sections:
+   1. Base palette and typography (OWNER: antigravity, WBS-9.1b)
+   2. Operator Console layout + Dashboard (OWNER: claude-code, WBS-9.1a / 9.2a)
    NFR-10: English-only comments and identifiers
 */
+
+/* =====================================================================
+   Section 1 — Base (antigravity / WBS-9.1b)
+   ===================================================================== */
 
 :root {
     /* Harmonious HSL color palette */
@@ -27,3 +32,159 @@ body {
 pre, code {
     font-family: 'JetBrains Mono', monospace;
 }
+
+/* =====================================================================
+   Section 2 — Operator Console layout (claude-code / WBS-9.1a + 9.2a)
+   ===================================================================== */
+
+:root {
+    --bg-page:        #f7f7f4;
+    --bg-card:        #ffffff;
+    --bg-sidebar:     #1c1c1a;
+    --bg-topbar:      #ffffff;
+    --bg-placeholder: #fafaf7;
+    --text-strong:    #1c1c1a;
+    --text-body:      #2c2c28;
+    --text-muted:     #6e6e6a;
+    --text-on-dark:   #f3f3f0;
+    --border:         #e5e5e0;
+    --border-strong:  #d4d4d0;
+    --status-ok:      #16a34a;
+    --status-warn:    #d97706;
+    --status-bad:     #dc2626;
+    --status-unknown: #9aa0a6;
+    --sidebar-w:      232px;
+    --topbar-h:       56px;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+    background-color: var(--bg-page);
+    color: var(--text-body);
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.mono, .live-clock {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Sidebar */
+.sidebar {
+    position: fixed; top: 0; left: 0;
+    width: var(--sidebar-w); height: 100vh;
+    background-color: var(--bg-sidebar);
+    color: var(--text-on-dark);
+    display: flex; flex-direction: column;
+    padding: 24px 0;
+    overflow-y: auto;
+}
+.sidebar-brand {
+    padding: 0 24px 24px;
+    display: flex; flex-direction: column; gap: 4px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.brand-mark { font-weight: 700; font-size: 18px; letter-spacing: 0.02em; }
+.brand-node { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+.sidebar-nav {
+    flex: 1; padding: 16px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+}
+.nav-group { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; }
+.nav-group-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: rgba(255, 255, 255, 0.4);
+    padding: 6px 12px 2px;
+}
+.nav-link {
+    display: block; padding: 8px 12px; border-radius: 6px;
+    color: rgba(255, 255, 255, 0.72);
+    text-decoration: none; font-size: 13.5px;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+.nav-link:hover { background-color: rgba(255, 255, 255, 0.06); color: var(--text-on-dark); }
+.nav-link.active {
+    background-color: rgba(37, 99, 235, 0.16);
+    color: var(--text-on-dark); font-weight: 600;
+}
+.sidebar-footer {
+    padding: 12px 24px; font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Top bar and page */
+.page { margin-left: var(--sidebar-w); min-height: 100vh; display: flex; flex-direction: column; }
+.topbar {
+    position: sticky; top: 0; height: var(--topbar-h);
+    background-color: var(--bg-topbar);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; z-index: 10;
+}
+.screen-title { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-strong); }
+.topbar-meta { display: flex; align-items: center; gap: 14px; }
+.live-clock { font-size: 13px; color: var(--text-muted); letter-spacing: 0.02em; }
+.health-dot {
+    display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    background-color: var(--status-unknown);
+}
+.health-dot.healthy  { background-color: var(--status-ok); }
+.health-dot.degraded { background-color: var(--status-warn); }
+.health-dot.fault    { background-color: var(--status-bad); }
+.main-content { padding: 24px; flex: 1; }
+
+/* Dashboard tiles */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+.dashboard-aux { margin-top: 24px; }
+.tile {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 8px;
+    min-height: 120px;
+}
+.tile-head { display: flex; justify-content: space-between; align-items: center; }
+.tile-label {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+.tile-primary {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 26px; font-weight: 600;
+    color: var(--text-strong); line-height: 1.1;
+}
+.tile-secondary { font-size: 12px; color: var(--text-muted); }
+
+/* Status pills and dots */
+.status-pill {
+    display: inline-block; padding: 2px 8px;
+    font-size: 11px; font-weight: 500;
+    border-radius: 999px; border: 1px solid transparent;
+}
+.status-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; vertical-align: middle; line-height: 1;
+}
+.status-healthy  { background-color: rgba(22, 163, 74, 0.12); color: var(--status-ok);    border-color: rgba(22, 163, 74, 0.25); }
+.status-degraded { background-color: rgba(217, 119, 6, 0.12); color: var(--status-warn);  border-color: rgba(217, 119, 6, 0.25); }
+.status-fault    { background-color: rgba(220, 38, 38, 0.12); color: var(--status-bad);   border-color: rgba(220, 38, 38, 0.25); }
+.status-unknown  { background-color: rgba(154, 160, 166, 0.12); color: var(--status-unknown); border-color: rgba(154, 160, 166, 0.25); }
+
+/* Placeholder (Phase 0 stubs) */
+.placeholder {
+    background: var(--bg-placeholder);
+    border: 1px dashed var(--border-strong);
+    border-radius: 8px;
+    padding: 24px;
+}
+.placeholder h2 { margin: 0 0 8px; font-size: 16px; color: var(--text-strong); }
+.muted { color: var(--text-muted); font-size: 13px; margin: 0; }
