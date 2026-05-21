@@ -1,0 +1,15 @@
+[package]
+name = "svdc-ingress"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "IEC 61850-9-2 SV Subscriber: south-bound ingress (raw L2 capture, BER decoder, hardware-timestamp extraction, SPSC ring to the aligner)."
+
+[dependencies]
+svdc-core = { path = "../svdc-core" }
+ssiec-sv-publisher = { path = "../ssiec-sv-publisher" }
+
+[dev-dependencies]
+ssiec-sv-publisher = { path = "../ssiec-sv-publisher" }
