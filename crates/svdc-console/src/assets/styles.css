@@ -392,3 +392,23 @@ button:disabled { opacity: 0.55; cursor: progress; }
 .histogram-svg .pm-p50  line { stroke: #fbbf24; } .histogram-svg .pm-p50  text { fill: #fbbf24; }
 .histogram-svg .pm-p99  line { stroke: #fb923c; } .histogram-svg .pm-p99  text { fill: #fb923c; }
 .histogram-svg .pm-p999 line { stroke: #f87171; } .histogram-svg .pm-p999 text { fill: #f87171; }
+
+/* MU table — clickable rows */
+.mu-table tbody tr.mu-row {
+    cursor: pointer;
+    transition: background-color 0.12s ease;
+}
+.mu-table tbody tr.mu-row:hover {
+    background-color: rgba(37, 99, 235, 0.04);
+}
+.mu-table tbody tr.mu-row:focus {
+    outline: 2px solid rgba(37, 99, 235, 0.4);
+    outline-offset: -2px;
+}
+.mu-link {
+    color: var(--accent-blue);
+    text-decoration: none;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+}
+.mu-link:hover { text-decoration: underline; }
