@@ -1,0 +1,20 @@
+[package]
+name = "svdc-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "Management HTTP/JSON server (SDD §8.4): /health, /channels, /metrics, /calibration. Distinct from the operator-console UI; intended for external monitoring tools and the master-node QSE."
+
+[dependencies]
+svdc-core = { path = "../svdc-core" }
+svdc-aligner = { path = "../svdc-aligner" }
+axum = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
