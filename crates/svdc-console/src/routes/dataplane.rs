@@ -27,7 +27,7 @@ use axum::{Json, Router};
 use maud::{html, Markup, PreEscaped};
 
 use crate::dataplane::{DataPipeline, DataPipelineSnapshot};
-use crate::templates::base::{layout, Section};
+use crate::templates::base::layout;
 
 /// Build the data-plane sub-router. Constructs and shares one
 /// process-wide [`DataPipeline`].
@@ -47,7 +47,7 @@ pub fn router() -> Router {
 
 async fn page(State(pipe): State<Arc<DataPipeline>>) -> Markup {
     let snap = pipe.snapshot();
-    layout(Section::Dataplane, "Data plane", body(&snap))
+    layout("Data plane", "dataplane", body(&snap))
 }
 
 async fn status_html(State(pipe): State<Arc<DataPipeline>>) -> Markup {

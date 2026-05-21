@@ -55,12 +55,12 @@ pub fn router() -> Router {
         &dataplane::global().buffer,
     )));
     Router::new()
-        .merge(routes::dashboard::router())
-        .merge(routes::mus_list::router())
+        .merge(routes::dashboard::register(Router::new()))
+        .merge(routes::mus_list::register(Router::new()))
         .merge(routes::mu_detail::router())
-        .merge(routes::northbound::router())
-        .merge(routes::monitoring::router())
-        .merge(routes::config::router())
+        .merge(routes::northbound::register(Router::new()))
+        .merge(routes::monitoring::register(Router::new()))
+        .merge(routes::config::register(Router::new()))
         .merge(routes::calibration::router())
         .merge(routes::audit::router())
         .merge(routes::sse::router())

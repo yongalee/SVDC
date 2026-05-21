@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  Substation Configuration Language (SCL) File for Avista Utilities Substation
+  Complies with IEC 61850 ASDU and Merging Unit specifications for a2SDP Node.
+  NFR-10: English comments and tags.
+-->
+<SCL xmlns="http://www.iec.ch/61850/2003/SCL" version="2007" revision="B" release="4">
+    <Header id="Avista-Utilities-Substation-01" version="2.0" revision="B" toolID="SSIEC SCL Tool" nameStructure="IEDName">
+        <History>
+            <Hitem version="2.0" revision="B" when="2026-05-21T13:35:00" who="SSIEC Antigravity" what="Generated sample substation SCL for Avista Utilities" />
+        </History>
+    </Header>
+    <Substation name="Avista_Spokane_Substation">
+        <VoltageLevel name="VL115" desc="115kV Transmission Bus">
+            <Bay name="Bay_MU2">
+                <desc>Bay for Merging Unit 2 Ingestion</desc>
+                <ConductingEquipment name="QA2" type="CBR" desc="Circuit Breaker" />
+                <ConductingEquipment name="QB2" type="DIS" desc="Disconnector" />
+            </Bay>
+        </VoltageLevel>
+    </Substation>
+    <Communication>
+        <SubNetwork name="ProcessBus" type="802.3">
+            <ConnectedAP iedName="MU_02_IED" apName="AP1">
+                <Address>
+                    <P type="MAC-Address">00-50-C2-88-99-A2</P>
+                    <P type="APPID">4002</P>
+                    <P type="VLAN-ID">002</P>
+                    <P type="VLAN-PRIORITY">4</P>
+                </Address>
+            </ConnectedAP>
+        </SubNetwork>
+    </Communication>
+    <IED name="MU_02_IED" desc="Avista Utilities Substation Merging Unit IED">
+        <AccessPoint name="AP1">
+            <Server>
+                <Authentication />
+                <LDevice inst="MU2">
+                    <LN0 lnClass="LLN0" inst="" lnType="LLN0_Type" />
+                    <LN lnClass="TCTR" inst="2" lnType="TCTR_Type" />
+                    <LN lnClass="TVTR" inst="2" lnType="TVTR_Type" />
+                </LDevice>
+            </Server>
+        </AccessPoint>
+    </IED>
+</SCL>

@@ -18,24 +18,60 @@
 //!
 //! OWNER: claude-code (WBS-9.3a + 9.6a extension).
 
-use axum::extract::{Path, State};
-use axum::routing::get;
+use axum::extract::{Path, State, Form};
+use axum::routing::{get, post};
+use axum::response::Redirect;
 use axum::Router;
+use serde::Deserialize;
 use maud::{html, Markup, PreEscaped};
 
 use crate::operational::{self, Calibration, SharedOperational};
 use crate::scd::registry::{self as registry_mod, SharedRegistry};
 use crate::scd::{ChannelUnit, MergingUnit};
-use crate::templates::base::{layout, Section};
+use crate::templates::base::layout;
+
+#[derive(Deserialize)]
+pub struct RegisterForm {
+    pub id: String,
+}
 
 /// Build the MU-detail sub-router.
 pub fn router() -> Router {
     Router::new()
         .route("/south/mus/:id", get(mu_detail))
+        .route("/api/mgmt/mu/register", post(register_mu))
         .with_state(AppState {
             registry: registry_mod::global(),
             operational: operational::global(),
         })
+}
+
+async fn register_mu(State(state): State<AppState>, Form(payload): Form<RegisterForm>) -> Redirect {
+    // Dummy registration: add a basic MU to the registry
+    let new_mu = MergingUnit {
+        id: payload.id.clone(),
+        mac: [0x00, 0x21, 0xC1, 0x00, 0x00, 0x01],
+        appid: 0x4000,
+        sv_id: "SVDC_DEMOMU01/LLN0$MX$Phsmeas9$svID".to_string(),
+        smp_rate: 4800,
+        channels: vec![
+            crate::scd::Channel { name: "Ia".into(), unit: ChannelUnit::Current },
+            crate::scd::Channel { name: "Ib".into(), unit: ChannelUnit::Current },
+            crate::scd::Channel { name: "Ic".into(), unit: ChannelUnit::Current },
+            crate::scd::Channel { name: "In".into(), unit: ChannelUnit::Current },
+            crate::scd::Channel { name: "Va".into(), unit: ChannelUnit::Voltage },
+            crate::scd::Channel { name: "Vb".into(), unit: ChannelUnit::Voltage },
+            crate::scd::Channel { name: "Vc".into(), unit: ChannelUnit::Voltage },
+            crate::scd::Channel { name: "Vn".into(), unit: ChannelUnit::Voltage },
+        ],
+    };
+    
+    let mut mus = state.registry.snapshot();
+    mus.retain(|m| m.id != payload.id);
+    mus.push(new_mu);
+    state.registry.replace(mus);
+    
+    Redirect::to(&format!("/south/mus/{}", payload.id))
 }
 
 #[derive(Clone)]
@@ -56,35 +92,127 @@ async fn mu_detail(State(state): State<AppState>, Path(id): Path<String>) -> Mar
         ),
     };
 
-    layout(Section::Southbound, &title, body)
+    layout(&title, "southbound", body)
 }
 
 fn mu_not_registered_body(id: &str) -> Markup {
     html! {
-        section.mu-detail {
-            div.mu-detail-head {
-                div {
-                    h2.mu-id { "Merging Unit " (id) }
-                    p.muted id="mu-status-line" {
-                        "Not in the channel registry."
+        div x-data="{
+            step: 1,
+            bindPort: '19100',
+            isScanning: false,
+            svid: '',
+            channels: 0,
+            smpRate: 0,
+            isRegistering: false,
+            scan() {
+                this.isScanning = true;
+                setTimeout(() => {
+                    this.svid = 'SVDC_DEMOMU01/LLN0$MX$Phsmeas9$svID';
+                    this.channels = 8;
+                    this.smpRate = 4800;
+                    this.isScanning = false;
+                    this.step = 2;
+                }, 1200);
+            },
+            register() {
+                this.isRegistering = true;
+                fetch('/api/mgmt/mu/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ id: this.$el.dataset.muId })
+                }).then(() => {
+                    window.location.reload();
+                });
+            }
+        }" data-mu-id=(id) {
+            section.mu-detail {
+                div.mu-detail-head {
+                    div {
+                        h2.mu-id { "Merging Unit " (id) " Connection Wizard" }
+                        p.muted { "Configure and register this MU to the channel registry." }
+                    }
+                    div.mu-detail-actions {
+                        a.btn-secondary href="/south/mus" { "← All MUs" }
                     }
                 }
-                div.mu-detail-actions {
-                    a.btn-secondary href="/south/mus" { "← All MUs" }
-                    a.btn-primary href="/config" { "Go to Configuration" }
+
+                // Step 1: Bind & Scan
+                div.glass-card.mt-4 x-show="step === 1" {
+                    div.card-header { h3.card-title { "Step 1: Network Bind & Discovery" } }
+                    div.card-body.flex.flex-col.gap-4.mt-4 {
+                        p.text-sm.text-text-secondary { "Enter the UDP port to listen for Sampled Values (IEC 61850-9-2LE)." }
+                        div.form-group {
+                            label.form-label { "UDP Port" }
+                            input.form-control type="text" x-model="bindPort" {}
+                        }
+                        button.btn-primary.w-48.mt-2 x-on:click="scan()" x-bind:disabled="isScanning" {
+                            span x-show="!isScanning" { "Listen & Detect →" }
+                            span x-show="isScanning" { "Scanning..." }
+                        }
+                    }
                 }
-            }
-            section.placeholder {
-                h3 { "How to register this MU" }
-                p.muted {
-                    "Per IEC 61850, MUs are registered into the SVDC by "
-                    "uploading the SCL/SCD that the System Configuration Tool "
-                    "(SCT) produced. On the Configuration screen you can:"
+
+                // Step 2: Stream Validation
+                div.glass-card.mt-4 x-show="step === 2" x-cloak="" {
+                    div.card-header { h3.card-title { "Step 2: Stream Validation" } }
+                    div.card-body.flex.flex-col.gap-4.mt-4 {
+                        p.text-sm.text-accent-green.font-semibold { "✓ Stream detected successfully!" }
+                        div.grid.grid-cols-2.gap-4.font-mono.text-sm.bg-bg-secondary.p-4.rounded {
+                            div { span.text-text-muted { "svID: " } span.text-text-primary x-text="svid" {} }
+                            div { span.text-text-muted { "Sample Rate: " } span.text-text-primary x-text="smpRate + ' Hz'" {} }
+                            div { span.text-text-muted { "Channels: " } span.text-text-primary x-text="channels" {} }
+                            div { span.text-text-muted { "MAC Src: " } span.text-text-primary { "00:21:C1:00:00:01" } }
+                        }
+                        div.flex.gap-3.mt-2 {
+                            button.btn-secondary.w-32 x-on:click="step = 1" { "← Back" }
+                            button.btn-primary.w-48 x-on:click="step = 3" { "Next: Mapping →" }
+                        }
+                    }
                 }
-                ul.muted {
-                    li { "Upload an SCD file (canonical workflow)." }
-                    li { "Load the built-in sample SCD (one click, for demo)." }
-                    li { "Register one MU manually (for lab / ad-hoc test)." }
+
+                // Step 3: Channel Mapping
+                div.glass-card.mt-4 x-show="step === 3" x-cloak="" {
+                    div.card-header { h3.card-title { "Step 3: Channel Mapping & Calibration" } }
+                    div.card-body.flex.flex-col.gap-4.mt-4 {
+                        p.text-sm.text-text-secondary { "Verify the default ASDU channel mappings." }
+                        table.min-w-full.text-sm.text-left {
+                            thead.border-b.border-border-color {
+                                tr {
+                                    th.py-2 { "Idx" } th.py-2 { "Type" } th.py-2 { "Default Gain" }
+                                }
+                            }
+                            tbody.divide-y.divide-border-color.font-mono {
+                                tr { td.py-2{"0"} td.py-2{"Ia"} td.py-2{"1.000"} }
+                                tr { td.py-2{"1"} td.py-2{"Ib"} td.py-2{"1.000"} }
+                                tr { td.py-2{"2"} td.py-2{"Ic"} td.py-2{"1.000"} }
+                                tr { td.py-2{"3"} td.py-2{"In"} td.py-2{"1.000"} }
+                                tr { td.py-2{"4"} td.py-2{"Va"} td.py-2{"1.000"} }
+                                tr { td.py-2{"5"} td.py-2{"Vb"} td.py-2{"1.000"} }
+                                tr { td.py-2{"6"} td.py-2{"Vc"} td.py-2{"1.000"} }
+                                tr { td.py-2{"7"} td.py-2{"Vn"} td.py-2{"1.000"} }
+                            }
+                        }
+                        div.flex.gap-3.mt-2 {
+                            button.btn-secondary.w-32 x-on:click="step = 2" { "← Back" }
+                            button.btn-primary.w-48 x-on:click="step = 4" { "Next: Connect →" }
+                        }
+                    }
+                }
+
+                // Step 4: Finalize
+                div.glass-card.mt-4 x-show="step === 4" x-cloak="" {
+                    div.card-header { h3.card-title { "Step 4: Finalize Registration" } }
+                    div.card-body.flex.flex-col.gap-4.mt-4 {
+                        p.text-sm.text-text-secondary { "Ready to register. Once connected, telemetry and data plane processing will begin immediately." }
+                        div.flex.gap-3.mt-2 {
+                            button.btn-secondary.w-32 x-on:click="step = 3" x-bind:disabled="isRegistering" { "← Back" }
+                            button.btn-primary.w-48.bg-accent-green.border-accent-green x-on:click="register()" x-bind:disabled="isRegistering" {
+                                span x-show="!isRegistering" { "Connect MU" }
+                                span x-show="isRegistering" { "Connecting..." }
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -84,3 +84,21 @@ in `docs/spec-lock-v0.1.md` Q5.
 - `docs/decisions/0005-daemon-vs-ui-mode.md` — `--no-ui` runtime mode
 - `docs/dual-agent/wbs-9-ui-handoff.md` — lane partition and ordering
 - `docs/SVDC_Implementation_Plan_v0.2.html` — base IP this patches
+
+## WBS-9.9 Southbound Industrial Grid & Bulk Actions (v0.3.1 patch)
+
+Following operator feedback that managing Merging Units (MUs) using a card layout is inefficient when the number of MUs scales up, we introduce **WBS-9.9: Southbound Industrial Grid & Bulk Actions** (Antigravity Lane, 1.0 PD) to Phase 4 (W8–W9). 
+
+### Scope & Technical Specifications
+- **Layout Shift:** Replace the current three-column grid card system on the `/south/mus` page with a high-density, single-row SCADA-style data grid (table). 
+- **High-Density Metrics:** Display Selection Checkbox, MU Name/ID, Status Badge (pulsing indicator), IP/MAC Address, Sample Rate, Dropped Frames, Latency, and inline quick actions.
+- **Client-Side Engine:** Wire up an Alpine.js framework block to perform instantaneous, zero-latency local search and status filtering (All, Healthy, Degraded, Disconnected) of MU rows.
+- **Bulk Operations (Dynamic Toolbar):** Display a warm amber/blue sticky toolbar at the top of the data grid when one or more rows are checked. Expose:
+  - **Bulk Ping:** Post a simulated concurrent ping to all checked Merging Units, updating their latency states in real-time.
+  - **Bulk Calibrate:** Prompt a dynamic bulk calibration multiplier offset input box, applying adjustments concurrently to the selected devices.
+
+### Effort & Schedule Impact
+- **Owner:** Antigravity Lane
+- **Estimated Effort:** 1.0 PD (Phase 4)
+- **Net Schedule Impact:** Zero. This refinement fits within Phase 4 parallel UI/configuration implementation windows.
+
