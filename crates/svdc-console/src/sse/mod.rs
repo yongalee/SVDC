@@ -3,8 +3,8 @@
    Agent: antigravity-subagent-ui-spec
    NFR-10: English-only comments and identifiers
 
-   Note: This file is owned by Claude Code (WBS-9.2a). This is a skeleton 
-   stub created by Antigravity (WBS-9.2b) to define the typed event contract 
+   Note: This file is owned by Claude Code (WBS-9.2a). This is a skeleton
+   stub created by Antigravity (WBS-9.2b) to define the typed event contract
    and allow the emitter to compile.
 */
 

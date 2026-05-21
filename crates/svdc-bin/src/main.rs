@@ -29,7 +29,7 @@ fn print_help() {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    
+
     // Help request check
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
         print_help();
@@ -67,7 +67,10 @@ fn main() {
                 }
             }
             other => {
-                eprintln!("Error: Unknown CLI argument '{}'. Use --help for usage.", other);
+                eprintln!(
+                    "Error: Unknown CLI argument '{}'. Use --help for usage.",
+                    other
+                );
                 process::exit(1);
             }
         }
@@ -75,8 +78,12 @@ fn main() {
     }
 
     // Env parse state
-    let env_ui = env::var("SVDC_UI").ok().and_then(|v| if v == "1" { Some(true) } else { None });
-    let env_no_ui = env::var("SVDC_NO_UI").ok().and_then(|v| if v == "1" { Some(true) } else { None });
+    let env_ui = env::var("SVDC_UI")
+        .ok()
+        .and_then(|v| if v == "1" { Some(true) } else { None });
+    let env_no_ui = env::var("SVDC_NO_UI")
+        .ok()
+        .and_then(|v| if v == "1" { Some(true) } else { None });
     let env_bind = env::var("SVDC_UI_BIND").ok();
 
     if env_ui.is_some() && env_no_ui.is_some() {
@@ -105,7 +112,7 @@ fn main() {
     };
 
     println!("svdc: initializing core data plane...");
-    
+
     if ui_enabled {
         println!("svdc: Operator Console enabled.");
         svdc_console::start_console(&ui_bind_addr);
