@@ -27,11 +27,13 @@ pub mod decoder;
 pub mod ring;
 pub mod subscriber;
 pub mod timestamp;
+pub mod udp;
 
 pub use decoder::{DecodedSample, Decoder};
 pub use ring::IngressRing;
 pub use subscriber::{LoopbackSubscriber, Subscriber, SubscriberError};
 pub use timestamp::IngressTimestamp;
+pub use udp::UdpSubscriber;
 
 /// One decoded SV frame as seen by the aligner: the frame's logical
 /// timestamp and the decoded ASDU payload. This is the unit that flows

@@ -71,6 +71,11 @@ pub struct DataPipeline {
     /// How many integrity violations the most recent `verify_all`
     /// sweep observed. Refreshed by `recent_status`.
     last_violations: AtomicU64,
+    /// True when an external producer (the daemon's `--ingress-udp`
+    /// task) is feeding ticks into the buffer. When set, the
+    /// `/dataplane` synthetic loop refuses to start so the two
+    /// feeds do not interleave (ADR-0015 §3).
+    external_feed_active: AtomicBool,
 }
 
 impl DataPipeline {
@@ -90,7 +95,31 @@ impl DataPipeline {
             ticks_emitted: AtomicU64::new(0),
             tamper_count: AtomicU64::new(0),
             last_violations: AtomicU64::new(0),
+            external_feed_active: AtomicBool::new(false),
         }
+    }
+
+    /// Mark that an external producer is feeding the buffer. Called
+    /// by the daemon when `--ingress-udp` binds successfully. After
+    /// this flag is set, [`Self::start`] returns `Err` so the
+    /// in-process synthetic loop cannot fight the live feed for
+    /// the same buffer.
+    pub fn mark_external_feed(&self, active: bool) {
+        self.external_feed_active.store(active, Ordering::SeqCst);
+    }
+
+    /// Whether an external (UDP) feed is currently driving the
+    /// buffer. Read by the `/dataplane` UI to badge the panel.
+    pub fn has_external_feed(&self) -> bool {
+        self.external_feed_active.load(Ordering::Relaxed)
+    }
+
+    /// Increment the tick-emit counter; called by the daemon's
+    /// external ingress task each time it pushes a tick into the
+    /// shared buffer so the `/dataplane` status panel shows the
+    /// same per-second rate it would for the synthetic loop.
+    pub fn record_external_tick(&self) {
+        self.ticks_emitted.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Whether the background loop is currently running.
@@ -147,8 +176,14 @@ impl DataPipeline {
     }
 
     /// Spawn the background tick generator. Returns `Err` if the
-    /// pipeline is already running.
+    /// pipeline is already running or if an external feed is
+    /// currently driving the same buffer.
     pub fn start(self: &Arc<Self>) -> Result<(), &'static str> {
+        if self.external_feed_active.load(Ordering::SeqCst) {
+            return Err(
+                "external --ingress-udp feed is active; restart the daemon without it to use the synthetic loop",
+            );
+        }
         if self.running.swap(true, Ordering::SeqCst) {
             // already running
             self.running.store(true, Ordering::SeqCst);

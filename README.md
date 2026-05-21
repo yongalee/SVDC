@@ -48,10 +48,11 @@ The full step-by-step is in [`docs/simulator-runbook.md`](docs/simulator-runbook
 the same procedure against a real vendor MU is in
 [`docs/field-connection-guide.md`](docs/field-connection-guide.md).
 
-> Until the follow-up PRs land (per [ADR-0015](docs/decisions/0015-simulator-driven-live-ui.md)
-> §"Follow-up PR plan"), the `--ingress-udp` flag is **not yet wired**; the
-> in-process synthetic pipeline on the `/dataplane` screen is the current
-> operator path.
+> `--ingress-udp` is wired as of PR #54 (24 000 frames at 4800 Hz verified
+> end-to-end). Per-screen UI migration (Dashboard live counters, MU
+> auto-registration, MU detail live waveform) lands in PRs C-E per
+> [ADR-0015](docs/decisions/0015-simulator-driven-live-ui.md). Other
+> screens continue to show mock data until those PRs land.
 
 ## Documents
 

@@ -693,9 +693,12 @@ dependencies = [
 name = "svdc-bin"
 version = "0.0.1"
 dependencies = [
+ "svdc-aligner",
  "svdc-console",
  "svdc-core",
+ "svdc-ingress",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

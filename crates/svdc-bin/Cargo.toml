@@ -14,5 +14,8 @@ path = "src/main.rs"
 [dependencies]
 svdc-core = { path = "../svdc-core" }
 svdc-console = { path = "../svdc-console" }
-tokio = { version = "1", features = ["rt-multi-thread"] }
+svdc-ingress = { path = "../svdc-ingress" }
+svdc-aligner = { path = "../svdc-aligner" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "time"] }
+tracing = "0.1"
 

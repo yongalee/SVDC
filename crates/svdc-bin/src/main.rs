@@ -34,6 +34,10 @@ fn print_help() {
     println!("        --audit-log <p>            Path to the append-only audit JSONL file.");
     println!("                                   Loaded on startup; each subsequent operator");
     println!("                                   action appends one line. Created if absent.");
+    println!("        --ingress-udp <addr:port>  Bind a UDP listener (multicast or unicast) and");
+    println!("                                   feed received SV payloads into the data plane.");
+    println!("                                   See docs/simulator-runbook.md (ADR-0015).");
+    println!("                                   Example: --ingress-udp 239.0.0.1:9100");
     println!();
     println!("ENVIRONMENT VARIABLES:");
     println!("    SVDC_UI=1                      Enables the Operator Console");
@@ -41,6 +45,7 @@ fn print_help() {
     println!("    SVDC_UI_BIND                   Bind address for the Operator Console");
     println!("    SVDC_OPERATIONAL_CONFIG        Path equivalent of --operational-config");
     println!("    SVDC_AUDIT_LOG                 Path equivalent of --audit-log");
+    println!("    SVDC_INGRESS_UDP               Path equivalent of --ingress-udp");
 }
 
 #[derive(Debug)]
@@ -49,6 +54,7 @@ struct Config {
     ui_bind: SocketAddr,
     operational_path: Option<PathBuf>,
     audit_log_path: Option<PathBuf>,
+    ingress_udp: Option<SocketAddr>,
 }
 
 #[derive(Debug)]
@@ -69,6 +75,7 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
     let mut cli_bind: Option<String> = None;
     let mut cli_op_path: Option<PathBuf> = None;
     let mut cli_audit_path: Option<PathBuf> = None;
+    let mut cli_ingress_udp: Option<String> = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -112,6 +119,15 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
                 }
                 cli_audit_path = Some(PathBuf::from(&args[i]));
             }
+            "--ingress-udp" => {
+                i += 1;
+                if i >= args.len() {
+                    return Err(ConfigError::MissingValue(
+                        "--ingress-udp requires an addr:port",
+                    ));
+                }
+                cli_ingress_udp = Some(args[i].clone());
+            }
             other => return Err(ConfigError::UnknownArg(other.to_string())),
         }
         i += 1;
@@ -147,12 +163,20 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
         cli_op_path.or_else(|| env::var("SVDC_OPERATIONAL_CONFIG").ok().map(PathBuf::from));
     let audit_log_path =
         cli_audit_path.or_else(|| env::var("SVDC_AUDIT_LOG").ok().map(PathBuf::from));
+    let ingress_udp = match cli_ingress_udp.or_else(|| env::var("SVDC_INGRESS_UDP").ok()) {
+        Some(s) => Some(
+            s.parse::<SocketAddr>()
+                .map_err(|_| ConfigError::BadAddr(s))?,
+        ),
+        None => None,
+    };
 
     Ok(Config {
         ui_enabled,
         ui_bind,
         operational_path,
         audit_log_path,
+        ingress_udp,
     })
 }
 
@@ -241,8 +265,21 @@ fn main() -> ExitCode {
         }
     };
 
+    // Phase 0 ingress (ADR-0015): if --ingress-udp is set, spawn a
+    // tokio task that receives L2-stripped SV payloads, decodes
+    // them, aligns them, and pushes the resulting TickRecords into
+    // the same TickBuffer the UI exposes via
+    // svdc_console::dataplane::global().
+    let ingress_udp = cfg.ingress_udp;
     let bind = cfg.ui_bind;
     let result = rt.block_on(async move {
+        if let Some(addr) = ingress_udp {
+            if let Err(e) = spawn_udp_ingress(addr) {
+                eprintln!("svdc: --ingress-udp {addr} bind failed: {e}");
+                return Err(std::io::Error::other(format!("ingress-udp: {e}")));
+            }
+            println!("svdc: --ingress-udp {addr} bound; live feed active");
+        }
         println!("svdc: Operator Console enabled at http://{bind}");
         svdc_console::start_console(bind).await
     });
@@ -254,6 +291,87 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Spawn the UDP ingress task. Binds the socket synchronously so
+/// bind failures surface as errors (not silent in a background
+/// task); the receive loop then runs on its own tokio task and the
+/// aligner runs on a blocking thread that consumes the ingress
+/// ring.
+fn spawn_udp_ingress(addr: std::net::SocketAddr) -> std::io::Result<()> {
+    use std::sync::Arc;
+    use svdc_aligner::Aligner;
+    use svdc_ingress::{Decoder, IngressFrame, IngressRing, Subscriber, UdpSubscriber};
+
+    let mut sub = UdpSubscriber::bind(addr, Some(std::time::Duration::from_millis(250)))?;
+    let pipeline = svdc_console::dataplane::global();
+    pipeline.mark_external_feed(true);
+
+    let ring = Arc::new(IngressRing::new(4096));
+    let decoder = Decoder;
+
+    // Producer: blocking receive loop on its own OS thread (the
+    // recv socket is blocking; spawn_blocking would tie up tokio
+    // workers).
+    let producer_ring = Arc::clone(&ring);
+    std::thread::Builder::new()
+        .name("svdc-ingress-udp".to_string())
+        .spawn(move || loop {
+            match sub.next_frame() {
+                Ok((bytes, ts)) => match decoder.decode_l2_stripped(&bytes) {
+                    Ok(samples) => {
+                        let frame = IngressFrame {
+                            timestamp: ts,
+                            samples,
+                        };
+                        if producer_ring.push(frame).is_err() {
+                            tracing::warn!(
+                                "ingress ring full; dropping frame (consumer falling behind)"
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        tracing::debug!(
+                            "ingress: decode failure (likely non-SV traffic on the port): {e}"
+                        );
+                    }
+                },
+                Err(_) => {
+                    // Recv timeout — let the loop tick so the
+                    // thread can be torn down at process exit.
+                    continue;
+                }
+            }
+        })?;
+
+    // Consumer: aligner drains the ring into the same TickBuffer
+    // the UI shares.
+    let consumer_ring = ring;
+    let pipe = svdc_console::dataplane::global();
+    std::thread::Builder::new()
+        .name("svdc-aligner".to_string())
+        .spawn(move || {
+            // Bin period: 1/4800 s. Phase 2 derives from the
+            // first frame's smpRate; Phase 0 hardcodes the demo
+            // rate.
+            let mut aligner = Aligner::new(208_333);
+            loop {
+                match consumer_ring.pop() {
+                    Some(frame) => {
+                        for tick in aligner.process_frame(frame) {
+                            pipe.buffer.push(tick);
+                            pipe.record_external_tick();
+                        }
+                    }
+                    None => {
+                        // Empty ring — short sleep to avoid spin.
+                        std::thread::sleep(std::time::Duration::from_micros(200));
+                    }
+                }
+            }
+        })?;
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -329,5 +447,32 @@ mod tests {
     fn audit_log_missing_value_errors() {
         let r = resolve_config(&args(&["--audit-log"]));
         assert!(matches!(r, Err(ConfigError::MissingValue(_))));
+    }
+
+    #[test]
+    fn ingress_udp_addr_parsed() {
+        let cfg = resolve_config(&args(&["--ingress-udp", "239.0.0.1:9100"])).unwrap();
+        assert_eq!(
+            cfg.ingress_udp.map(|a| a.to_string()),
+            Some("239.0.0.1:9100".to_string())
+        );
+    }
+
+    #[test]
+    fn ingress_udp_bad_addr_rejected() {
+        let r = resolve_config(&args(&["--ingress-udp", "not-an-address"]));
+        assert!(matches!(r, Err(ConfigError::BadAddr(_))));
+    }
+
+    #[test]
+    fn ingress_udp_missing_value_errors() {
+        let r = resolve_config(&args(&["--ingress-udp"]));
+        assert!(matches!(r, Err(ConfigError::MissingValue(_))));
+    }
+
+    #[test]
+    fn default_has_no_ingress_udp() {
+        let cfg = resolve_config(&args(&[])).unwrap();
+        assert!(cfg.ingress_udp.is_none());
     }
 }
