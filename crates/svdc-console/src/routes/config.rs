@@ -17,6 +17,7 @@ use axum::{Json, Router};
 use maud::{html, Markup};
 use serde::{Deserialize, Serialize};
 
+use crate::audit::{self, AuditEvent};
 use crate::scd::registry::{self as registry_mod, SharedRegistry};
 use crate::scd::sample::SAMPLE_SCD_XML;
 use crate::scd::{self, Channel, ChannelUnit, MergingUnit};
@@ -330,11 +331,7 @@ async fn api_upload_scd(
     match scd::parse_scd(&xml) {
         Ok(doc) => {
             let n = registry.replace(doc.merging_units);
-            tracing::info!(
-                audit.event = "scd_upload",
-                audit.mu_count = n,
-                "operator SCD registered"
-            );
+            audit::record(AuditEvent::ScdUpload { mu_count: n });
             (
                 StatusCode::OK,
                 Json(ScdUploadResponse {
@@ -394,11 +391,7 @@ async fn api_load_sample_scd(State(registry): State<SharedRegistry>) -> impl Int
     match scd::parse_scd(SAMPLE_SCD_XML) {
         Ok(doc) => {
             let n = registry.replace(doc.merging_units);
-            tracing::info!(
-                audit.event = "scd_load_sample",
-                audit.mu_count = n,
-                "operator loaded built-in sample SCD"
-            );
+            audit::record(AuditEvent::ScdLoadSample { mu_count: n });
             (
                 StatusCode::OK,
                 Json(ScdUploadResponse {
@@ -424,11 +417,7 @@ async fn api_load_sample_scd(State(registry): State<SharedRegistry>) -> impl Int
 async fn api_clear_registry(State(registry): State<SharedRegistry>) -> impl IntoResponse {
     let prev = registry.len();
     registry.replace(Vec::new());
-    tracing::info!(
-        audit.event = "registry_cleared",
-        audit.previous_count = prev,
-        "operator cleared the channel registry"
-    );
+    audit::record(AuditEvent::RegistryCleared { removed: prev });
     (
         StatusCode::OK,
         Json(ScdUploadResponse {
@@ -475,12 +464,10 @@ async fn api_register_mu(
     let mu_id = mu.id.clone();
     snap.push(mu);
     let n = registry.replace(snap);
-    tracing::info!(
-        audit.event = "mu_manual_register",
-        audit.mu_id = %mu_id,
-        audit.total = n,
-        "operator registered MU manually"
-    );
+    audit::record(AuditEvent::MuManualRegister {
+        mu_id: mu_id.clone(),
+        total: n,
+    });
     (
         StatusCode::OK,
         Json(ScdUploadResponse {

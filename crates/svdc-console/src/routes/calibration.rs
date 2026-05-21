@@ -18,6 +18,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Serialize;
 
+use crate::audit::{self, AuditEvent};
 use crate::operational::{self, Calibration, ChannelKey, SharedOperational};
 use crate::scd::registry::{self as registry_mod, SharedRegistry};
 
@@ -126,16 +127,13 @@ async fn api_set(
         channel_idx: idx,
     };
     let prev = state.operational.set_calibration(key, value);
-    tracing::info!(
-        audit.event = "calibration_set",
-        audit.mu_id = %mu_id,
-        audit.channel_idx = idx,
-        audit.gain = value.gain as f64,
-        audit.offset = value.offset as f64,
-        audit.unit_scale = value.unit_scale as f64,
-        audit.previous_gain = prev.gain as f64,
-        "calibration updated"
-    );
+    audit::record(AuditEvent::CalibrationSet {
+        mu_id: mu_id.clone(),
+        channel_idx: idx,
+        gain: value.gain,
+        offset: value.offset,
+        unit_scale: value.unit_scale,
+    });
     (
         StatusCode::OK,
         Json(CalibrationWriteResponse {
@@ -159,13 +157,11 @@ async fn api_reset(
     };
     let removed = state.operational.reset_calibration(&key);
     let had_override = removed.is_some();
-    tracing::info!(
-        audit.event = "calibration_reset",
-        audit.mu_id = %mu_id,
-        audit.channel_idx = idx,
-        audit.had_override = had_override,
-        "calibration reset to identity"
-    );
+    audit::record(AuditEvent::CalibrationReset {
+        mu_id: mu_id.clone(),
+        channel_idx: idx,
+        had_override,
+    });
     (
         StatusCode::OK,
         Json(CalibrationWriteResponse {
