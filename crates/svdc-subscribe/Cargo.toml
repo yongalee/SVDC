@@ -1,0 +1,16 @@
+[package]
+name = "svdc-subscribe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "Northbound subscriber API (M3→M4). In-process Rust binding; the C ABI and UNIX-socket binding land in Phase 4 behind the same Subscription cursor model."
+
+[dependencies]
+svdc-core = { path = "../svdc-core" }
+svdc-aligner = { path = "../svdc-aligner" }
+
+[dev-dependencies]
+ssiec-sv-publisher = { path = "../ssiec-sv-publisher" }
+svdc-ingress = { path = "../svdc-ingress" }
