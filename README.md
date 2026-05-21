@@ -58,10 +58,11 @@ the same procedure against a real vendor MU is in
 
 - `docs/SVDC_Design_Document_v0.1.html` — Software Design Document
 - `docs/SVDC_Implementation_Plan_v0.2.html` — Implementation Plan
-- [`docs/simulator-runbook.md`](docs/simulator-runbook.md) — first-run operator procedure
+- [`docs/simulator-runbook.md`](docs/simulator-runbook.md) — south-bound first-run procedure
+- [`docs/northbound-simulators.md`](docs/northbound-simulators.md) — north-bound reference consumers (L0 / L1 / L2 / L3 / C37.118 / COMTRADE)
 - [`docs/field-connection-guide.md`](docs/field-connection-guide.md) — connecting a real vendor MU
 - [`docs/mu-vendor-profiles.md`](docs/mu-vendor-profiles.md) — vendor wire-level reference table
-- [`docs/decisions/`](docs/decisions/) — Architecture Decision Records (ADR-0001 … 0015)
+- [`docs/decisions/`](docs/decisions/) — Architecture Decision Records (ADR-0001 … 0016)
 
 Open the two HTML files in a browser.
 
