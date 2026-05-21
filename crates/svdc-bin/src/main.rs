@@ -9,6 +9,7 @@
 //! NFR-10: English-only.
 
 use std::env;
+use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -265,6 +266,24 @@ fn main() -> ExitCode {
         }
     };
 
+    // Pre-flight: bind the operator-console TCP port synchronously
+    // before entering the async runtime so a port-in-use failure
+    // surfaces immediately with a clear diagnostic. We close the
+    // probe listener and let `start_console` re-bind — the race
+    // window is short and the alternative (handing the listener
+    // across an async boundary) would couple `svdc-bin` to
+    // tokio-net internals.
+    if let Err(e) = std::net::TcpListener::bind(cfg.ui_bind) {
+        report_bind_error("Operator Console", "--ui-bind", cfg.ui_bind, &e);
+        return ExitCode::FAILURE;
+    }
+    if let Some(addr) = cfg.ingress_udp {
+        if let Err(e) = std::net::UdpSocket::bind(addr) {
+            report_bind_error("Ingress UDP", "--ingress-udp", addr, &e);
+            return ExitCode::FAILURE;
+        }
+    }
+
     // Phase 0 ingress (ADR-0015): if --ingress-udp is set, spawn a
     // tokio task that receives L2-stripped SV payloads, decodes
     // them, aligns them, and pushes the resulting TickRecords into
@@ -275,7 +294,7 @@ fn main() -> ExitCode {
     let result = rt.block_on(async move {
         if let Some(addr) = ingress_udp {
             if let Err(e) = spawn_udp_ingress(addr) {
-                eprintln!("svdc: --ingress-udp {addr} bind failed: {e}");
+                report_bind_error("Ingress UDP", "--ingress-udp", addr, &e);
                 return Err(std::io::Error::other(format!("ingress-udp: {e}")));
             }
             println!("svdc: --ingress-udp {addr} bound; live feed active");
@@ -286,10 +305,32 @@ fn main() -> ExitCode {
 
     match result {
         Ok(()) => ExitCode::SUCCESS,
+        Err(e) if e.kind() == ErrorKind::AddrInUse => {
+            report_bind_error("Operator Console", "--ui-bind", cfg.ui_bind, &e);
+            ExitCode::FAILURE
+        }
         Err(e) => {
             eprintln!("svdc: Operator Console error: {e}");
             ExitCode::FAILURE
         }
+    }
+}
+
+/// Print a port-in-use diagnostic that survives non-English OS
+/// locales (the localized `os error 10048` text on Windows is
+/// otherwise the only signal the operator gets). Hints at the two
+/// most common fixes: kill a stale process, or pass an override
+/// flag.
+fn report_bind_error(label: &str, flag: &str, addr: std::net::SocketAddr, err: &std::io::Error) {
+    if err.kind() == ErrorKind::AddrInUse {
+        eprintln!("svdc: {label} cannot bind to {addr} — port already in use.");
+        eprintln!("Hint: another svdc instance (or another process) is holding the port.");
+        eprintln!("  - On Windows:   Get-Process svdc -ErrorAction SilentlyContinue | Stop-Process -Force");
+        eprintln!("  - On Linux/mac: pkill svdc");
+        eprintln!("Or pass {flag} <addr:port> to bind elsewhere.");
+    } else {
+        eprintln!("svdc: {label} cannot bind to {addr}: {err}");
+        eprintln!("Hint: pass {flag} <addr:port> to bind elsewhere.");
     }
 }
 

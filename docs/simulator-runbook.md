@@ -187,7 +187,9 @@ verified end-to-end without any hardware.
 
 | Symptom                            | Likely cause                          | Fix                                              |
 | ---------------------------------- | ------------------------------------- | ------------------------------------------------ |
-| Daemon `--ingress-udp` bind fails  | Port in use, or no multicast support  | Pick a different port; on Windows confirm Npcap installed |
+| `svdc: Operator Console cannot bind to 127.0.0.1:8080 — port already in use.` | A stale `svdc` from a previous session still holds 8080. | `Get-Process svdc -ErrorAction SilentlyContinue \| Stop-Process -Force` (PowerShell) or `pkill svdc` (Linux/macOS); or pass `--ui-bind 127.0.0.1:8081`. |
+| `svdc: Ingress UDP cannot bind to … — port already in use.` | Another simulator or daemon already bound the UDP port. | Same stop-process recipe as above, or pass a different `--ingress-udp` port. |
+| Daemon `--ingress-udp` bind fails for any other reason | Multicast unsupported, or interface down | Try unicast loopback `127.0.0.1:19100` first; on Windows confirm Npcap installed for L2-level traffic |
 | Daemon starts, MU list empty       | Simulator's UDP target differs        | Confirm both processes use the same `239.0.0.1:9100` |
 | `/dataplane` shows running but `latest_tick_id` stays at zero | Decoder rejects payload | Check simulator output's `frame bytes` matches what the decoder expects (162 for ABB tag, etc.) |
 | Vendor change on simulator restart doesn't reflect | TickBuffer still holds old svID | Wait for retention to roll off, or click `Reset` on `/dataplane` |
