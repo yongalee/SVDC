@@ -928,3 +928,15 @@ tbody tr:hover {
     outline: none;
 }
 
+/* Core matrix table styling overrides for SCADA Dashboard */
+table.border-none, table.border-none tr, table.border-none td {
+    border: none !important;
+}
+tr.hover\:bg-transparent:hover {
+    background-color: transparent !important;
+}
+.border-none {
+    border: none !important;
+}
+
+
