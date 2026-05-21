@@ -295,7 +295,7 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                     if (this.progress >= 100) {{
                         clearInterval(interval);
                         this.saving = false;
-                        this.toastMsg = 'IEC 61850 configuration parameters saved to ' + this.muId + ' successfully.';
+                        this.toastMsg = 'Calibration triple (scale, offset, φ) applied to ' + this.muId + ' channel pipeline successfully.';
                         this.showToast = true;
                         setTimeout(() => {{ this.showToast = false; }}, 4000);
                     }}
@@ -622,22 +622,27 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                         }
                     }
 
-                    // Write-back Substation Commands Panel
+                    // Calibration Commit Panel (SDD §6 M4 + §8.4)
                     div class="glass-card shadow-md" {
                         div class="card-header border-b border-border-color pb-3" {
-                            h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Write & Commit Substation Config" }
+                            h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Apply Calibration to SVDC Engine" }
                         }
                         div class="card-body mt-4 flex flex-col gap-4 text-xs" {
                             p class="text-text-secondary leading-relaxed" {
-                                "Writing configuration coefficients to a live Merging Unit triggers a lock discipline recalculation. In accordance with "
-                                strong { "IEC 61850-9-2" }
-                                " standards, this action is audited under quasi-dynamic state estimator write-back controls."
+                                "Updates the per-channel calibration triple "
+                                strong { "(scale, offset, φ)" }
+                                " within the SVDC ingest pipeline via atomic copy-on-write. New calibration factors are applied immediately to incoming SV samples without restarting the data plane."
+                            }
+                            p class="text-[10px] text-text-secondary leading-relaxed" {
+                                "This operation targets the SVDC internal calibration table ("
+                                strong { "POST /calibration/{channel_id}" }
+                                "), not the physical Merging Unit hardware."
                             }
 
                             // Progress bar
                             div class="w-full flex flex-col gap-1.5" x-show="saving" x-transition {
                                 div class="flex justify-between text-[10px]" {
-                                    span class="text-text-secondary" { "Uploading config via PRP..." }
+                                    span class="text-text-secondary" { "Committing calibration triple (copy-on-write)..." }
                                     span class="font-bold text-accent-blue" x-text="progress + '%'" {}
                                 }
                                 div class="progressbar-bg h-2 rounded overflow-hidden" {
@@ -651,7 +656,7 @@ async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
                                     x-bind:disabled="saving"
                                     x-on:click="writeConfiguration()" {
                                 span class="btn-spinner" x-show="saving" {}
-                                span x-text="saving ? 'Committing parameters...' : 'Write Configuration to Device'" {}
+                                span x-text="saving ? 'Applying calibration...' : 'Apply Calibration to Engine'" {}
                             }
                         }
                     }
