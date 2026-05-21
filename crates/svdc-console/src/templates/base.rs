@@ -25,7 +25,7 @@ pub fn layout(title: &str, active_nav: &str, content: Markup) -> Markup {
                 // Embedded static assets (HTMX & AlpineJS)
                 script src="/assets/htmx.min.js?v=1" {}
                 script src="/assets/alpine.min.js?v=1" defer {}
-                link rel="stylesheet" href="/assets/styles.css?v=7";
+                link rel="stylesheet" href="/assets/styles.css?v=8";
 
                 // Premium typography (Inter for interface, JetBrains Mono for system metrics)
                 link rel="preconnect" href="https://fonts.googleapis.com";
