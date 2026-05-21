@@ -34,7 +34,7 @@ pub fn register(router: Router) -> Router {
 async fn dashboard_page() -> Html<String> {
     let content = html! {
         // AlpineJS reactive telemetry data-binding wrapper
-        div "x-data" "{
+        div x-data="{
             metrics: { 
                 ptp_sync_status: 'Locked', 
                 ptp_offset_ns: 12, 
@@ -95,7 +95,7 @@ async fn dashboard_page() -> Html<String> {
                 return (100 - r * Math.sin(rad)).toFixed(1);
             }
         }"
-        "x-init" "
+        "x-init"="
             const es = new EventSource('/api/events');
             es.onmessage = (e) => {
                 try {
@@ -189,11 +189,6 @@ async fn dashboard_page() -> Html<String> {
             div class="glass-card p-4 flex flex-col gap-3 shadow-md" {
                 div class="flex items-center justify-between border-b border-border-color pb-2" {
                     div class="flex items-center gap-2" {
-                        span class="w-4 h-4 text-accent-blue" {
-                            svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
-                                path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" {}
-                            }
-                        }
                         h2 class="text-xs font-bold uppercase tracking-wider text-text-primary" { "SVDC Concentrator Core Engine Telemetry Matrix (M1–M6 Core Runtime)" }
                     }
                     span class="font-mono text-[9px] text-text-muted bg-bg-primary px-2 py-0.5 rounded border border-border-color" {
@@ -357,12 +352,6 @@ async fn dashboard_page() -> Html<String> {
                     div class="glass-card shadow-md" {
                         div class="card-header flex justify-between items-center border-b border-border-color pb-3" {
                             div class="flex items-center gap-2" {
-                                span class="card-icon" {
-                                    svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
-                                        path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" {}
-                                        path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" {}
-                                    }
-                                }
                                 h2 class="card-title" { "3-Phase Polar Phasor Vector & Symmetrical Components Grid" }
                             }
                             span class="text-[10px] font-mono bg-bg-primary border border-border-color px-2 py-1 rounded text-text-secondary" {
@@ -553,11 +542,6 @@ async fn dashboard_page() -> Html<String> {
                     // Combined Process Bus Alignment & Redundant PRP/HSR Routing Table
                     div class="glass-card shadow-md" {
                         div class="card-header flex items-center gap-2 border-b border-border-color pb-3" {
-                            span class="card-icon" {
-                                svg class="w-4 h-4 text-accent-green" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
-                                    path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21V9.75M20.716 14.253a9.004 9.004 0 01-17.432 0M20.716 14.253A8.995 8.995 0 0021 12M3.284 14.253A8.995 8.995 0 013 12m18 0a9 9 0 00-9-9m9 9a9.004 9.004 0 00-8.716 6.747M12 3a9 9 0 00-9 9m9-9v6.75" {}
-                                }
-                            }
                             h2 class="card-title" { "Process Bus Ingestion & Redundant PRP/HSR Routing Topology" }
                         }
                         div class="card-body mt-4 overflow-x-auto" {
@@ -575,7 +559,7 @@ async fn dashboard_page() -> Html<String> {
                                     }
                                 }
                                 tbody {
-                                    tr {
+                                    tr class="cursor-pointer hover:bg-bg-surface" onclick="window.location.href='/south/mus/MU-01'" {
                                         td class="font-semibold text-text-primary" { "MU-01 (Feeder Line A)" }
                                         td class="font-mono text-xs text-text-secondary" {
                                             div { "00:0a:35:01:02:01" }
@@ -597,7 +581,7 @@ async fn dashboard_page() -> Html<String> {
                                             }
                                         }
                                     }
-                                    tr {
+                                    tr class="cursor-pointer hover:bg-bg-surface" onclick="window.location.href='/south/mus/MU-02'" {
                                         td class="font-semibold text-text-primary" { "MU-02 (Feeder Line B)" }
                                         td class="font-mono text-xs text-text-secondary" {
                                             div { "00:0a:35:01:02:02" }
@@ -619,7 +603,7 @@ async fn dashboard_page() -> Html<String> {
                                             }
                                         }
                                     }
-                                    tr {
+                                    tr class="cursor-pointer hover:bg-bg-surface" onclick="window.location.href='/south/mus/MU-03'" {
                                         td class="font-semibold text-text-primary" { "MU-03 (Busbar Coupling)" }
                                         td class="font-mono text-xs text-text-secondary" {
                                             div { "00:0a:35:01:02:03" }
@@ -652,11 +636,6 @@ async fn dashboard_page() -> Html<String> {
                     // Circular Buffer Mirror Synchronization Panel
                     div class="glass-card shadow-md flex-1" {
                         div class="card-header flex items-center gap-2 border-b border-border-color pb-3" {
-                            span class="card-icon" {
-                                svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
-                                    path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" {}
-                                }
-                            }
                             h2 class="card-title" { "Circular Buffer Mirror Sync & Active Readers Matrix" }
                         }
                         div class="card-body mt-4 flex flex-col gap-4" {
@@ -734,11 +713,6 @@ async fn dashboard_page() -> Html<String> {
                     // QSE Quasi-dynamic State Estimator Self-Healing Log Terminal
                     div class="glass-card shadow-md flex-1" {
                         div class="card-header flex items-center gap-2 border-b border-border-color pb-3" {
-                            span class="card-icon" {
-                                svg class="w-4 h-4 text-accent-yellow" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
-                                    path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.57-.598-3.751h-.152c-3.196 0-6.1-1.249-8.25-3.286z" {}
-                                }
-                            }
                             h2 class="card-title" { "QSE Self-Healing Overrides & State Estimator Logs" }
                         }
                         div class="card-body mt-3 font-mono text-[9px] text-text-secondary bg-[#0f172a] p-3 rounded border border-border-color h-[155px] overflow-y-auto flex flex-col gap-1.5 shadow-inner" {
@@ -775,11 +749,6 @@ async fn dashboard_page() -> Html<String> {
             // 4. System Diagnostic Logs Console
             div class="glass-card shadow-lg" {
                 div class="card-header flex items-center gap-2 border-b border-border-color pb-3" {
-                    span class="card-icon" {
-                        svg class="w-4 h-4 text-text-primary" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" {
-                            path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" {}
-                        }
-                    }
                     h2 class="card-title" { "System Diagnostic Log Stream" }
                 }
                 div class="card-body mt-4 font-mono text-xs text-text-secondary bg-[#0f172a] border border-border-color p-4 rounded-lg h-40 overflow-y-auto flex flex-col gap-1.5 shadow-inner" {

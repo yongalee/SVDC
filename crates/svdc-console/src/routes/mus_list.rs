@@ -7,6 +7,7 @@
 use axum::{
     response::Html,
     routing::get,
+    extract::Path,
     Router,
 };
 use maud::html;
@@ -15,25 +16,27 @@ use crate::templates::base;
 
 /// Register routes related to southbound Merging Units list and actions
 pub fn register(router: Router) -> Router {
-    router.route("/south/mus", get(mus_list_page))
+    router
+        .route("/south/mus", get(mus_list_page))
+        .route("/south/mus/:id", get(mus_detail_page))
 }
 
 /// Renders the Southbound Merging Units page
 async fn mus_list_page() -> Html<String> {
     let content = html! {
-        div "x-data" "{
+        div x-data="{
             searchQuery: '',
             statusFilter: 'all',
             selectedMus: [],
             showBulkCalibrate: false,
             bulkCalibFactor: 1.000,
             mus: [
-                { id: 'MU-01', ip: '192.168.1.101', mac: '00:50:C2:88:99:A1', status: 'Healthy', rate: 4000, dropped: 0, rtt: '3 ms', calib: 1.000, pinging: false },
-                { id: 'MU-02', ip: '192.168.1.102', mac: '00:50:C2:88:99:A2', status: 'Degraded', rate: 4000, dropped: 142, rtt: '18 ms', calib: 1.000, pinging: false },
-                { id: 'MU-03', ip: '192.168.1.103', mac: '00:50:C2:88:99:A3', status: 'Disconnected', rate: 0, dropped: 8563, rtt: '--', calib: 1.000, pinging: false },
-                { id: 'MU-04', ip: '192.168.1.104', mac: '00:50:C2:88:99:A4', status: 'Degraded', rate: 0, dropped: 12, rtt: '9 ms', calib: 1.000, pinging: false },
-                { id: 'MU-05', ip: '192.168.1.105', mac: '00:50:C2:88:99:A5', status: 'Healthy', rate: 4800, dropped: 0, rtt: '2 ms', calib: 1.000, pinging: false },
-                { id: 'MU-06', ip: '192.168.1.106', mac: '00:50:C2:88:99:A6', status: 'Healthy', rate: 4000, dropped: 0, rtt: '4 ms', calib: 1.000, pinging: false }
+                { id: 'MU-01', ip: '192.168.1.101', mac: '00:0a:35:01:02:01', status: 'Healthy', rate: 4000, dropped: 0, rtt: '3 ms', calib: 1.000, pinging: false },
+                { id: 'MU-02', ip: '192.168.1.102', mac: '00:0a:35:01:02:02', status: 'Degraded', rate: 4000, dropped: 142, rtt: '18 ms', calib: 1.000, pinging: false },
+                { id: 'MU-03', ip: '192.168.1.103', mac: '00:0a:35:01:02:03', status: 'Disconnected', rate: 0, dropped: 8563, rtt: '--', calib: 1.000, pinging: false },
+                { id: 'MU-04', ip: '192.168.1.104', mac: '00:0a:35:01:02:04', status: 'Degraded', rate: 0, dropped: 12, rtt: '9 ms', calib: 1.000, pinging: false },
+                { id: 'MU-05', ip: '192.168.1.105', mac: '00:0a:35:01:02:05', status: 'Healthy', rate: 4800, dropped: 0, rtt: '2 ms', calib: 1.000, pinging: false },
+                { id: 'MU-06', ip: '192.168.1.106', mac: '00:0a:35:01:02:06', status: 'Healthy', rate: 4000, dropped: 0, rtt: '4 ms', calib: 1.000, pinging: false }
             ],
             toggleSelectAll() {
                 const filtered = this.filteredMus();
@@ -66,11 +69,6 @@ async fn mus_list_page() -> Html<String> {
                     }
                 }, 400);
             },
-            calibrateMu(id) {
-                const mu = this.mus.find(m => m.id === id);
-                if (!mu) return;
-                alert('Calibration offset of ' + id + ' set to ' + mu.calib);
-            },
             bulkPing() {
                 this.selectedMus.forEach(id => {
                     this.pingMu(id);
@@ -88,14 +86,9 @@ async fn mus_list_page() -> Html<String> {
             }
         }"
         class="screen-layout flex flex-col gap-6" {
-            // Summary header
+            // Summary header (no meaningless icon)
             div class="glass-card" {
                 div class="card-header flex items-center gap-2" {
-                    span class="card-icon" {
-                        svg class="w-4 h-4 text-accent-blue" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
-                            path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" {}
-                        }
-                    }
                     h2 class="card-title" { "Southbound Ingest Grid Console" }
                 }
                 div class="card-body mt-2 text-sm text-text-secondary" {
@@ -118,7 +111,7 @@ async fn mus_list_page() -> Html<String> {
                     }
                 }
                 
-                div class="search-box w-full md:w-64" {
+                div class="search-box w-full md:w-64" style="max-width: 300px;" {
                     input type="text" placeholder="Search by ID, IP, MAC..." class="w-full text-xs" x-model="searchQuery";
                 }
             }
@@ -180,7 +173,7 @@ async fn mus_list_page() -> Html<String> {
                                 td class="font-semibold" x-bind:class="mu.dropped > 0 ? 'text-accent-red' : 'text-text-primary'" x-text="mu.dropped" {}
                                 td class="font-mono text-accent-green" x-text="mu.rtt" {}
                                 td {
-                                    input type="number" step="0.001" min="0.5" max="2.0" class="mini-num-input" x-model="mu.calib";
+                                    span class="font-mono font-semibold" x-text="parseFloat(mu.calib).toFixed(3)" {}
                                 }
                                 td {
                                     div class="flex gap-2" {
@@ -188,8 +181,8 @@ async fn mus_list_page() -> Html<String> {
                                             span class="btn-spinner" x-show="mu.pinging" {}
                                             span x-text="mu.pinging ? 'Pinging...' : 'Ping'" {}
                                         }
-                                        button x-on:click="calibrateMu(mu.id)" class="btn-primary py-1 px-2 text-[11px] bg-accent-green hover:bg-[#047857]" {
-                                            "Calibrate"
+                                        a x-bind:href="'/south/mus/' + mu.id" class="btn-primary py-1 px-2 text-[11px] bg-accent-blue hover:bg-[#1d4ed8] text-center" {
+                                            "Settings"
                                         }
                                     }
                                 }
@@ -210,3 +203,448 @@ async fn mus_list_page() -> Html<String> {
     Html(rendered.into_string())
 }
 
+/// Renders the Merging Unit detail & configuration page
+async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {
+    // Generate initial values based on MU ID
+    let initial_status = match id.as_str() {
+        "MU-01" | "MU-05" | "MU-06" => "Healthy",
+        "MU-02" | "MU-04" => "Degraded",
+        _ => "Disconnected",
+    };
+
+    let initial_mac = match id.as_str() {
+        "MU-01" => "00:0a:35:01:02:01",
+        "MU-02" => "00:0a:35:01:02:02",
+        "MU-03" => "00:0a:35:01:02:03",
+        "MU-04" => "00:0a:35:01:02:04",
+        "MU-05" => "00:0a:35:01:02:05",
+        "MU-06" => "00:0a:35:01:02:06",
+        _ => "00:0a:35:01:02:99",
+    };
+
+    let initial_ip = match id.as_str() {
+        "MU-01" => "192.168.1.101",
+        "MU-02" => "192.168.1.102",
+        "MU-03" => "192.168.1.103",
+        "MU-04" => "192.168.1.104",
+        "MU-05" => "192.168.1.105",
+        "MU-06" => "192.168.1.106",
+        _ => "192.168.1.199",
+    };
+
+    let content = html! {
+        div x-data=(format!("{{
+            muId: '{}',
+            status: '{}',
+            macAddress: '{}',
+            ipAddress: '{}',
+            svID: 'SSIEC_{}',
+            confRev: 1,
+            smpRate: 4000,
+            noASDU: 1,
+            smpSyn: '2',
+            appID: '0x4000',
+            vlanID: 10,
+            vlanPriority: 4,
+            prpMode: 'PRP',
+            
+            // Calibration values
+            rms_va: 1.000, angle_va: 0.0,
+            rms_vb: 1.000, angle_vb: 0.0,
+            rms_vc: 1.000, angle_vc: 0.0,
+            rms_ia: 1.000, angle_ia: 0.0,
+            rms_ib: 1.000, angle_ib: 0.0,
+            rms_ic: 1.000, angle_ic: 0.0,
+            
+            saving: false,
+            progress: 0,
+            showToast: false,
+            toastMsg: '',
+            
+            getWaveformPath(rms, angle, phaseShift) {{
+                let points = [];
+                let width = 240;
+                let height = 150;
+                let centerY = height / 2;
+                let scaleX = width / 360;
+                let scaleY = 45;
+                let shiftRad = (parseFloat(phaseShift) + parseFloat(angle)) * Math.PI / 180;
+                for (let deg = 0; deg <= 360; deg += 10) {{
+                    let rad = deg * Math.PI / 180;
+                    let y = centerY - Math.sin(rad - shiftRad) * scaleY * parseFloat(rms);
+                    points.push((deg * scaleX).toFixed(1) + ',' + y.toFixed(1));
+                }}
+                return 'M ' + points.join(' L ');
+            }},
+            
+            writeConfiguration() {{
+                if (this.saving) return;
+                this.saving = true;
+                this.progress = 0;
+                let interval = setInterval(() => {{
+                    this.progress += 10;
+                    if (this.progress >= 100) {{
+                        clearInterval(interval);
+                        this.saving = false;
+                        this.toastMsg = 'IEC 61850 configuration parameters saved to ' + this.muId + ' successfully.';
+                        this.showToast = true;
+                        setTimeout(() => {{ this.showToast = false; }}, 4000);
+                    }}
+                }}, 60);
+            }}
+        }}", id, initial_status, initial_mac, initial_ip, id.replace("-", "_")))
+        class="screen-layout flex flex-col gap-6 relative" {
+            
+            // Toast Notification
+            div class="fixed bottom-6 right-6 bg-accent-green text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-2 text-xs font-semibold z-50 transition-all duration-300 transform"
+                 x-show="showToast"
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-2"
+                 x-transition:enter-end="opacity-100 translate-y-0"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0"
+                 x-transition:leave-end="opacity-0 translate-y-2" {
+                span { "✓" }
+                span x-text="toastMsg" {}
+            }
+
+            // Back link
+            div {
+                a href="/south/mus" class="inline-flex items-center gap-1.5 text-xs text-accent-blue hover:underline font-bold uppercase tracking-wider" {
+                    "← Back to Southbound Ingest Grid"
+                }
+            }
+
+            // Header block (no meaningless icon)
+            div class="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-md" {
+                div class="flex items-center gap-3" {
+                    div {
+                        h2 class="text-sm font-bold tracking-tight text-text-primary" {
+                            "Merging Unit Settings & Calibration Console: "
+                            span x-text="muId" {}
+                        }
+                        p class="text-text-secondary text-[11px] mt-1" {
+                            "IEC 61850-9-2 Process Bus Ingestion Block Configurator & Downsampled Waveform Calibration"
+                        }
+                    }
+                }
+                div {
+                    span class="status-badge"
+                          x-bind:class="status === 'Healthy' ? 'status-badge-healthy' : (status === 'Degraded' ? 'status-badge-degraded' : 'status-badge-fault')" {
+                        span class="status-dot-pulse" {}
+                        span x-text="status" {}
+                    }
+                }
+            }
+
+            // Multi-column Editor Panel
+            div class="grid grid-cols-1 lg:grid-cols-12 gap-6" {
+                
+                // Left & Center Column (Settings Form)
+                div class="lg:col-span-8 flex flex-col gap-6" {
+                    
+                    // IEC 61850 Ingestion parameters
+                    div class="glass-card shadow-md" {
+                        div class="card-header border-b border-border-color pb-3" {
+                            h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "1. IEC 61850 Ingestion Parameter Block" }
+                        }
+                        div class="card-body mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs" {
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "Sampled Value ID (svID)" }
+                                input type="text" class="w-full text-xs font-mono" x-model="svID";
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "Configuration Revision (confRev)" }
+                                input type="number" class="w-full text-xs font-mono" x-model="confRev";
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "Sample Rate (smpRate)" }
+                                select class="w-full text-xs font-mono" x-model="smpRate" {
+                                    option value="4000" { "4000 sps (80 samples/cycle)" }
+                                    option value="4800" { "4800 sps (96 samples/cycle)" }
+                                    option value="12800" { "12800 sps (256 samples/cycle)" }
+                                }
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "ASDU Count (noASDU)" }
+                                select class="w-full text-xs font-mono" x-model="noASDU" {
+                                    option value="1" { "1 ASDU per frame" }
+                                    option value="2" { "2 ASDU per frame" }
+                                    option value="8" { "8 ASDU per frame" }
+                                }
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "Synchrony Mode (smpSyn)" }
+                                select class="w-full text-xs font-mono" x-model="smpSyn" {
+                                    option value="0" { "None (0) - Unsynchronized" }
+                                    option value="1" { "Local (1) - Local Clock Lock" }
+                                    option value="2" { "Global PTP (2) - Grandmaster Lock" }
+                                }
+                            }
+                        }
+                    }
+
+                    // Process Bus Ethernet & VLAN
+                    div class="glass-card shadow-md" {
+                        div class="card-header border-b border-border-color pb-3" {
+                            h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "2. Ethernet Multicast Ingest & VLAN Routing" }
+                        }
+                        div class="card-body mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs" {
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "Destination MAC Address" }
+                                input type="text" class="w-full text-xs font-mono" x-model="macAddress";
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "Application ID (appID)" }
+                                input type="text" class="w-full text-xs font-mono" x-model="appID";
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "VLAN Identifier (0-4095)" }
+                                input type="number" min="0" max="4095" class="w-full text-xs font-mono" x-model="vlanID";
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "VLAN Priority (0-7)" }
+                                input type="number" min="0" max="7" class="w-full text-xs font-mono" x-model="vlanPriority";
+                            }
+                            div class="flex flex-col gap-1" {
+                                label class="font-medium text-text-primary" { "Redundancy Protocol" }
+                                select class="w-full text-xs font-mono" x-model="prpMode" {
+                                    option value="None" { "None (Single interface)" }
+                                    option value="PRP" { "PRP (Parallel Redundancy)" }
+                                    option value="HSR" { "HSR (High-availability Seamless)" }
+                                }
+                            }
+                        }
+                    }
+
+                    // Live Calibration parameters
+                    div class="glass-card shadow-md" {
+                        div class="card-header border-b border-border-color pb-3" {
+                            h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "3. 3-Phase Calibration Magnitude & Angle Offsets" }
+                        }
+                        div class="card-body mt-4 flex flex-col gap-4" {
+                            
+                            // Voltage calibration parameters
+                            div class="border-b border-border-color pb-3" {
+                                h4 class="text-xs font-bold text-accent-blue uppercase mb-2" { "Voltage Channels (Va, Vb, Vc)" }
+                                div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-[11px]" {
+                                    
+                                    // Va
+                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                        span class="font-bold text-accent-red" { "Phase A Voltage (Va)" }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Magnitude Multiplier" }
+                                                span class="font-bold font-mono" x-text="parseFloat(rms_va).toFixed(3)" {}
+                                            }
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_va";
+                                        }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Phase Angle Offset" }
+                                                span class="font-bold font-mono" x-text="parseFloat(angle_va).toFixed(1) + '°'" {}
+                                            }
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_va";
+                                        }
+                                    }
+
+                                    // Vb
+                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                        span class="font-bold text-accent-green" { "Phase B Voltage (Vb)" }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Magnitude Multiplier" }
+                                                span class="font-bold font-mono" x-text="parseFloat(rms_vb).toFixed(3)" {}
+                                            }
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_vb";
+                                        }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Phase Angle Offset" }
+                                                span class="font-bold font-mono" x-text="parseFloat(angle_vb).toFixed(1) + '°'" {}
+                                            }
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_vb";
+                                        }
+                                    }
+
+                                    // Vc
+                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                        span class="font-bold text-accent-blue" { "Phase C Voltage (Vc)" }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Magnitude Multiplier" }
+                                                span class="font-bold font-mono" x-text="parseFloat(rms_vc).toFixed(3)" {}
+                                            }
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_vc";
+                                        }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Phase Angle Offset" }
+                                                span class="font-bold font-mono" x-text="parseFloat(angle_vc).toFixed(1) + '°'" {}
+                                            }
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_vc";
+                                        }
+                                    }
+
+                                }
+                            }
+
+                            // Current calibration parameters
+                            div {
+                                h4 class="text-xs font-bold text-accent-yellow uppercase mb-2" { "Current Channels (Ia, Ib, Ic)" }
+                                div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-[11px]" {
+                                    
+                                    // Ia
+                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                        span class="font-bold text-[#d97706]" { "Phase A Current (Ia)" }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Magnitude Multiplier" }
+                                                span class="font-bold font-mono" x-text="parseFloat(rms_ia).toFixed(3)" {}
+                                            }
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_ia";
+                                        }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Phase Angle Offset" }
+                                                span class="font-bold font-mono" x-text="parseFloat(angle_ia).toFixed(1) + '°'" {}
+                                            }
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_ia";
+                                        }
+                                    }
+
+                                    // Ib
+                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                        span class="font-bold text-[#8b5cf6]" { "Phase B Current (Ib)" }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Magnitude Multiplier" }
+                                                span class="font-bold font-mono" x-text="parseFloat(rms_ib).toFixed(3)" {}
+                                            }
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_ib";
+                                        }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Phase Angle Offset" }
+                                                span class="font-bold font-mono" x-text="parseFloat(angle_ib).toFixed(1) + '°'" {}
+                                            }
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_ib";
+                                        }
+                                    }
+
+                                    // Ic
+                                    div class="bg-bg-secondary p-2.5 rounded border border-border-color flex flex-col gap-2" {
+                                        span class="font-bold text-[#14b8a6]" { "Phase C Current (Ic)" }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Magnitude Multiplier" }
+                                                span class="font-bold font-mono" x-text="parseFloat(rms_ic).toFixed(3)" {}
+                                            }
+                                            input type="range" min="0.5" max="2.0" step="0.001" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="rms_ic";
+                                        }
+                                        div class="flex flex-col gap-1" {
+                                            div class="flex justify-between text-[10px]" {
+                                                span { "Phase Angle Offset" }
+                                                span class="font-bold font-mono" x-text="parseFloat(angle_ic).toFixed(1) + '°'" {}
+                                            }
+                                            input type="range" min="-30" max="30" step="0.5" class="w-full h-1 bg-bg-primary rounded-lg appearance-none cursor-pointer" x-model="angle_ic";
+                                        }
+                                    }
+
+                                }
+                            }
+
+                        }
+                    }
+
+                }
+
+                // Right Column (Visualizations & Operations)
+                div class="lg:col-span-4 flex flex-col gap-6" {
+                    
+                    // Waveform panel
+                    div class="glass-card shadow-md" {
+                        div class="card-header border-b border-border-color pb-3" {
+                            h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Interactive Waveform Plot" }
+                        }
+                        div class="card-body mt-4 flex flex-col items-center gap-4" {
+                            div class="bg-[#0f172a] rounded-lg p-2.5 border border-border-color shadow-inner w-full flex items-center justify-center" {
+                                // SVG waveform canvas
+                                svg viewBox="0 0 240 150" class="w-full h-auto block" {
+                                    // Zero line grid
+                                    line x1="0" y1="75" x2="240" y2="75" stroke="#334155" stroke-width="1.5" stroke-dasharray="2" {}
+                                    
+                                    // Dynamic Phase Paths (Voltage sine waves Va, Vb, Vc)
+                                    path x-bind:d="getWaveformPath(rms_va, angle_va, 0)"
+                                         fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" {}
+                                         
+                                    path x-bind:d="getWaveformPath(rms_vb, angle_vb, 120)"
+                                         fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" {}
+                                         
+                                    path x-bind:d="getWaveformPath(rms_vc, angle_vc, 240)"
+                                         fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" {}
+                                }
+                            }
+                            
+                            // Waveform Legend
+                            div class="flex justify-center gap-4 text-[10px] font-semibold w-full border-t border-border-color pt-2" {
+                                div class="flex items-center gap-1.5" {
+                                    span class="w-2.5 h-1.5 rounded-full bg-accent-red" {}
+                                    span { "Va Phase A" }
+                                }
+                                div class="flex items-center gap-1.5" {
+                                    span class="w-2.5 h-1.5 rounded-full bg-accent-green" {}
+                                    span { "Vb Phase B" }
+                                }
+                                div class="flex items-center gap-1.5" {
+                                    span class="w-2.5 h-1.5 rounded-full bg-accent-blue" {}
+                                    span { "Vc Phase C" }
+                                }
+                            }
+                        }
+                    }
+
+                    // Write-back Substation Commands Panel
+                    div class="glass-card shadow-md" {
+                        div class="card-header border-b border-border-color pb-3" {
+                            h3 class="card-title text-xs uppercase text-text-muted font-bold tracking-wider" { "Write & Commit Substation Config" }
+                        }
+                        div class="card-body mt-4 flex flex-col gap-4 text-xs" {
+                            p class="text-text-secondary leading-relaxed" {
+                                "Writing configuration coefficients to a live Merging Unit triggers a lock discipline recalculation. In accordance with "
+                                strong { "IEC 61850-9-2" }
+                                " standards, this action is audited under quasi-dynamic state estimator write-back controls."
+                            }
+                            
+                            // Progress bar
+                            div class="w-full flex flex-col gap-1.5" x-show="saving" x-transition {
+                                div class="flex justify-between text-[10px]" {
+                                    span class="text-text-secondary" { "Uploading config via PRP..." }
+                                    span class="font-bold text-accent-blue" x-text="progress + '%'" {}
+                                }
+                                div class="progressbar-bg h-2 rounded overflow-hidden" {
+                                    div class="progressbar-fill h-full bg-accent-blue transition-all duration-100"
+                                         x-bind:style="'width: ' + progress + '%'" {}
+                                }
+                            }
+
+                            // Write Button
+                            button class="btn-primary w-full py-2 flex items-center justify-center gap-2 font-bold uppercase tracking-wider text-xs"
+                                    x-bind:disabled="saving"
+                                    x-on:click="writeConfiguration()" {
+                                span class="btn-spinner" x-show="saving" {}
+                                span x-text="saving ? 'Committing parameters...' : 'Write Configuration to Device'" {}
+                            }
+                        }
+                    }
+
+                }
+
+            }
+
+        }
+    };
+
+    let rendered = base::layout("Merging Unit Details", "southbound", content);
+    Html(rendered.into_string())
+}

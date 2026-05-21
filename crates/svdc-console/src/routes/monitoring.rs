@@ -29,11 +29,6 @@ async fn monitoring_page() -> Html<String> {
                 div class="glass-card" {
                     div class="card-header flex justify-between items-center" {
                         div class="flex items-center gap-2" {
-                            span class="card-icon text-accent-blue" {
-                                svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
-                                    path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" {}
-                                }
-                            }
                             h3 class="card-title" { "PTP disciplined clock synchronization trend" }
                         }
                         span class="text-xs font-semibold text-accent-green" { "100% Tracking" }
@@ -66,11 +61,6 @@ async fn monitoring_page() -> Html<String> {
                 div class="glass-card" {
                     div class="card-header flex justify-between items-center" {
                         div class="flex items-center gap-2" {
-                            span class="card-icon text-accent-blue" {
-                                svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
-                                    path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375m16.5 0v3.75m-16.5-3.75v3.75m16.5 0v3.75M3.75 10.125v3.75m16.5 0v3.75m-16.5-3.75v3.75" {}
-                                }
-                            }
                             h3 class="card-title" { "Circular Buffer Saturation History" }
                         }
                         span class="text-xs font-semibold text-accent-blue" { "Stable occupancy" }
@@ -104,11 +94,6 @@ async fn monitoring_page() -> Html<String> {
             div class="glass-card shadow-lg mt-6" {
                 div class="card-header flex justify-between items-center border-b border-border-color pb-3" {
                     div class="flex items-center gap-2" {
-                        span class="card-icon text-accent-blue" {
-                            svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" {
-                                path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" {}
-                            }
-                        }
                         h2 class="card-title" { "QSE Write-Back Action Audit Logs" }
                     }
 
