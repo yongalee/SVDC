@@ -114,10 +114,10 @@ fn mu_detail_body(mu: &MergingUnit, op: &SharedOperational) -> Markup {
                 pre.mono id="mu-sample-log" { "(waiting for data)" }
             }
         }
-        script type="module" {
+        script {
             (PreEscaped(WAVEFORM_JS))
         }
-        script type="module" {
+        script {
             (PreEscaped(CALIBRATION_JS))
         }
     }
@@ -251,7 +251,7 @@ fn waveform_panel(title: &str, kind: &str, traces: &[(&str, &str)]) -> Markup {
                     @for (key, label) in traces {
                         span.legend-item .{ "trace-" (key) } {
                             span.legend-swatch {}
-                            (label)
+                            span.legend-label { (label) }
                         }
                     }
                 }
@@ -265,6 +265,15 @@ fn waveform_panel(title: &str, kind: &str, traces: &[(&str, &str)]) -> Markup {
                     aria-label={ "8-channel " (title) " trace" } {
                     rect.bg x="0" y="0" width="1000" height="240" {}
                     line.grid x1="0" y1="120" x2="1000" y2="120" {}
+                    // Placeholder shown until the JS clears it after the
+                    // first SSE Waveform event lands. Without this, the
+                    // viewport is a featureless black box while the
+                    // operator wonders whether the page is broken or
+                    // simply waiting for traffic.
+                    text id={ "wf-placeholder-" (kind) } class="wf-placeholder"
+                        x="500" y="125" text-anchor="middle" {
+                        "Awaiting telemetry…"
+                    }
                     @for (key, _) in traces {
                         path id={ "path-" (kind) "-" (key) } .{ "trace-" (key) } d="" fill="none" {}
                     }
@@ -342,10 +351,23 @@ const es = new EventSource('/sse/dashboard');
 const statusLine = document.getElementById('mu-status-line');
 const sampleLog = document.getElementById('mu-sample-log');
 const sampleLogRing = [];
+let placeholdersHidden = false;
+
+function hidePlaceholders() {
+  if (placeholdersHidden) return;
+  for (const kind of Object.keys(channels)) {
+    const el = document.getElementById('wf-placeholder-' + kind);
+    if (el) el.setAttribute('display', 'none');
+  }
+  placeholdersHidden = true;
+}
 
 es.onmessage = (evt) => {
   let p;
-  try { p = JSON.parse(evt.data); } catch (_) { return; }
+  try { p = JSON.parse(evt.data); } catch (e) {
+    console.error('mu-detail: SSE JSON parse failed', e);
+    return;
+  }
   if (p.event_type !== 'Waveform') return;
   const w = p.data;
 
@@ -357,6 +379,8 @@ es.onmessage = (evt) => {
   pushSample('current', 'i2', w.i2);
   pushSample('current', 'i3', w.i3);
   pushSample('current', 'i0', w.i0);
+
+  hidePlaceholders();
 
   if (statusLine) {
     statusLine.textContent =
@@ -381,7 +405,12 @@ es.onmessage = (evt) => {
   }
 };
 
-es.onerror = () => { };
+es.onerror = (e) => {
+  console.error('mu-detail: SSE connection error', e);
+  if (statusLine && !placeholdersHidden) {
+    statusLine.textContent = 'SSE connection error — check /sse/dashboard reachability';
+  }
+};
 "#;
 
 const CALIBRATION_JS: &str = r#"

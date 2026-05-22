@@ -292,7 +292,11 @@ fn build_waveform_event(
         }
     }
     // Fallback: synthetic sinusoid so the polar diagram never
-    // sits empty before the producer attaches.
+    // sits empty before the producer attaches. When the registry
+    // already holds at least one MU we tag the synthetic sample
+    // with that MU's id so the operator's MU detail page status
+    // line shows the right name instead of a mismatched "MU-01"
+    // that hides the actual id they navigated from.
     let v1 = v_peak * angle.sin();
     let v2 = v_peak * (angle - pi_2_3).sin();
     let v3 = v_peak * (angle + pi_2_3).sin();
@@ -301,8 +305,13 @@ fn build_waveform_event(
     let i2 = i_peak * (angle - pi_2_3 - 0.1).sin();
     let i3 = i_peak * (angle + pi_2_3 - 0.1).sin();
     let i0 = i1 + i2 + i3;
+    let mu_id = crate::scd::registry::global()
+        .snapshot()
+        .first()
+        .map(|m| m.id.clone())
+        .unwrap_or_else(|| "MU-01".to_string());
     SsePayload::Waveform(WaveformSample {
-        mu_id: "MU-01".to_string(),
+        mu_id,
         timestamp_ms: now_ms,
         v1,
         v2,

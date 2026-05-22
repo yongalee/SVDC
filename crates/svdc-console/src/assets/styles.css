@@ -234,13 +234,22 @@ button:disabled { opacity: 0.55; cursor: progress; }
     margin-bottom: 8px;
 }
 .waveform-head h3 { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-strong); }
-.waveform-legend { display: flex; gap: 16px; }
+.waveform-legend { display: flex; gap: 16px; flex-wrap: wrap; }
 .legend-item {
     display: inline-flex; align-items: center; gap: 6px;
     font-size: 12px; color: var(--text-body); font-family: 'JetBrains Mono', monospace;
+    margin-right: 4px;
 }
 .legend-swatch {
     display: inline-block; width: 14px; height: 3px; border-radius: 2px;
+    flex-shrink: 0;
+}
+.legend-label { white-space: nowrap; }
+.waveform-viewport svg .wf-placeholder {
+    fill: rgba(255, 255, 255, 0.45);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-style: italic;
 }
 
 .waveform-viewport {
