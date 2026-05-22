@@ -266,21 +266,97 @@ async fn update_parameters(Form(payload): Form<ParameterForm>) -> Html<String> {
 
 /// Endpoint that handles SCL/SCD XML file upload.
 /// Simulates SCD schema parsing and returns a detailed validation summary markup.
-async fn upload_scd() -> Html<String> {
-    let feedback = html! {
-            div class="p-3 rounded bg-accent-green/10 border border-accent-green/30 text-xs text-text-primary flex flex-col gap-1.5 mt-2" {
-                div class="flex items-center gap-2 font-semibold text-accent-green" {
-                    span { "✓" }
-                    span { "SCL Substation Schema Parsed Successfully!" }
-                }
-                div class="font-mono text-[10px] text-text-secondary border-t border-border-color pt-1.5 flex flex-col gap-1" {
-                    div { "File Name: ssiec_substation_north_v2.scd" }
-                    div { "MUs Discovered: [MU-01, MU-02, MU-03]" }
-                    div { "Calibration Triples: Registry populated (24 channels)" }
-                    div { "Standards Check: IEC 61850-9-2 Edition 2.1 compliant" }
+async fn upload_scd(mut multipart: axum::extract::Multipart) -> Html<String> {
+    // Real SCL/SCD parse — Antigravity's prior handler returned a
+    // canned "Parsed Successfully!" panel regardless of the file,
+    // which mismatched both the loaded registry and the user's
+    // expectations. This handler now reads the uploaded bytes,
+    // calls `svdc_console::scd::parse_scd` (already used by the
+    // SCD-validator path), atomically replaces the channel
+    // registry, and reports the actual MU id list + channel count.
+    let mut file_name = "(unnamed)".to_string();
+    let mut xml_bytes: Vec<u8> = Vec::new();
+
+    while let Ok(Some(field)) = multipart.next_field().await {
+        if let Some(name) = field.file_name() {
+            file_name = name.to_string();
+        }
+        match field.bytes().await {
+            Ok(bytes) => xml_bytes.extend_from_slice(&bytes),
+            Err(e) => {
+                return Html(error_feedback(&format!("read upload: {e}")).into_string());
             }
         }
+    }
+
+    if xml_bytes.is_empty() {
+        return Html(
+            error_feedback("upload was empty — pick a .scd / .scl / .xml file").into_string(),
+        );
+    }
+
+    let xml = match std::str::from_utf8(&xml_bytes) {
+        Ok(s) => s,
+        Err(e) => return Html(error_feedback(&format!("UTF-8 decode: {e}")).into_string()),
     };
 
-    Html(feedback.into_string())
+    match crate::scd::parse_scd(xml) {
+        Ok(doc) => {
+            let mu_count = doc.merging_units.len();
+            let total_channels: usize =
+                doc.merging_units.iter().map(|m| m.channels.len()).sum();
+            let mu_id_list = doc
+                .merging_units
+                .iter()
+                .map(|m| m.id.clone())
+                .collect::<Vec<_>>();
+            // Atomically replace the registry. Existing operational
+            // calibration overrides on /south/mus/<id> stay
+            // attached (they key off MU id, not registry generation).
+            let _ = crate::scd::registry::global().replace(doc.merging_units);
+            Html(success_feedback(&file_name, &mu_id_list, total_channels).into_string())
+        }
+        Err(e) => Html(error_feedback(&format!("parse failed: {e:?}")).into_string()),
+    }
+}
+
+fn success_feedback(file_name: &str, mu_ids: &[String], total_channels: usize) -> maud::Markup {
+    let mu_list = if mu_ids.is_empty() {
+        "(none)".to_string()
+    } else {
+        format!("[{}]", mu_ids.join(", "))
+    };
+    html! {
+        div class="p-3 rounded bg-accent-green/10 border border-accent-green/30 text-xs text-text-primary flex flex-col gap-1.5 mt-2" {
+            div class="flex items-center gap-2 font-semibold text-accent-green" {
+                span { "\u{2713}" }
+                span { "SCL Substation Schema Parsed Successfully!" }
+            }
+            div class="font-mono text-[10px] text-text-secondary border-t border-border-color pt-1.5 flex flex-col gap-1" {
+                div { "File Name: " (file_name) }
+                div { "MUs Discovered: " (mu_list) " (" (mu_ids.len()) " total)" }
+                div { "Channel Registry: " (total_channels) " channels populated across all MUs" }
+                div { "Standards Check: IEC 61850-9-2 schema-valid (parsed via roxmltree)" }
+            }
+            div class="mt-2 text-[10px] text-text-secondary" {
+                "Reload "
+                a class="text-accent-blue underline" href="/south/mus" { "/south/mus" }
+                " to see the updated MU list."
+            }
+        }
+    }
+}
+
+fn error_feedback(detail: &str) -> maud::Markup {
+    html! {
+        div class="p-3 rounded bg-accent-red/10 border border-accent-red/30 text-xs text-text-primary flex flex-col gap-1.5 mt-2" {
+            div class="flex items-center gap-2 font-semibold text-accent-red" {
+                span { "\u{2717}" }
+                span { "SCD upload failed" }
+            }
+            div class="font-mono text-[10px] text-text-secondary border-t border-border-color pt-1.5" {
+                (detail)
+            }
+        }
+    }
 }
