@@ -58,6 +58,7 @@ version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21b41aafb34371afea4ce25f026c5a46e5872d2aca6a3fdcf1fcc12d52636768"
 dependencies = [
+ "async-opcua-client",
  "async-opcua-core",
  "async-opcua-core-namespace",
  "async-opcua-crypto",
@@ -66,6 +67,29 @@ dependencies = [
  "async-opcua-server",
  "async-opcua-types",
  "chrono",
+]
+
+[[package]]
+name = "async-opcua-client"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e33d8045bf3d4187bdb5eb4f224aa7fecb804c63a79ac32ad38950b4f05ac159"
+dependencies = [
+ "arc-swap",
+ "async-opcua-core",
+ "async-opcua-crypto",
+ "async-opcua-nodes",
+ "async-opcua-types",
+ "async-trait",
+ "chrono",
+ "futures",
+ "hashbrown 0.15.5",
+ "parking_lot",
+ "rsa",
+ "serde",
+ "tokio",
+ "tokio-util",
+ "tracing",
 ]
 
 [[package]]
@@ -1835,6 +1859,14 @@ version = "0.0.1"
 dependencies = [
  "ssiec-sv-publisher",
  "svdc-core",
+]
+
+[[package]]
+name = "svdc-l1-opcua-client"
+version = "0.0.1"
+dependencies = [
+ "async-opcua",
+ "tokio",
 ]
 
 [[package]]

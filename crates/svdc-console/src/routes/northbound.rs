@@ -437,14 +437,14 @@ fn wired_body(layer: Layer, status: LiveStatus) -> Markup {
         }
         @if status.is_stub {
             section.placeholder {
-                h3 { "Stub mode" }
+                h3 { "No traffic observed yet" }
                 p.muted {
-                    "The L1 OPC UA server task is enabled but no real OPC UA \
-                     stack is running yet (PR L lands the CLI flag + UI; PR L+ \
-                     lands the server itself). See "
-                    code { "docs/decisions/0017-l1-opcua-server.md" }
-                    " §1 follow-up for the openssl-sys / async-opcua library \
-                     evaluation that gates the real server."
+                    "The L1 OPC UA server is bound and listening, but no \
+                     TickRecord has reached it yet (so no publish has \
+                     fired). Start the southbound simulator or the \
+                     /dataplane synthetic loop so samples flow through \
+                     the buffer; this card flips to the live counters \
+                     after the first publish."
                 }
             }
         } @else if !status.active {
@@ -456,6 +456,55 @@ fn wired_body(layer: Layer, status: LiveStatus) -> Markup {
                     "Counters above refresh on page reload."
                 }
             }
+        }
+        @if matches!(layer, Layer::L1) {
+            (l1_verification_card(status))
+        }
+    }
+}
+
+/// Verification card for L1 (PR M). Shows the L1 client simulator
+/// command, a refresh button, and an expected-output preview so an
+/// operator can confirm the server-to-client trail end to end
+/// without leaving the browser.
+fn l1_verification_card(status: LiveStatus) -> Markup {
+    html! {
+        section.placeholder {
+            div.placeholder-head {
+                h3 { "Verify with the L1 client simulator" }
+            }
+            p.muted {
+                "Run the reference client (PR M) in a third terminal — it \
+                 connects to this server, subscribes to the eight channels, \
+                 and prints data-change events to stdout. If the client sees \
+                 value changes, the L0 → aligner → L1 trail is healthy. The \
+                 button below reloads this page so the live counters refresh."
+            }
+            pre.codeblock { code {
+                "cargo run --release -p svdc-l1-opcua-client -- \\\n    --endpoint opc.tcp://127.0.0.1:4840/ \\\n    --samples 20"
+            } }
+            p.muted.small {
+                "Expected output (one line per data change):"
+            }
+            pre.codeblock { code {
+                "svdc-l1-opcua-client: session established\n[L1] Ch00_Va.instMag.i = Int32(4811) (Good)\n[L1] Ch04_Ia.instMag.i = Int32(2200) (Good)\n..."
+            } }
+            div.layer-detail-actions {
+                button.btn-primary type="button" data-action="refresh-status" {
+                    "Refresh status"
+                }
+            }
+            p.muted.small {
+                @if status.active && !status.is_stub {
+                    "Server-side counters: last_tick_id="
+                    (status.last_tick_id) " · "
+                    (status.total_count) " publishes."
+                } @else {
+                    "Server-side counters are at zero until the first \
+                     publish lands."
+                }
+            }
+            script type="module" { (PreEscaped(REFRESH_BUTTON_JS)) }
         }
     }
 }
@@ -493,8 +542,7 @@ fn activation_hint(layer: Layer) -> &'static str {
         }
         Layer::L1 => {
             "The L1 OPC UA server is enabled at daemon boot. Start svdc-bin \
-             with --enable-opcua to claim the layer; the underlying server \
-             implementation ships in PR L+ (see ADR-0017 §1):"
+             with --enable-opcua to bind the listener on 127.0.0.1:4840:"
         }
         Layer::L2 | Layer::L3 => "Not yet implemented.",
     }
@@ -559,6 +607,14 @@ fn planned_body(layer: Layer, phase: u8) -> Markup {
         }
     }
 }
+
+const REFRESH_BUTTON_JS: &str = r#"
+document.querySelectorAll('button[data-action="refresh-status"]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    window.location.reload();
+  });
+});
+"#;
 
 const ROW_CLICK_JS: &str = r#"
 document.querySelectorAll('tr.layer-row[data-href]').forEach((row) => {
@@ -699,14 +755,16 @@ mod tests {
     }
 
     #[test]
-    fn wired_body_shows_stub_disclosure_for_l1_in_stub_mode() {
+    fn wired_body_shows_no_traffic_disclosure_for_l1_in_stub_mode() {
+        // PR L's "stub mode = deferred server" was resolved in PR L+;
+        // now `is_stub = true` means "server is up but no publish has
+        // fired yet" — usually because no upstream traffic is flowing.
         let stub = live(true, 0, 0, true);
         let body = wired_body(Layer::L1, stub).into_string();
-        assert!(body.contains("Stub mode"));
-        assert!(body.contains("PR L+"));
-        assert!(body.contains("openssl-sys"));
-        // Activation help is suppressed while stub disclosure is shown.
-        assert!(!body.contains("How to enable"));
+        assert!(body.contains("No traffic observed yet"));
+        assert!(body.contains("synthetic loop"));
+        // Activation help is suppressed while the no-traffic block is shown.
+        assert!(!body.contains("How to enable L1"));
     }
 
     #[test]
@@ -717,5 +775,37 @@ mod tests {
         assert!(!body.contains("running"));
         assert!(!body.contains("Disable"));
         assert!(!body.contains("Enable"));
+    }
+
+    #[test]
+    fn l1_verification_card_shows_client_command_and_refresh_button() {
+        let running = live(true, 480, 240, false);
+        let card = l1_verification_card(running).into_string();
+        assert!(card.contains("svdc-l1-opcua-client"));
+        assert!(card.contains("--samples 20"));
+        assert!(card.contains("Refresh status"));
+        assert!(card.contains("data-action=\"refresh-status\""));
+        // Live counters block when the server is running.
+        assert!(card.contains("last_tick_id=480"));
+        assert!(card.contains("240 publishes"));
+    }
+
+    #[test]
+    fn l1_verification_card_acknowledges_zero_counters_in_stub_mode() {
+        let stub = live(true, 0, 0, true);
+        let card = l1_verification_card(stub).into_string();
+        assert!(card.contains("zero until the first"));
+        // The button still renders so the operator can re-check after
+        // bringing up the southbound simulator.
+        assert!(card.contains("Refresh status"));
+    }
+
+    #[test]
+    fn wired_body_includes_verification_card_only_for_l1() {
+        let running = live(true, 1, 1, false);
+        let l0 = wired_body(Layer::L0, running).into_string();
+        let l1 = wired_body(Layer::L1, running).into_string();
+        assert!(!l0.contains("svdc-l1-opcua-client"));
+        assert!(l1.contains("svdc-l1-opcua-client"));
     }
 }

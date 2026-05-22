@@ -11,6 +11,7 @@ members = [
     "crates/svdc-historian",
     "crates/svdc-api",
     "crates/svdc-opcua",
+    "crates/svdc-l1-opcua-client",
 ]
 
 
