@@ -89,18 +89,32 @@ async fn mus_list_page() -> Html<String> {
                     return matchesSearch ? matchesStatus : false;
                 }});
             }},
+            // SV-frame-arrival health check; see comment block on the
+            // routes::mus_list module header for the design note.
+            muLastSeen: {{}},
             pingMu(id) {{
                 const mu = this.mus.find(m => m.id === id);
                 if (!mu) return;
                 mu.pinging = true;
                 setTimeout(() => {{
                     mu.pinging = false;
-                    if (mu.status === 'Disconnected') {{
-                        mu.rtt = '--';
-                    }} else {{
-                        mu.rtt = (Math.floor(Math.random() * 5) + 2) + ' ms';
+                    const seenAt = this.muLastSeen[id];
+                    const now = Date.now();
+                    if (!seenAt) {{
+                        mu.status = \"Disconnected\";
+                        mu.rtt = \"no frames\";
+                        return;
                     }}
-                }}, 400);
+                    const ageMs = now - seenAt;
+                    mu.rtt = ageMs < 1000 ? (ageMs + \" ms\") : ((ageMs/1000).toFixed(1) + \" s\");
+                    if (ageMs < 1500) {{
+                        mu.status = \"Healthy\";
+                    }} else if (ageMs < 5000) {{
+                        mu.status = \"Degraded\";
+                    }} else {{
+                        mu.status = \"Disconnected\";
+                    }}
+                }}, 150);
             }},
             bulkPing() {{
                 this.selectedMus.forEach(id => {{
@@ -121,6 +135,8 @@ async fn mus_list_page() -> Html<String> {
             mus_json_str
         )))
         "x-init"="
+            // Existing MuMetrics handler: per-MU dashboard metrics
+            // (observed SPS, missing samples, calibration).
             const es = new EventSource('/api/events');
             es.onmessage = (e) => {
                 try {
@@ -138,6 +154,13 @@ async fn mus_list_page() -> Html<String> {
                                 }
                             }
                         });
+                    } else if (payload.event_type === 'Waveform' && payload.data && payload.data.mu_id) {
+                        // SV-frame-arrival tracker for the Ping/Health
+                        // button. Each Waveform event tags a mu_id; we
+                        // remember the most recent arrival timestamp
+                        // per MU. pingMu() now reads this instead of
+                        // rolling a fake RTT.
+                        muLastSeen[payload.data.mu_id] = Date.now();
                     }
                 } catch(err) {
                     console.error('Failed to parse SSE in MUs list:', err);
@@ -192,7 +215,7 @@ async fn mus_list_page() -> Html<String> {
                     }
                 }
                 div class="flex gap-2" x-show="!showBulkCalibrate" {
-                    button x-on:click="bulkPing()" { "Bulk Ping" }
+                    button x-on:click="bulkPing()" title="Run the SV-frame-arrival health check on every selected MU." { "Bulk health check" }
                     button x-on:click="showBulkCalibrate = true" class="bg-accent-green hover:bg-[#047857]" { "Bulk Calibrate" }
                 }
             }
@@ -243,9 +266,11 @@ async fn mus_list_page() -> Html<String> {
                                 }
                                 td class="text-center" {
                                     div class="flex gap-2 justify-center" {
-                                        button x-on:click="pingMu(mu.id)" class="btn-primary py-1 px-2 text-[11px] flex items-center gap-1" {
+                                        button x-on:click="pingMu(mu.id)"
+                                               class="btn-primary py-1 px-2 text-[11px] flex items-center gap-1"
+                                               title="Health check: refresh this MU's status from the last SV frame arrival (no ICMP — IEC 61850-9-2 SV is one-way multicast)." {
                                             span class="btn-spinner" x-show="mu.pinging" {}
-                                            span x-text="mu.pinging ? 'Pinging...' : 'Ping'" {}
+                                            span x-text="mu.pinging ? 'Checking...' : 'Health check'" {}
                                         }
                                         // PR-M follow-up: operator-driven quarantine.
                                         // Disconnect drops frames from this MU at the
