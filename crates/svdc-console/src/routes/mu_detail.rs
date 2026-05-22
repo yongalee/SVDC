@@ -273,14 +273,41 @@ fn mu_detail_body(mu: &MergingUnit, op: &SharedOperational) -> Markup {
                 pre.mono id="mu-sample-log" { "(waiting for data)" }
             }
         }
-        script type="module" {
+        script {
             (PreEscaped(WAVEFORM_JS))
         }
-        script type="module" {
+        script {
             (PreEscaped(CALIBRATION_JS))
+        }
+        style {
+            (PreEscaped(MU_DETAIL_INLINE_CSS))
         }
     }
 }
+
+/// Inline CSS for the waveform legend + placeholder. Antigravity's
+/// `styles.css` is stored as UTF-16 LE on this branch, so adding
+/// rules there from the build is unreliable; an inline `<style>`
+/// tag in the page is portable and overrides whatever rules (or
+/// missing rules) the external sheet has.
+const MU_DETAIL_INLINE_CSS: &str = r#"
+.waveform-legend { display: flex; gap: 16px; flex-wrap: wrap; }
+.legend-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; margin-right: 4px;
+}
+.legend-swatch {
+  display: inline-block; width: 14px; height: 3px; border-radius: 2px;
+  flex-shrink: 0;
+}
+.legend-label { white-space: nowrap; }
+.waveform-viewport svg .wf-placeholder {
+  fill: rgba(255, 255, 255, 0.45);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-style: italic;
+}
+"#;
 
 fn from_scd_panel(mu: &MergingUnit) -> Markup {
     html! {
@@ -410,7 +437,7 @@ fn waveform_panel(title: &str, kind: &str, traces: &[(&str, &str)]) -> Markup {
                     @for (key, label) in traces {
                         span.legend-item .{ "trace-" (key) } {
                             span.legend-swatch {}
-                            (label)
+                            span.legend-label { (label) }
                         }
                     }
                 }
@@ -424,6 +451,12 @@ fn waveform_panel(title: &str, kind: &str, traces: &[(&str, &str)]) -> Markup {
                     aria-label={ "8-channel " (title) " trace" } {
                     rect.bg x="0" y="0" width="1000" height="240" {}
                     line.grid x1="0" y1="120" x2="1000" y2="120" {}
+                    // Placeholder visible until the JS clears it after
+                    // the first Waveform SSE event lands.
+                    text id={ "wf-placeholder-" (kind) } class="wf-placeholder"
+                        x="500" y="125" text-anchor="middle" {
+                        "Awaiting telemetry…"
+                    }
                     @for (key, _) in traces {
                         path id={ "path-" (kind) "-" (key) } .{ "trace-" (key) } d="" fill="none" {}
                     }
@@ -501,18 +534,32 @@ const es = new EventSource('/sse/dashboard');
 const statusLine = document.getElementById('mu-status-line');
 const sampleLog = document.getElementById('mu-sample-log');
 const sampleLogRing = [];
+let placeholdersHidden = false;
+
+function hidePlaceholders() {
+  if (placeholdersHidden) return;
+  for (const kind of Object.keys(channels)) {
+    const el = document.getElementById('wf-placeholder-' + kind);
+    if (el) el.setAttribute('display', 'none');
+  }
+  placeholdersHidden = true;
+}
 
 es.onmessage = (evt) => {
   let p;
-  try { p = JSON.parse(evt.data); } catch (_) { return; }
+  try { p = JSON.parse(evt.data); } catch (e) {
+    console.error('mu-detail: SSE JSON parse failed', e);
+    return;
+  }
   if (p.event_type !== 'Waveform') return;
   const w = p.data;
-  const targetId = document.querySelector('section[data-mu-id]')?.getAttribute('data-mu-id') 
+  const targetId = document.querySelector('section[data-mu-id]')?.getAttribute('data-mu-id')
                    || window.location.pathname.split('/').pop();
   if (w.mu_id !== 'MU-SIM' && targetId && targetId !== 'new' && w.mu_id !== targetId) {
       return;
   }
 
+  hidePlaceholders();
   pushSample('voltage', 'v1', w.v1);
   pushSample('voltage', 'v2', w.v2);
   pushSample('voltage', 'v3', w.v3);
@@ -545,7 +592,12 @@ es.onmessage = (evt) => {
   }
 };
 
-es.onerror = () => { };
+es.onerror = (e) => {
+  console.error('mu-detail: SSE connection error', e);
+  if (statusLine && !placeholdersHidden) {
+    statusLine.textContent = 'SSE connection error — check /sse/dashboard reachability';
+  }
+};
 "#;
 
 const CALIBRATION_JS: &str = r#"

@@ -53,6 +53,56 @@ impl ChannelRegistry {
     }
 }
 
+fn default_merging_units() -> Vec<super::MergingUnit> {
+    use super::{Channel, ChannelUnit};
+    (1..=6)
+        .map(|i| {
+            let smp_rate = if i == 5 { 4800 } else { 4000 };
+            super::MergingUnit {
+                id: format!("MU-0{}", i),
+                mac: [0x00, 0x0a, 0x35, 0x01, 0x02, i as u8],
+                appid: 0x4000,
+                sv_id: format!("SSIEC_MU_0{}", i),
+                smp_rate,
+                channels: vec![
+                    Channel {
+                        name: "Ia".into(),
+                        unit: ChannelUnit::Current,
+                    },
+                    Channel {
+                        name: "Ib".into(),
+                        unit: ChannelUnit::Current,
+                    },
+                    Channel {
+                        name: "Ic".into(),
+                        unit: ChannelUnit::Current,
+                    },
+                    Channel {
+                        name: "In".into(),
+                        unit: ChannelUnit::Current,
+                    },
+                    Channel {
+                        name: "Va".into(),
+                        unit: ChannelUnit::Voltage,
+                    },
+                    Channel {
+                        name: "Vb".into(),
+                        unit: ChannelUnit::Voltage,
+                    },
+                    Channel {
+                        name: "Vc".into(),
+                        unit: ChannelUnit::Voltage,
+                    },
+                    Channel {
+                        name: "Vn".into(),
+                        unit: ChannelUnit::Voltage,
+                    },
+                ],
+            }
+        })
+        .collect()
+}
+
 /// Shared handle used by axum handlers.
 pub type SharedRegistry = Arc<ChannelRegistry>;
 
@@ -62,9 +112,13 @@ pub type SharedRegistry = Arc<ChannelRegistry>;
 /// across screens.
 pub fn global() -> SharedRegistry {
     static INSTANCE: OnceLock<SharedRegistry> = OnceLock::new();
-    INSTANCE
+    let reg = INSTANCE
         .get_or_init(|| Arc::new(ChannelRegistry::new()))
-        .clone()
+        .clone();
+    if reg.is_empty() {
+        reg.replace(default_merging_units());
+    }
+    reg
 }
 
 #[cfg(test)]
