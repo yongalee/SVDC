@@ -181,10 +181,11 @@ turn on.
 | G  | ✅ ADR-0016 + northbound-simulators runbook                         | 0     |
 | H  | ✅ L0 in-process consumer demo (`--enable-l0-demo` on `svdc-bin`)   | 0     |
 | I  | ✅ Truthful `/north` UI driven by real L0 state (not in original plan; inserted to honest-up the page before adding L1) | 0 |
-| J  | **ADR-0017: OPC UA library + address-space mapping (this PR, docs-only)** | **4 (planning)** |
-| K  | `svdc-opcua` crate scaffold + AddressSpace builder + unit tests     | 4     |
-| L  | `--enable-opcua` daemon flag + `/north/L1` wiring                   | 4     |
-| M  | `svdc-l1-opcua-client` simulator                                    | 4     |
+| J  | ✅ ADR-0017: OPC UA library + address-space mapping (docs-only)     | 4     |
+| K  | ✅ `svdc-opcua` crate scaffold + AddressSpace builder + unit tests  | 4     |
+| L  | ✅ `--enable-opcua` daemon flag + `/north/L1` wiring                | 4     |
+| L+ | ✅ async-opcua 0.18 live server replaces PR L stub                  | 4     |
+| M  | ✅ `svdc-l1-opcua-client` simulator + `/north/L1` Verify card + `docs/l1-quickstart.md` | 4 |
 | N  | ADR-0018: MQTT topic schema + `svdc-mqtt` publisher scaffold        | 4     |
 | O  | `svdc-l2-mqtt-subscriber` simulator                                 | 4     |
 | P  | ADR-0019: TimescaleDB schema + `svdc-historian-tsdb` sidecar        | 4     |
