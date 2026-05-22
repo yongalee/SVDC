@@ -72,7 +72,13 @@ async fn mus_list_page() -> Html<String> {
             "pinging": false
         }));
     }
-    let mus_json_str = serde_json::to_string(&mu_list_json).unwrap_or_else(|_| "[]".to_string());
+    let mus_json_raw = serde_json::to_string(&mu_list_json).unwrap_or_else(|_| "[]".to_string());
+    // JSON contains literal `"` which would otherwise close the
+    // double-quoted `x-data="…"` HTML attribute and dump every JS
+    // statement after the JSON into the document as plain text.
+    // HTML-escape it; the browser decodes `&quot;` back to `"`
+    // before Alpine.js parses the attribute, so JSON.parse works.
+    let mus_json_str = mus_json_raw.replace('"', "&quot;");
 
     let content = html! {
         div x-data=(maud::PreEscaped(format!(
@@ -113,18 +119,18 @@ async fn mus_list_page() -> Html<String> {
                     const seenAt = this.muLastSeen[id];
                     const now = Date.now();
                     if (!seenAt) {{
-                        mu.status = \"Disconnected\";
-                        mu.rtt = \"no frames\";
+                        mu.status = 'Disconnected';
+                        mu.rtt = 'no frames';
                         return;
                     }}
                     const ageMs = now - seenAt;
-                    mu.rtt = ageMs < 1000 ? (ageMs + \" ms\") : ((ageMs/1000).toFixed(1) + \" s\");
+                    mu.rtt = ageMs < 1000 ? (ageMs + ' ms') : ((ageMs/1000).toFixed(1) + ' s');
                     if (ageMs < 1500) {{
-                        mu.status = \"Healthy\";
+                        mu.status = 'Healthy';
                     }} else if (ageMs < 5000) {{
-                        mu.status = \"Degraded\";
+                        mu.status = 'Degraded';
                     }} else {{
-                        mu.status = \"Disconnected\";
+                        mu.status = 'Disconnected';
                     }}
                 }}, 150);
             }},
