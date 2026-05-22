@@ -130,6 +130,71 @@ fn body(snap: &DataPipelineSnapshot) -> Markup {
                     "the historian to a CSV. The status panel below polls every 500 ms."
                 }
             }
+
+            // Purpose + paper context — added so an operator can
+            // answer "why is this page here?" without reading the
+            // SDD first. The 8-crate flow diagram below makes the
+            // chain explicit, and the production-trail note maps
+            // each demo step to its production-time equivalent.
+            div.dp-purpose-card {
+                h3 { "Why this page exists" }
+                p {
+                    "SDD §M1-M8 define eight data-plane modules. In production those modules \
+                     run automatically from the moment SV frames hit the wire. In Phase 0 — \
+                     before any external MU is connected — this page is the operator's "
+                    strong { "self-test" }
+                    ": it drives the same modules from an in-process synthetic source so \
+                     each crate's wiring can be verified end-to-end without a wire or a \
+                     simulator."
+                }
+                p.small {
+                    "Three things the page proves on a single click of "
+                    strong { "Start" } ":"
+                }
+                ul.small {
+                    li {
+                        "Per-tick alignment (SDD §M2, FR-2) — "
+                        code { "Aligner::process_frame" }
+                        " produces a "
+                        code { "TickRecord" }
+                        " every 50 ms."
+                    }
+                    li {
+                        "Dual-CB integrity (SDD §M4, FR-3) — every "
+                        code { "TickRecord" }
+                        " is CRC-stamped; "
+                        strong { "Inject tamper" }
+                        " writes a record whose CRC does not match its samples to prove the overlay catches it."
+                    }
+                    li {
+                        "Historian streaming (SDD §M9, FR-10) — the same tick stream lands in a CSV the operator can download."
+                    }
+                }
+
+                // Compact 8-crate flow diagram. Plain monospace
+                // text keeps it readable in narrow viewports and
+                // does not require an SVG dependency.
+                pre.dp-flow { code {
+                    "  synthetic           svdc-ingress         svdc-aligner        svdc-core           svdc-historian\n"
+                    "  ┌─────────┐         ┌─────────┐          ┌─────────┐         ┌──────────┐         ┌─────────┐\n"
+                    "  │ Start   │ ──50ms──▶  Frame   │ ───────▶│ process │ ──CRC──▶│ TickBuf  │ ───────▶│  CSV    │\n"
+                    "  │ button  │         │ decode  │          │ _frame  │         │ (256)    │         │ writer  │\n"
+                    "  └─────────┘         └─────────┘          └─────────┘         └──────────┘         └─────────┘\n"
+                    "                                                ▲                  │\n"
+                    "                                                │                  ▼\n"
+                    "                                          ADR-0017 §M3        svdc-subscribe  ─────▶  /api/mgmt/*\n"
+                    "                                          (per-channel calib)  (read_since)            (svdc-api, ADR-0013)"
+                } }
+
+                p.small.dp-production-note {
+                    strong { "Production trail" } " (Phase 1+): the synthetic source above is replaced by "
+                    code { "ssiec-sv-publisher" }
+                    " over UDP multicast → "
+                    code { "svdc-bin --ingress-udp 239.0.0.1:9100" }
+                    ". Every other arrow in the diagram stays the same — that is the point of \
+                     this self-test."
+                }
+            }
             div.dp-controls {
                 form method="post" action="/api/dataplane/start" hx-post="/api/dataplane/start" hx-target="#dp-status" hx-swap="outerHTML" {
                     button.btn type="submit" { "Start pipeline" }
@@ -202,8 +267,48 @@ fn body(snap: &DataPipelineSnapshot) -> Markup {
             }
         }
         (PreEscaped(POLL_JS))
+        style { (PreEscaped(DP_PURPOSE_CSS)) }
     }
 }
+
+const DP_PURPOSE_CSS: &str = r#"
+.dp-purpose-card {
+  margin: 10px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color, #e5e5e0);
+  border-left: 3px solid var(--accent-blue, #2563eb);
+  border-radius: 6px;
+  background: var(--bg-secondary, #f8fafc);
+}
+.dp-purpose-card h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong, #1c1c1a);
+}
+.dp-purpose-card p { margin: 4px 0; font-size: 12px; line-height: 1.5; }
+.dp-purpose-card ul.small { margin: 4px 0 8px 18px; font-size: 11px; }
+.dp-purpose-card ul.small li { margin: 2px 0; }
+.dp-flow {
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: #0f1115;
+  color: #cbd5e1;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  line-height: 1.35;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+.dp-flow code { background: transparent; color: inherit; white-space: pre; }
+.dp-production-note {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(37, 99, 235, 0.06);
+  border-left: 2px solid rgba(37, 99, 235, 0.4);
+  border-radius: 4px;
+}
+"#;
 
 fn status_panel(snap: &DataPipelineSnapshot) -> Markup {
     let running_class = if snap.running {
