@@ -16,68 +16,134 @@ pub fn register(router: Router) -> Router {
 
 /// Renders the Southbound Merging Units page
 async fn mus_list_page() -> Html<String> {
+    let snapshot = crate::scd::registry::global().snapshot();
+    let connected = crate::routes::mu_detail::connected_mus().read().unwrap();
+    let mut mu_list_json = Vec::new();
+    for mu in snapshot {
+        let is_connected = connected.contains(&mu.id);
+        let status = if is_connected {
+            if mu.id == "MU-02" || mu.id == "MU-04" {
+                "Degraded"
+            } else {
+                "Healthy"
+            }
+        } else {
+            "Disconnected"
+        };
+        let rate = if is_connected { mu.smp_rate } else { 0 };
+        let dropped = if is_connected {
+            if mu.id == "MU-02" { 142 } else if mu.id == "MU-04" { 12 } else { 0 }
+        } else {
+            8563
+        };
+        let rtt = if is_connected {
+            if mu.id == "MU-02" { "18 ms" } else if mu.id == "MU-04" { "9 ms" } else { "3 ms" }
+        } else {
+            "--"
+        };
+        
+        let mac_str = format!(
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            mu.mac[0], mu.mac[1], mu.mac[2], mu.mac[3], mu.mac[4], mu.mac[5]
+        );
+        let ip_str = format!("192.168.1.{}", 100 + mu.mac[5]);
+        
+        mu_list_json.push(serde_json::json!({
+            "id": mu.id,
+            "ip": ip_str,
+            "mac": mac_str,
+            "status": status,
+            "rate": rate,
+            "dropped": dropped,
+            "rtt": rtt,
+            "calib": 1.000,
+            "pinging": false
+        }));
+    }
+    let mus_json_str = serde_json::to_string(&mu_list_json).unwrap_or_else(|_| "[]".to_string());
+
     let content = html! {
-        div x-data="{
+        div x-data=(maud::PreEscaped(format!(
+            "{{
             searchQuery: '',
             statusFilter: 'all',
             selectedMus: [],
             showBulkCalibrate: false,
             bulkCalibFactor: 1.000,
-            mus: [
-                { id: 'MU-01', ip: '192.168.1.101', mac: '00:0a:35:01:02:01', status: 'Healthy', rate: 4000, dropped: 0, rtt: '3 ms', calib: 1.000, pinging: false },
-                { id: 'MU-02', ip: '192.168.1.102', mac: '00:0a:35:01:02:02', status: 'Degraded', rate: 4000, dropped: 142, rtt: '18 ms', calib: 1.000, pinging: false },
-                { id: 'MU-03', ip: '192.168.1.103', mac: '00:0a:35:01:02:03', status: 'Disconnected', rate: 0, dropped: 8563, rtt: '--', calib: 1.000, pinging: false },
-                { id: 'MU-04', ip: '192.168.1.104', mac: '00:0a:35:01:02:04', status: 'Degraded', rate: 0, dropped: 12, rtt: '9 ms', calib: 1.000, pinging: false },
-                { id: 'MU-05', ip: '192.168.1.105', mac: '00:0a:35:01:02:05', status: 'Healthy', rate: 4800, dropped: 0, rtt: '2 ms', calib: 1.000, pinging: false },
-                { id: 'MU-06', ip: '192.168.1.106', mac: '00:0a:35:01:02:06', status: 'Healthy', rate: 4000, dropped: 0, rtt: '4 ms', calib: 1.000, pinging: false }
-            ],
-            toggleSelectAll() {
+            mus: {},
+            toggleSelectAll() {{
                 const filtered = this.filteredMus();
-                if (this.selectedMus.length === filtered.length) {
+                if (this.selectedMus.length === filtered.length) {{
                     this.selectedMus = [];
-                } else {
+                }} else {{
                     this.selectedMus = filtered.map(m => m.id);
-                }
-            },
-            filteredMus() {
-                return this.mus.filter(m => {
+                }}
+            }},
+            filteredMus() {{
+                return this.mus.filter(m => {{
                     const query = this.searchQuery.toLowerCase();
                     const matchesSearch = m.id.toLowerCase().includes(query) ||
                                           m.ip.includes(query) ||
                                           m.mac.toLowerCase().includes(query);
                     const matchesStatus = this.statusFilter === 'all' || m.status.toLowerCase() === this.statusFilter;
                     return matchesSearch ? matchesStatus : false;
-                });
-            },
-            pingMu(id) {
+                }});
+            }},
+            pingMu(id) {{
                 const mu = this.mus.find(m => m.id === id);
                 if (!mu) return;
                 mu.pinging = true;
-                setTimeout(() => {
+                setTimeout(() => {{
                     mu.pinging = false;
-                    if (mu.status === 'Disconnected') {
+                    if (mu.status === 'Disconnected') {{
                         mu.rtt = '--';
-                    } else {
+                    }} else {{
                         mu.rtt = (Math.floor(Math.random() * 5) + 2) + ' ms';
-                    }
-                }, 400);
-            },
-            bulkPing() {
-                this.selectedMus.forEach(id => {
+                    }}
+                }}, 400);
+            }},
+            bulkPing() {{
+                this.selectedMus.forEach(id => {{
                     this.pingMu(id);
-                });
-            },
-            bulkCalibrate() {
-                this.selectedMus.forEach(id => {
+                }});
+            }},
+            bulkCalibrate() {{
+                this.selectedMus.forEach(id => {{
                     const mu = this.mus.find(m => m.id === id);
-                    if (mu) {
+                    if (mu) {{
                         mu.calib = parseFloat(this.bulkCalibFactor).toFixed(3);
-                    }
-                });
+                    }}
+                }});
                 alert('Applied calibration offset of ' + parseFloat(this.bulkCalibFactor).toFixed(3) + ' to selected MUs: ' + this.selectedMus.join(', '));
                 this.showBulkCalibrate = false;
-            }
-        }"
+            }}
+        }}",
+            mus_json_str
+        )))
+        "x-init"="
+            const es = new EventSource('/api/events');
+            es.onmessage = (e) => {
+                try {
+                    const payload = JSON.parse(e.data);
+                    if (payload.event_type === 'MuMetrics') {
+                        const list = payload.data;
+                        list.forEach(item => {
+                            const mu = mus.find(m => m.id === item.mu_id);
+                            if (mu) {
+                                mu.rate = item.observed_sps;
+                                mu.dropped = item.missing_samples;
+                                mu.status = item.observed_sps > 0 ? (item.missing_samples > 0 ? 'Degraded' : 'Healthy') : 'Disconnected';
+                                if (item.calibration && item.calibration.length >= 3) {
+                                    mu.calib = item.calibration[0];
+                                }
+                            }
+                        });
+                    }
+                } catch(err) {
+                    console.error('Failed to parse SSE in MUs list:', err);
+                }
+            };
+        "
         class="screen-layout flex flex-col gap-6" {
             // Summary header (no meaningless icon)
             div class="glass-card" {
@@ -181,6 +247,23 @@ async fn mus_list_page() -> Html<String> {
                                             span class="btn-spinner" x-show="mu.pinging" {}
                                             span x-text="mu.pinging ? 'Pinging...' : 'Ping'" {}
                                         }
+                                        // PR-M follow-up: operator-driven quarantine.
+                                        // Disconnect drops frames from this MU at the
+                                        // aligner without removing it from the registry.
+                                        template x-if="mu.status !== 'Disconnected'" {
+                                            button x-on:click="muToggleConnection(mu.id, false)"
+                                                   class="btn-secondary py-1 px-2 text-[11px]"
+                                                   title="Stop accepting frames from this MU until reconnected." {
+                                                "Disconnect"
+                                            }
+                                        }
+                                        template x-if="mu.status === 'Disconnected'" {
+                                            button x-on:click="muToggleConnection(mu.id, true)"
+                                                   class="btn-secondary py-1 px-2 text-[11px] bg-accent-green text-white border-accent-green"
+                                                   title="Re-attach this MU to the aligner." {
+                                                "Connect"
+                                            }
+                                        }
                                         a x-bind:href="'/south/mus/' + mu.id" class="btn-primary py-1 px-2 text-[11px] bg-accent-blue hover:bg-[#1d4ed8] text-center" {
                                             "Settings"
                                         }
@@ -196,12 +279,42 @@ async fn mus_list_page() -> Html<String> {
                     }
                 }
             }
+            // PR-M follow-up: global helper used by the Disconnect /
+            // Connect buttons rendered above.
+            script {
+                (maud::PreEscaped(MUS_LIST_CONNECTION_JS))
+            }
         }
     };
 
     let rendered = base::layout("Southbound Merging Units", "southbound", content);
     Html(rendered.into_string())
 }
+
+const MUS_LIST_CONNECTION_JS: &str = r#"
+window.muToggleConnection = async function(muId, connect) {
+  const action = connect ? 'connect' : 'disconnect';
+  if (!connect) {
+    const ok = confirm(
+      'Disconnect MU ' + muId + '?\n\n' +
+      'The aligner will drop incoming frames from this MU until it is ' +
+      'reconnected. Use this to quarantine a noisy or under-maintenance MU. ' +
+      'The channel registry entry is preserved; reconnect is one click.'
+    );
+    if (!ok) return;
+  }
+  try {
+    const r = await fetch('/api/mgmt/mu/' + encodeURIComponent(muId) + '/' + action, { method: 'POST' });
+    if (r.ok) {
+      window.location.reload();
+    } else {
+      alert('MU ' + action + ' failed: HTTP ' + r.status);
+    }
+  } catch (e) {
+    alert('MU ' + action + ' error: ' + e);
+  }
+};
+"#;
 
 /// Renders the Merging Unit detail & configuration page
 async fn mus_detail_page(Path(id): Path<String>) -> Html<String> {

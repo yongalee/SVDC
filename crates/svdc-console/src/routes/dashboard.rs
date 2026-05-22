@@ -93,7 +93,21 @@ async fn dashboard_page() -> Html<String> {
                 const r = Math.min(75, rms * scale);
                 const rad = angle * Math.PI / 180;
                 return (100 - r * Math.sin(rad)).toFixed(1);
-            }
+            },
+            qse_logs: [
+                { timestamp: '13:58:12', result: 'ESTIMATE', result_color: 'text-accent-yellow', operator: 'Substation QSE', operation: 'Anomaly detected', target: 'MU-02 Phase C Voltage', wbs: 'WBS-9.3c' },
+                { timestamp: '13:58:12', result: 'HEAL', result_color: 'text-accent-green', operator: 'Concentrator', operation: 'Injected estimation-based correction', target: 'buffer index 17822', wbs: 'WBS-9.3c' },
+                { timestamp: '13:58:34', result: 'ESTIMATE', result_color: 'text-accent-yellow', operator: 'Substation QSE', operation: 'Transient deviation flagged', target: 'MU-01 Phase A Current', wbs: 'WBS-9.3c' },
+                { timestamp: '13:58:34', result: 'HEAL', result_color: 'text-accent-green', operator: 'Concentrator', operation: 'Substituted Phase A current values', target: 'state estimation feedback', wbs: 'WBS-9.3c' },
+                { timestamp: '13:59:01', result: 'SYSTEM', result_color: 'text-accent-green', operator: 'Substation QSE', operation: 'Residual State Estimation variance stabilized', target: 'below 0.05%', wbs: 'WBS-9.3c' }
+            ],
+            diag_logs: [
+                { timestamp: '09:20:07', level: 'INFO', level_color: 'text-accent-green', message: 'svdc-console HTTP web service successfully started on local port.' },
+                { timestamp: '09:20:08', level: 'INFO', level_color: 'text-accent-green', message: 'PTP grandmaster tracking synchronized.' },
+                { timestamp: '09:20:10', level: 'INFO', level_color: 'text-accent-green', message: 'OPC UA Server (L1) listening on opc.tcp://127.0.0.1:4840.' },
+                { timestamp: '09:20:11', level: 'INFO', level_color: 'text-accent-green', message: 'TimescaleDB sidecar (L3) archiver persistence active.' },
+                { timestamp: '09:28:48', level: 'INFO', level_color: 'text-accent-green', message: 'Southbound stream discovered MU-01 at 4000 sps.' }
+            ]
         }"
         "x-init"="
             const es = new EventSource('/api/events');
@@ -147,6 +161,43 @@ async fn dashboard_page() -> Html<String> {
                         if (topBar) {
                             topBar.textContent = metrics.ptp_sync_status + ' (' + metrics.ptp_offset_ns + ' ns)';
                         }
+
+                        // Push dynamic trace logs to diag_logs occasionally
+                        if (Math.random() > 0.8) {
+                            const timeStr = new Date().toTimeString().split(' ')[0];
+                            diag_logs.push({
+                                timestamp: timeStr,
+                                level: 'INFO',
+                                level_color: 'text-accent-green',
+                                message: `Concentrator rate: ${metrics.sps_rate} sps. Buffer saturation: ${metrics.buffer_saturation}%.`
+                            });
+                            if (diag_logs.length > 8) diag_logs.shift();
+                        }
+                    } else if (payload.event_type === 'Qse') {
+                        const qseLog = payload.data;
+                        const timeOnly = qseLog.timestamp.split(' ')[1] || qseLog.timestamp;
+                        qse_logs.push({
+                            timestamp: timeOnly,
+                            result: qseLog.result,
+                            result_color: qseLog.result_color,
+                            operator: qseLog.operator,
+                            operation: qseLog.operation,
+                            target: qseLog.target,
+                            wbs: qseLog.wbs
+                        });
+                        if (qse_logs.length > 8) {
+                            qse_logs.shift();
+                        }
+
+                        // Also add an entry to diag_logs
+                        const timeStr = new Date().toTimeString().split(' ')[0];
+                        diag_logs.push({
+                            timestamp: timeStr,
+                            level: 'QSE',
+                            level_color: 'text-accent-yellow',
+                            message: `QSE correction event achieved standard state [${qseLog.result}] on ${qseLog.target}.`
+                        });
+                        if (diag_logs.length > 8) diag_logs.shift();
                     }
                 } catch(err) {
                     console.error('Failed to parse SSE event:', err);
@@ -734,30 +785,12 @@ async fn dashboard_page() -> Html<String> {
                             h2 class="card-title" { "QSE Self-Healing Overrides & State Estimator Logs" }
                         }
                         div class="card-body mt-3 font-mono text-[9px] text-text-secondary bg-[#0f172a] p-3 rounded border border-border-color h-[155px] overflow-y-auto flex flex-col gap-1.5 shadow-inner" {
-                            div {
-                                span class="text-[#888880]" { "[13:58:12] " }
-                                span class="text-accent-yellow font-semibold" { "[ESTIMATE] " }
-                                "Substation QSE detected anomaly in MU-02 Phase C Voltage."
-                            }
-                            div {
-                                span class="text-[#888880]" { "[13:58:12] " }
-                                span class="text-accent-green font-semibold" { "[HEAL] " }
-                                "Concentrator injected estimation-based correction into buffer index 17822."
-                            }
-                            div {
-                                span class="text-[#888880]" { "[13:58:34] " }
-                                span class="text-accent-yellow font-semibold" { "[ESTIMATE] " }
-                                "Transient deviation flagged on MU-01 Phase A Current."
-                            }
-                            div {
-                                span class="text-[#888880]" { "[13:58:34] " }
-                                span class="text-accent-green font-semibold" { "[HEAL] " }
-                                "Substituted Phase A current values using state estimation feedback."
-                            }
-                            div {
-                                span class="text-[#888880]" { "[13:59:01] " }
-                                span class="text-accent-green font-semibold" { "[SYSTEM] " }
-                                "Residual State Estimation variance stabilized below 0.05%."
+                            template x-for="log in qse_logs" {
+                                div {
+                                    span class="text-[#888880]" x-text="'[' + log.timestamp + '] '" {}
+                                    span ":class"="log.result_color + ' font-semibold'" x-text="'[' + log.result + '] '" {}
+                                    span x-text="log.operator + ' ' + log.operation + ' on ' + log.target + ' (' + log.wbs + ')'" {}
+                                }
                             }
                         }
                     }
@@ -770,30 +803,12 @@ async fn dashboard_page() -> Html<String> {
                     h2 class="card-title" { "System Diagnostic Log Stream" }
                 }
                 div class="card-body mt-4 font-mono text-xs text-text-secondary bg-[#0f172a] border border-border-color p-4 rounded-lg h-40 overflow-y-auto flex flex-col gap-1.5 shadow-inner" {
-                    div {
-                        span class="text-[#888880]" { "[09:20:07]" }
-                        span class="text-accent-green font-semibold text-[10px]" { " [INFO] " }
-                        "svdc-console HTTP web service successfully started on local port."
-                    }
-                    div {
-                        span class="text-[#888880]" { "[09:20:08]" }
-                        span class="text-accent-green font-semibold text-[10px]" { " [INFO] " }
-                        "PTP synchrony acquired standard clock discipline grandmaster tracking."
-                    }
-                    div {
-                        span class="text-[#888880]" { "[09:20:10]" }
-                        span class="text-accent-green font-semibold text-[10px]" { " [INFO] " }
-                        "OPC UA Server (L1) initialized and listening on opc.tcp://127.0.0.1:4840."
-                    }
-                    div {
-                        span class="text-[#888880]" { "[09:20:11]" }
-                        span class="text-accent-green font-semibold text-[10px]" { " [INFO] " }
-                        "TimescaleDB sidecar (L3) archiver ring buffers opened; persistence active."
-                    }
-                    div {
-                        span class="text-[#888880]" { "[09:28:48]" }
-                        span class="text-accent-green font-semibold text-[10px]" { " [INFO] " }
-                        "Southbound Ingest Merging Unit stream discovered MU-01 at 4000 sps."
+                    template x-for="log in diag_logs" {
+                        div {
+                            span class="text-[#888880]" x-text="'[' + log.timestamp + ']'" {}
+                            span ":class"="log.level_color + ' font-semibold text-[10px]'" x-text="' [' + log.level + '] '" {}
+                            span x-text="log.message" {}
+                        }
                     }
                 }
             }

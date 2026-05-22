@@ -148,26 +148,16 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
             let i0 = i1 + i2 + i3;
 
             let snapshot = crate::scd::registry::global().snapshot();
-            if snapshot.is_empty() {
-                let wave_event = SsePayload::Waveform(WaveformSample {
-                    mu_id: "MU-SIM".to_string(),
-                    timestamp_ms: now_ms,
-                    v1,
-                    v2,
-                    v3,
-                    v0,
-                    i1,
-                    i2,
-                    i3,
-                    i0,
-                });
-                if let Ok(json_str) = serde_json::to_string(&wave_event) {
-                    let _ = tx.send(json_str);
-                }
-            } else {
-                for mu in snapshot {
+            let mut mu_ids: Vec<String> = snapshot.iter().map(|m| m.id.clone()).collect();
+            if !mu_ids.contains(&"MU-SIM".to_string()) {
+                mu_ids.push("MU-SIM".to_string());
+            }
+
+            for mu_id in mu_ids {
+                let is_connected = mu_id == "MU-SIM" || crate::routes::mu_detail::connected_mus().read().unwrap().contains(&mu_id);
+                if is_connected {
                     let wave_event = SsePayload::Waveform(WaveformSample {
-                        mu_id: mu.id.clone(),
+                        mu_id: mu_id.clone(),
                         timestamp_ms: now_ms,
                         v1,
                         v2,
@@ -197,8 +187,8 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
                 ptp_sync_status: "Locked".to_string(),
                 ptp_offset_ns: ptp_offset,
                 buffer_saturation: buffer_sat,
-                active_mus: 2,
-                sps_rate: 4000,
+                active_mus: 5,
+                sps_rate: 20800,
                 l1_opcua_active: true,
                 l2_mqtt_active: false,
                 l3_timescaledb_active: true,
@@ -209,21 +199,23 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
             }
 
             // MuMetrics dummy data
-            let mut jitter1 = vec![0; 10];
-            let mut jitter2 = vec![0; 10];
-            for i in 0..10 {
-                jitter1[i] = ((now_ms / 100 + i as u64 * 3) % 40) as u32;
-                jitter2[i] = ((now_ms / 100 + i as u64 * 7) % 30) as u32;
+            let mut jitter_histograms = Vec::new();
+            for m_idx in 0..7 {
+                let mut jitter = vec![0; 10];
+                for i in 0..10 {
+                    jitter[i] = ((now_ms / 100 + i as u64 * (m_idx + 1) * 3) % 40) as u32;
+                }
+                jitter_histograms.push(jitter);
             }
 
             let mu_metrics = vec![
                 crate::sse::MuTelemetry {
                     mu_id: "MU-01".to_string(),
-                    observed_sps: 4800,
-                    missing_samples: (now_ms % 100000 / 5000) as u32,
-                    interpolation_count: (now_ms % 100000 / 4000) as u32,
-                    qse_corrections: (now_ms % 100000 / 10000) as u32,
-                    jitter_histogram: jitter1,
+                    observed_sps: 4000,
+                    missing_samples: 0,
+                    interpolation_count: 0,
+                    qse_corrections: 0,
+                    jitter_histogram: jitter_histograms[0].clone(),
                     ptp_sync: format!("Locked ({} ns)", ptp_offset),
                     calibration: (1.0001, -0.02, 1.0),
                 },
@@ -232,10 +224,60 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
                     observed_sps: 4000,
                     missing_samples: (now_ms % 100000 / 8000) as u32,
                     interpolation_count: (now_ms % 100000 / 6000) as u32,
-                    qse_corrections: 0,
-                    jitter_histogram: jitter2,
+                    qse_corrections: (now_ms % 100000 / 12000) as u32,
+                    jitter_histogram: jitter_histograms[1].clone(),
                     ptp_sync: "Locked (15 ns)".to_string(),
                     calibration: (0.9998, 0.05, 1.0),
+                },
+                crate::sse::MuTelemetry {
+                    mu_id: "MU-03".to_string(),
+                    observed_sps: 0,
+                    missing_samples: 8563 + (now_ms % 100 / 10) as u32,
+                    interpolation_count: 0,
+                    qse_corrections: 0,
+                    jitter_histogram: vec![0; 10],
+                    ptp_sync: "Disconnected".to_string(),
+                    calibration: (1.0, 0.0, 1.0),
+                },
+                crate::sse::MuTelemetry {
+                    mu_id: "MU-04".to_string(),
+                    observed_sps: 4000,
+                    missing_samples: 12,
+                    interpolation_count: 2,
+                    qse_corrections: 0,
+                    jitter_histogram: jitter_histograms[3].clone(),
+                    ptp_sync: "Locked (9 ns)".to_string(),
+                    calibration: (1.0, 0.0, 1.0),
+                },
+                crate::sse::MuTelemetry {
+                    mu_id: "MU-05".to_string(),
+                    observed_sps: 4800,
+                    missing_samples: 0,
+                    interpolation_count: 0,
+                    qse_corrections: 0,
+                    jitter_histogram: jitter_histograms[4].clone(),
+                    ptp_sync: "Locked (2 ns)".to_string(),
+                    calibration: (1.0, 0.0, 1.0),
+                },
+                crate::sse::MuTelemetry {
+                    mu_id: "MU-06".to_string(),
+                    observed_sps: 4000,
+                    missing_samples: 0,
+                    interpolation_count: 0,
+                    qse_corrections: 0,
+                    jitter_histogram: jitter_histograms[5].clone(),
+                    ptp_sync: "Locked (4 ns)".to_string(),
+                    calibration: (1.0, 0.0, 1.0),
+                },
+                crate::sse::MuTelemetry {
+                    mu_id: "MU-SIM".to_string(),
+                    observed_sps: 4000,
+                    missing_samples: 0,
+                    interpolation_count: 0,
+                    qse_corrections: 0,
+                    jitter_histogram: jitter_histograms[6].clone(),
+                    ptp_sync: "Locked (1 ns)".to_string(),
+                    calibration: (1.0, 0.0, 1.0),
                 },
             ];
             let mu_event = SsePayload::MuMetrics(mu_metrics);

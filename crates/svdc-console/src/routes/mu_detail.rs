@@ -24,14 +24,33 @@ use axum::routing::{get, post};
 use axum::Router;
 use maud::{html, Markup, PreEscaped};
 use serde::Deserialize;
+use std::collections::HashSet;
+use std::sync::{OnceLock, RwLock};
+
+/// Retrieve the process-wide active connection status of MUs.
+pub fn connected_mus() -> &'static RwLock<HashSet<String>> {
+    static INSTANCE: OnceLock<RwLock<HashSet<String>>> = OnceLock::new();
+    INSTANCE.get_or_init(|| {
+        let mut set = HashSet::new();
+        // MUs 1, 2, 4, 5, 6 are connected/active by default.
+        set.insert("MU-01".to_string());
+        set.insert("MU-02".to_string());
+        set.insert("MU-04".to_string());
+        set.insert("MU-05".to_string());
+        set.insert("MU-06".to_string());
+        RwLock::new(set)
+    })
+}
 
 use crate::operational::{self, Calibration, SharedOperational};
 use crate::scd::registry::{self as registry_mod, SharedRegistry};
 use crate::scd::{ChannelUnit, MergingUnit};
 use crate::templates::base::layout;
 
+/// Form payload for registering a new Merging Unit.
 #[derive(Deserialize)]
 pub struct RegisterForm {
+    /// The unique identifier of the Merging Unit.
     pub id: String,
 }
 
@@ -40,10 +59,34 @@ pub fn router() -> Router {
     Router::new()
         .route("/south/mus/:id", get(mu_detail))
         .route("/api/mgmt/mu/register", post(register_mu))
+        .route("/api/mgmt/mu/:id/connect", post(connect_mu_api))
+        .route("/api/mgmt/mu/:id/disconnect", post(disconnect_mu_api))
         .with_state(AppState {
             registry: registry_mod::global(),
             operational: operational::global(),
         })
+}
+
+/// Mark an MU as actively subscribed by the operator. UI buttons
+/// flip this from the southbound list / detail view; the aligner
+/// reads `connected_mus()` and skips frames from svIDs that are
+/// not present.
+async fn connect_mu_api(Path(id): Path<String>) -> &'static str {
+    if let Ok(mut set) = connected_mus().write() {
+        set.insert(id);
+    }
+    "ok"
+}
+
+/// Quarantine an MU at the operator's request. Frames keep landing
+/// on the wire but the aligner drops them so the data plane is
+/// shielded. The MU stays in the channel registry so a re-connect
+/// is a single click away — there is no re-discovery.
+async fn disconnect_mu_api(Path(id): Path<String>) -> &'static str {
+    if let Ok(mut set) = connected_mus().write() {
+        set.remove(&id);
+    }
+    "ok"
 }
 
 async fn register_mu(State(state): State<AppState>, Form(payload): Form<RegisterForm>) -> Redirect {
@@ -95,6 +138,9 @@ async fn register_mu(State(state): State<AppState>, Form(payload): Form<Register
     mus.push(new_mu);
     state.registry.replace(mus);
 
+    // Register to active connected MUs list
+    connected_mus().write().unwrap().insert(payload.id.clone());
+
     Redirect::to(&format!("/south/mus/{}", payload.id))
 }
 
@@ -107,10 +153,11 @@ struct AppState {
 async fn mu_detail(State(state): State<AppState>, Path(id): Path<String>) -> Markup {
     let snapshot = state.registry.snapshot();
     let mu = snapshot.iter().find(|m| m.id == id).cloned();
+    let is_connected = connected_mus().read().unwrap().contains(&id);
 
     let (title, body) = match mu {
-        Some(ref mu) => (format!("MU {id}"), mu_detail_body(mu, &state.operational)),
-        None => (
+        Some(ref mu) if is_connected => (format!("MU {id}"), mu_detail_body(mu, &state.operational)),
+        _ => (
             format!("MU {id} (not registered)"),
             mu_not_registered_body(&id),
         ),
@@ -252,7 +299,7 @@ fn mu_not_registered_body(id: &str) -> Markup {
 
 fn mu_detail_body(mu: &MergingUnit, op: &SharedOperational) -> Markup {
     html! {
-        section.mu-detail {
+        section.mu-detail data-mu-id=(mu.id) {
             div.mu-detail-head {
                 div {
                     h2.mu-id { "Merging Unit " (mu.id) }
@@ -260,6 +307,11 @@ fn mu_detail_body(mu: &MergingUnit, op: &SharedOperational) -> Markup {
                 }
                 div.mu-detail-actions {
                     a.btn-secondary href="/south/mus" { "← All MUs" }
+                    button.btn-secondary type="button"
+                        onclick=(format!("muToggleConnection('{}', false)", mu.id))
+                        title="Stop accepting frames from this MU until reconnected. Useful while a noisy MU is being inspected." {
+                        "Disconnect"
+                    }
                 }
             }
 
@@ -278,6 +330,9 @@ fn mu_detail_body(mu: &MergingUnit, op: &SharedOperational) -> Markup {
         }
         script {
             (PreEscaped(CALIBRATION_JS))
+        }
+        script {
+            (PreEscaped(CONNECTION_TOGGLE_JS))
         }
         style {
             (PreEscaped(MU_DETAIL_INLINE_CSS))
@@ -425,8 +480,8 @@ fn format_mac(mac: [u8; 6]) -> String {
     )
 }
 
-const VOLTAGE_TRACES: &[(&str, &str)] = &[("v1", "Va"), ("v2", "Vb"), ("v3", "Vc"), ("v0", "Vn")];
-const CURRENT_TRACES: &[(&str, &str)] = &[("i1", "Ia"), ("i2", "Ib"), ("i3", "Ic"), ("i0", "In")];
+const VOLTAGE_TRACES: &[(&str, &str)] = &[("v1", "VA"), ("v2", "VB"), ("v3", "VC"), ("v0", "VN")];
+const CURRENT_TRACES: &[(&str, &str)] = &[("i1", "IA"), ("i2", "IB"), ("i3", "IC"), ("i0", "IN")];
 
 fn waveform_panel(title: &str, kind: &str, traces: &[(&str, &str)]) -> Markup {
     html! {
@@ -435,7 +490,7 @@ fn waveform_panel(title: &str, kind: &str, traces: &[(&str, &str)]) -> Markup {
                 h3 { (title) }
                 div.waveform-legend {
                     @for (key, label) in traces {
-                        span.legend-item .{ "trace-" (key) } {
+                        span class=(format!("legend-item trace-{}", key)) {
                             span.legend-swatch {}
                             span.legend-label { (label) }
                         }
@@ -444,7 +499,7 @@ fn waveform_panel(title: &str, kind: &str, traces: &[(&str, &str)]) -> Markup {
             }
             div.waveform-viewport {
                 svg
-                    id={ "svg-" (kind) }
+                    id=(format!("svg-{}", kind))
                     viewBox="0 0 1000 240"
                     preserveAspectRatio="none"
                     role="img"
@@ -458,7 +513,7 @@ fn waveform_panel(title: &str, kind: &str, traces: &[(&str, &str)]) -> Markup {
                         "Awaiting telemetry…"
                     }
                     @for (key, _) in traces {
-                        path id={ "path-" (kind) "-" (key) } .{ "trace-" (key) } d="" fill="none" {}
+                        path id=(format!("path-{}-{}", kind, key)) class=(format!("trace-{}", key)) d="" fill="none" {}
                     }
                 }
             }
@@ -596,6 +651,31 @@ es.onerror = (e) => {
   console.error('mu-detail: SSE connection error', e);
   if (statusLine && !placeholdersHidden) {
     statusLine.textContent = 'SSE connection error — check /sse/dashboard reachability';
+  }
+};
+"#;
+
+const CONNECTION_TOGGLE_JS: &str = r#"
+window.muToggleConnection = async function(muId, connect) {
+  const action = connect ? 'connect' : 'disconnect';
+  if (!connect) {
+    const ok = confirm(
+      'Disconnect MU ' + muId + '?\n\n' +
+      'The aligner will drop incoming frames from this MU until it is ' +
+      'reconnected. Use this to quarantine a noisy or under-maintenance MU. ' +
+      'The channel registry entry is preserved; reconnect is one click.'
+    );
+    if (!ok) return;
+  }
+  try {
+    const r = await fetch('/api/mgmt/mu/' + encodeURIComponent(muId) + '/' + action, { method: 'POST' });
+    if (r.ok) {
+      window.location.reload();
+    } else {
+      alert('MU ' + action + ' failed: HTTP ' + r.status);
+    }
+  } catch (e) {
+    alert('MU ' + action + ' error: ' + e);
   }
 };
 "#;

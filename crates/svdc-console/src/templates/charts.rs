@@ -189,7 +189,7 @@ fn percentile_marker(x: f32, label: &str, ns: f64) -> Markup {
     let y_top = 12.0;
     let y_bot = 212.0;
     html! {
-        g.percentile-marker .{ "pm-" (label) } {
+        g class=(format!("percentile-marker pm-{}", label)) {
             line x1=(x) y1=(y_top) x2=(x) y2=(y_bot) {}
             text x=(x + 4.0) y=(y_top + 12.0) {
                 (label) " " (format_ns_short(ns))
