@@ -64,17 +64,14 @@ async fn config_page() -> Html<String> {
     let deadline = *ALIGNER_DEADLINE_MS.lock().unwrap();
     let mode = get_interpolation_mode().lock().unwrap().clone();
 
-    let dc_a = *DC_OFFSET_A.lock().unwrap();
-    let dc_b = *DC_OFFSET_B.lock().unwrap();
-    let dc_c = *DC_OFFSET_C.lock().unwrap();
-
-    let mag_a = *MAG_CORRECTION_A.lock().unwrap();
-    let mag_b = *MAG_CORRECTION_B.lock().unwrap();
-    let mag_c = *MAG_CORRECTION_C.lock().unwrap();
-
-    let time_a = *TIMING_SHIFT_A.lock().unwrap();
-    let time_b = *TIMING_SHIFT_B.lock().unwrap();
-    let time_c = *TIMING_SHIFT_C.lock().unwrap();
+    // Per-channel calibration triples live on each MU's detail
+    // page (/south/mus/<id>), not here — SDD §7.2 / §M3 / ADR-0007
+    // all specify calibration as `(scale, offset, φ_ns)` *per MU,
+    // per channel index*, not as a global Phase A/B/C triplet.
+    // The Phase A/B/C statics (DC_OFFSET_A, MAG_CORRECTION_A,
+    // TIMING_SHIFT_A …) are kept in this module for backwards
+    // compatibility with the parameter-save endpoint but are no
+    // longer surfaced in the page.
 
     let content = html! {
         div class="screen-layout flex flex-col gap-6" {
@@ -83,7 +80,10 @@ async fn config_page() -> Html<String> {
             div class="flex flex-col gap-6" {
                 div class="glass-card shadow-lg" {
                     div class="card-header border-b border-border-color pb-3 flex items-center gap-2" {
-                        h2 class="card-title" { "Alignment & Calibration parameters" }
+                        h2 class="card-title" { "Alignment policies" }
+                        span class="text-[10px] text-text-secondary ml-2" {
+                            "(per-MU calibration moved to /south/mus/<MU> · SDD §7.2)"
+                        }
                     }
 
                     div class="card-body mt-4" {
@@ -126,66 +126,23 @@ async fn config_page() -> Html<String> {
                                 }
                             }
 
-                            // Calibration Triple grids
-                            div class="section-group bg-bg-secondary p-3 rounded-lg border border-border-color" {
-                                h3 class="text-xs font-bold text-text-secondary uppercase tracking-wider mb-3" { "Active Calibration Triple Parameters" }
-
-                                div class="flex flex-col gap-4 text-xs" {
-                                    // Header row for calibration columns
-                                    div class="grid grid-cols-4 font-semibold text-text-secondary border-b border-border-color pb-1" {
-                                        div { "Phase Channel" }
-                                        div { "DC Offset (Additive)" }
-                                        div { "Magnitude Multiplier" }
-                                        div { "Timing Shift φ (rad)" }
-                                    }
-
-                                    // Phase A row
-                                    div class="grid grid-cols-4 items-center" {
-                                        div class="font-bold text-[#dc2626]" { "Phase A (Va)" }
-                                        div {
-                                            input type="number" step="0.001" name="dc_offset_a" value=(dc_a) class="font-mono text-xs border border-border-color rounded w-20 px-2 py-1 bg-bg-primary focus:outline-none";
-                                        }
-                                        div {
-                                            input type="number" step="0.0001" name="mag_correction_a" value=(mag_a) class="font-mono text-xs border border-border-color rounded w-20 px-2 py-1 bg-bg-primary focus:outline-none";
-                                        }
-                                        div {
-                                            input type="number" step="0.001" name="timing_shift_a" value=(time_a) class="font-mono text-xs border border-border-color rounded w-20 px-2 py-1 bg-bg-primary focus:outline-none";
-                                        }
-                                    }
-
-                                    // Phase B row
-                                    div class="grid grid-cols-4 items-center" {
-                                        div class="font-bold text-[#16a34a]" { "Phase B (Vb)" }
-                                        div {
-                                            input type="number" step="0.001" name="dc_offset_b" value=(dc_b) class="font-mono text-xs border border-border-color rounded w-20 px-2 py-1 bg-bg-primary focus:outline-none";
-                                        }
-                                        div {
-                                            input type="number" step="0.0001" name="mag_correction_b" value=(mag_b) class="font-mono text-xs border border-border-color rounded w-20 px-2 py-1 bg-bg-primary focus:outline-none";
-                                        }
-                                        div {
-                                            input type="number" step="0.001" name="timing_shift_b" value=(time_b) class="font-mono text-xs border border-border-color rounded w-20 px-2 py-1 bg-bg-primary focus:outline-none";
-                                        }
-                                    }
-
-                                    // Phase C row
-                                    div class="grid grid-cols-4 items-center" {
-                                        div class="font-bold text-[#2563eb]" { "Phase C (Vc)" }
-                                        div {
-                                            input type="number" step="0.001" name="dc_offset_c" value=(dc_c) class="font-mono text-xs border border-border-color rounded w-20 px-2 py-1 bg-bg-primary focus:outline-none";
-                                        }
-                                        div {
-                                            input type="number" step="0.0001" name="mag_correction_c" value=(mag_c) class="font-mono text-xs border border-border-color rounded w-20 px-2 py-1 bg-bg-primary focus:outline-none";
-                                        }
-                                        div {
-                                            input type="number" step="0.001" name="timing_shift_c" value=(time_c) class="font-mono text-xs border border-border-color rounded w-20 px-2 py-1 bg-bg-primary focus:outline-none";
-                                        }
-                                    }
-                                }
+                            // Per-MU per-channel calibration moved to
+                            // /south/mus/<MU_ID> per SDD §7.2 / ADR-0007.
+                            // Only the global alignment policies live here.
+                            div class="text-[11px] text-text-secondary p-3 rounded-md bg-bg-secondary border border-border-color" {
+                                "Per-channel calibration triples "
+                                em { "(scale, offset, φ)" }
+                                " are configured on each Merging Unit's detail "
+                                "page under "
+                                code class="font-mono" { "/south/mus/<MU_ID>" }
+                                ". Per SDD §M3, calibration is applied per-channel inside the aligner; "
+                                "globalising it across phases would mix the calibration of any MU that "
+                                "happens to publish a Va/Vb/Vc on the bus."
                             }
 
                             // Submit action
                             button type="submit" class="btn-primary w-full py-2.5 font-semibold text-sm flex justify-center items-center gap-2" {
-                                "Save Calibration Parameters"
+                                "Save Alignment Policies"
                             }
                         }
                     }
