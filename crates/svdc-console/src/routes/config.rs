@@ -303,8 +303,7 @@ async fn upload_scd(mut multipart: axum::extract::Multipart) -> Html<String> {
     match crate::scd::parse_scd(xml) {
         Ok(doc) => {
             let mu_count = doc.merging_units.len();
-            let total_channels: usize =
-                doc.merging_units.iter().map(|m| m.channels.len()).sum();
+            let total_channels: usize = doc.merging_units.iter().map(|m| m.channels.len()).sum();
             let mu_id_list = doc
                 .merging_units
                 .iter()

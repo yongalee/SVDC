@@ -156,7 +156,9 @@ async fn mu_detail(State(state): State<AppState>, Path(id): Path<String>) -> Mar
     let is_connected = connected_mus().read().unwrap().contains(&id);
 
     let (title, body) = match mu {
-        Some(ref mu) if is_connected => (format!("MU {id}"), mu_detail_body(mu, &state.operational)),
+        Some(ref mu) if is_connected => {
+            (format!("MU {id}"), mu_detail_body(mu, &state.operational))
+        }
         _ => (
             format!("MU {id} (not registered)"),
             mu_not_registered_body(&id),

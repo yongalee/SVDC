@@ -32,22 +32,34 @@ async fn mus_list_page() -> Html<String> {
         };
         let rate = if is_connected { mu.smp_rate } else { 0 };
         let dropped = if is_connected {
-            if mu.id == "MU-02" { 142 } else if mu.id == "MU-04" { 12 } else { 0 }
+            if mu.id == "MU-02" {
+                142
+            } else if mu.id == "MU-04" {
+                12
+            } else {
+                0
+            }
         } else {
             8563
         };
         let rtt = if is_connected {
-            if mu.id == "MU-02" { "18 ms" } else if mu.id == "MU-04" { "9 ms" } else { "3 ms" }
+            if mu.id == "MU-02" {
+                "18 ms"
+            } else if mu.id == "MU-04" {
+                "9 ms"
+            } else {
+                "3 ms"
+            }
         } else {
             "--"
         };
-        
+
         let mac_str = format!(
             "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
             mu.mac[0], mu.mac[1], mu.mac[2], mu.mac[3], mu.mac[4], mu.mac[5]
         );
         let ip_str = format!("192.168.1.{}", 100 + mu.mac[5]);
-        
+
         mu_list_json.push(serde_json::json!({
             "id": mu.id,
             "ip": ip_str,

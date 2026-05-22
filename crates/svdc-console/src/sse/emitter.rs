@@ -154,7 +154,11 @@ async fn run_simulation(tx: broadcast::Sender<String>) {
             }
 
             for mu_id in mu_ids {
-                let is_connected = mu_id == "MU-SIM" || crate::routes::mu_detail::connected_mus().read().unwrap().contains(&mu_id);
+                let is_connected = mu_id == "MU-SIM"
+                    || crate::routes::mu_detail::connected_mus()
+                        .read()
+                        .unwrap()
+                        .contains(&mu_id);
                 if is_connected {
                     let wave_event = SsePayload::Waveform(WaveformSample {
                         mu_id: mu_id.clone(),
