@@ -9,6 +9,7 @@ pub mod calibration;
 pub mod config;
 pub mod dashboard;
 pub mod dataplane;
+pub mod l1_wizard;
 pub mod monitoring;
 pub mod mu_detail;
 pub mod mus_list;

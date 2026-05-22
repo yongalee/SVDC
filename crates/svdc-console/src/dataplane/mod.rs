@@ -76,6 +76,21 @@ pub struct DataPipeline {
     /// `/dataplane` synthetic loop refuses to start so the two
     /// feeds do not interleave (ADR-0015 §3).
     external_feed_active: AtomicBool,
+    /// True when `svdc-bin` was started with `--enable-l0-demo`.
+    /// Drives the L0 status badge on `/north`.
+    l0_demo_active: AtomicBool,
+    /// Highest tick_id the L0 demo has emitted via `read_since`.
+    l0_demo_last_tick_id: AtomicU64,
+    /// Total ticks the L0 demo has drained since it started.
+    l0_demo_total_ticks: AtomicU64,
+    /// True when `svdc-bin` was started with `--enable-opcua` and
+    /// the L1 OPC UA server task is bound. Drives the L1 status
+    /// badge on `/north` and the wizard's step-2 check.
+    l1_opcua_active: AtomicBool,
+    /// Highest tick_id the L1 server has published.
+    l1_opcua_last_tick_id: AtomicU64,
+    /// Total L1 publish operations since boot.
+    l1_opcua_total_publishes: AtomicU64,
 }
 
 impl DataPipeline {
@@ -96,7 +111,59 @@ impl DataPipeline {
             tamper_count: AtomicU64::new(0),
             last_violations: AtomicU64::new(0),
             external_feed_active: AtomicBool::new(false),
+            l0_demo_active: AtomicBool::new(false),
+            l0_demo_last_tick_id: AtomicU64::new(0),
+            l0_demo_total_ticks: AtomicU64::new(0),
+            l1_opcua_active: AtomicBool::new(false),
+            l1_opcua_last_tick_id: AtomicU64::new(0),
+            l1_opcua_total_publishes: AtomicU64::new(0),
         }
+    }
+
+    /// L0 demo accessor methods (mirror of the L1 set below).
+    pub fn mark_l0_demo_active(&self, active: bool) {
+        self.l0_demo_active.store(active, Ordering::Relaxed);
+    }
+    /// Record one tick drained by the L0 demo subscriber.
+    pub fn record_l0_demo_tick(&self, tick_id: u64) {
+        self.l0_demo_last_tick_id.store(tick_id, Ordering::Relaxed);
+        self.l0_demo_total_ticks.fetch_add(1, Ordering::Relaxed);
+    }
+    /// L0 demo active flag (set by `spawn_l0_demo` in svdc-bin).
+    pub fn l0_demo_active(&self) -> bool {
+        self.l0_demo_active.load(Ordering::Relaxed)
+    }
+    /// Last tick_id consumed by the L0 demo.
+    pub fn l0_demo_last_tick_id(&self) -> u64 {
+        self.l0_demo_last_tick_id.load(Ordering::Relaxed)
+    }
+    /// Total ticks drained by the L0 demo.
+    pub fn l0_demo_total_ticks(&self) -> u64 {
+        self.l0_demo_total_ticks.load(Ordering::Relaxed)
+    }
+
+    /// Mark the L1 OPC UA server as running. Set once by
+    /// `spawn_l1_opcua_server` in svdc-bin after the listener binds.
+    pub fn mark_l1_opcua_active(&self, active: bool) {
+        self.l1_opcua_active.store(active, Ordering::Relaxed);
+    }
+    /// Record one L1 publish (one batch of `set_values` per tick).
+    pub fn record_l1_opcua_publish(&self, tick_id: u64) {
+        self.l1_opcua_last_tick_id.store(tick_id, Ordering::Relaxed);
+        self.l1_opcua_total_publishes
+            .fetch_add(1, Ordering::Relaxed);
+    }
+    /// Whether the L1 OPC UA server task is running.
+    pub fn l1_opcua_active(&self) -> bool {
+        self.l1_opcua_active.load(Ordering::Relaxed)
+    }
+    /// Highest tick_id the L1 server has published.
+    pub fn l1_opcua_last_tick_id(&self) -> u64 {
+        self.l1_opcua_last_tick_id.load(Ordering::Relaxed)
+    }
+    /// Total L1 publishes since boot.
+    pub fn l1_opcua_total_publishes(&self) -> u64 {
+        self.l1_opcua_total_publishes.load(Ordering::Relaxed)
     }
 
     /// Mark that an external producer is feeding the buffer. Called

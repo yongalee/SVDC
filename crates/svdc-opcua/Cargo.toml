@@ -1,0 +1,23 @@
+[package]
+name = "svdc-opcua"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "L1 northbound layer: OPC UA Information Model + AddressSpace builder per ADR-0017."
+
+# PR K: library-neutral AddressSpace model + IEC 61850 ↔ OPC UA
+# quality and timestamp mappings. PR L+ adds the actual server
+# task on top.
+#
+# Library choice (per ADR-0017 §1 follow-up): `async-opcua` 0.18
+# (freeopcua org fork of locka99/opcua). The crate publishes its
+# library under `[lib] name = "opcua"`, so Rust code uses
+# `opcua::server::*` even though the dep is `async-opcua`. The
+# fork uses pure-Rust crypto (no `openssl-sys`), unblocking the
+# PR L stub mode the workspace landed first.
+
+[dependencies]
+async-opcua = { version = "0.18", features = ["server"] }
+tokio = { version = "1", features = ["rt", "sync", "time", "macros"] }

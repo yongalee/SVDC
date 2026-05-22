@@ -16,6 +16,7 @@ use serde::Deserialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 
+use crate::routes::l1_wizard::l1_wizard_card;
 use crate::templates::base;
 
 // Thread-safe atomic states to persist user toggles across dashboard sessions
@@ -524,6 +525,20 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
             let pub_interval = *L1_PUB_INTERVAL.lock().unwrap();
             let is_enabled = L1_ENABLED.load(Ordering::Relaxed);
 
+            // PR M-wizard: snapshot the live daemon state every time
+            // the page renders. Drives the four wizard step checks
+            // immediately below.
+            let pipe = crate::dataplane::global();
+            let l1_active = pipe.l1_opcua_active();
+            let l1_publishes = pipe.l1_opcua_total_publishes();
+            let l1_last_tick = pipe.l1_opcua_last_tick_id();
+            let registry_len = crate::scd::registry::global().len();
+            let registered_mu_id = crate::scd::registry::global()
+                .snapshot()
+                .first()
+                .map(|m| m.sv_id.clone())
+                .unwrap_or_else(|| "(none)".to_string());
+
             html! {
                 div x-data=(format!("{{
                     address: '{}',
@@ -716,6 +731,13 @@ async fn adapter_detail_page(Path(layer): Path<String>) -> Html<String> {
                             }
                         }
                     }
+
+                    // ---------- Verification Wizard ----------
+                    // PR-M (this branch) — step-by-step status check
+                    // so the operator can walk from "daemon started"
+                    // to "external SCADA is consuming live samples"
+                    // without leaving this page.
+                    (l1_wizard_card(l1_active, l1_publishes, l1_last_tick, registry_len, &registered_mu_id))
                 }
             }
         }

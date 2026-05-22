@@ -10,11 +10,12 @@ members = [
     "crates/svdc-subscribe",
     "crates/svdc-historian",
     "crates/svdc-api",
+    "crates/svdc-opcua",
+    "crates/svdc-l1-opcua-client",
 ]
 
 
 # Additional crates planned for later phases (per IP §2 WBS-1.2):
-#   crates/svdc-opcua        -- WBS-3.7      (Phase 4)
 #   crates/svdc-mqtt         -- WBS-3.8      (Phase 4)
 #   crates/svdc-cabi         -- C ABI for in-process subscribers
 # Add each to `members` above when the crate is created.

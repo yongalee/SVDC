@@ -39,6 +39,17 @@ fn print_help() {
     println!("                                   feed received SV payloads into the data plane.");
     println!("                                   See docs/simulator-runbook.md (ADR-0015).");
     println!("                                   Example: --ingress-udp 239.0.0.1:9100");
+    println!("        --enable-l0-demo           Spawn the L0 reference in-process subscriber");
+    println!("                                   (svdc-subscribe::InProcessSubscriber). Prints");
+    println!("                                   tick summaries to stdout. See");
+    println!("                                   docs/northbound-simulators.md (ADR-0016).");
+    println!("        --enable-opcua [<addr>]    Start the L1 OPC UA server on `addr` (default");
+    println!("                                   127.0.0.1:4840). Anonymous, no security \u{2014}");
+    println!("                                   non-loopback binds require --allow-insecure-bind");
+    println!("                                   per ADR-0017 §5. PR L lands CLI parsing + UI;");
+    println!("                                   PR L+ lands the server task itself.");
+    println!("        --allow-insecure-bind      Opt-in to binding --enable-opcua on a non-");
+    println!("                                   loopback address. No-op without --enable-opcua.");
     println!();
     println!("ENVIRONMENT VARIABLES:");
     println!("    SVDC_UI=1                      Enables the Operator Console");
@@ -47,6 +58,9 @@ fn print_help() {
     println!("    SVDC_OPERATIONAL_CONFIG        Path equivalent of --operational-config");
     println!("    SVDC_AUDIT_LOG                 Path equivalent of --audit-log");
     println!("    SVDC_INGRESS_UDP               Path equivalent of --ingress-udp");
+    println!("    SVDC_ENABLE_L0_DEMO=1          Path equivalent of --enable-l0-demo");
+    println!("    SVDC_OPCUA_BIND                Path equivalent of --enable-opcua <addr>");
+    println!("    SVDC_ALLOW_INSECURE_BIND=1     Path equivalent of --allow-insecure-bind");
 }
 
 #[derive(Debug)]
@@ -56,6 +70,15 @@ struct Config {
     operational_path: Option<PathBuf>,
     audit_log_path: Option<PathBuf>,
     ingress_udp: Option<SocketAddr>,
+    enable_l0_demo: bool,
+    /// Bind address for the L1 OPC UA server, when set. PR L parses
+    /// and validates this; PR L+ wires the actual server task.
+    opcua_bind: Option<SocketAddr>,
+    /// Operator has opted-in to letting `--enable-opcua` bind a
+    /// non-loopback address. Without this, ADR-0017 §5 keeps the
+    /// no-security server on `127.0.0.1` so a misconfigured
+    /// deployment cannot accidentally expose it to a LAN.
+    allow_insecure_bind: bool,
 }
 
 #[derive(Debug)]
@@ -65,6 +88,10 @@ enum ConfigError {
     MissingValue(&'static str),
     UnknownArg(String),
     BadAddr(String),
+    /// `--enable-opcua` got a non-loopback address but
+    /// `--allow-insecure-bind` was not passed. Carries the offending
+    /// address so the diagnostic can echo it back to the operator.
+    InsecureBindRefused(SocketAddr),
 }
 
 fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
@@ -77,6 +104,13 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
     let mut cli_op_path: Option<PathBuf> = None;
     let mut cli_audit_path: Option<PathBuf> = None;
     let mut cli_ingress_udp: Option<String> = None;
+    let mut cli_enable_l0_demo: Option<bool> = None;
+    // `--enable-opcua` is special: the address argument is
+    // optional. The outer `Option` distinguishes "flag not given"
+    // from "flag given with default address"; the inner `Option`
+    // carries the actual address string when one was provided.
+    let mut cli_opcua: Option<Option<String>> = None;
+    let mut cli_allow_insecure_bind: Option<bool> = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -129,6 +163,28 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
                 }
                 cli_ingress_udp = Some(args[i].clone());
             }
+            "--enable-l0-demo" => {
+                cli_enable_l0_demo = Some(true);
+            }
+            "--enable-opcua" => {
+                // Peek at the next argument: if it looks like an
+                // address (contains a colon and does not start
+                // with `-`), consume it; otherwise the flag stands
+                // alone with the default address.
+                let next = args.get(i + 1).map(|s| s.as_str());
+                match next {
+                    Some(n) if n.contains(':') && !n.starts_with('-') => {
+                        i += 1;
+                        cli_opcua = Some(Some(args[i].clone()));
+                    }
+                    _ => {
+                        cli_opcua = Some(None);
+                    }
+                }
+            }
+            "--allow-insecure-bind" => {
+                cli_allow_insecure_bind = Some(true);
+            }
             other => return Err(ConfigError::UnknownArg(other.to_string())),
         }
         i += 1;
@@ -172,13 +228,64 @@ fn resolve_config(args: &[String]) -> Result<Config, ConfigError> {
         None => None,
     };
 
+    let env_enable_l0_demo = env::var("SVDC_ENABLE_L0_DEMO")
+        .ok()
+        .filter(|v| v == "1")
+        .map(|_| true);
+    let enable_l0_demo = cli_enable_l0_demo.or(env_enable_l0_demo).unwrap_or(false);
+
+    // OPC UA bind: CLI > env > unset. Default address when the
+    // flag is present without a value: 127.0.0.1:4840 (the
+    // standard OPC UA port, on loopback — see ADR-0017 §5).
+    let opcua_source: Option<Option<String>> = match cli_opcua {
+        Some(inner) => Some(inner),
+        None => env::var("SVDC_OPCUA_BIND").ok().map(Some),
+    };
+    let opcua_bind = match opcua_source {
+        Some(Some(s)) => Some(
+            s.parse::<SocketAddr>()
+                .map_err(|_| ConfigError::BadAddr(s))?,
+        ),
+        Some(None) => Some(SocketAddr::from(([127, 0, 0, 1], 4840))),
+        None => None,
+    };
+
+    let env_allow_insecure_bind = env::var("SVDC_ALLOW_INSECURE_BIND")
+        .ok()
+        .filter(|v| v == "1")
+        .map(|_| true);
+    let allow_insecure_bind = cli_allow_insecure_bind
+        .or(env_allow_insecure_bind)
+        .unwrap_or(false);
+
+    // ADR-0017 §5 guard: refuse to bind --enable-opcua on a
+    // non-loopback address unless the operator explicitly opts in
+    // via --allow-insecure-bind. The no-security configuration
+    // would otherwise expose the SV stream to anyone on the LAN.
+    if let Some(addr) = opcua_bind {
+        if !is_loopback_addr(addr) && !allow_insecure_bind {
+            return Err(ConfigError::InsecureBindRefused(addr));
+        }
+    }
+
     Ok(Config {
         ui_enabled,
         ui_bind,
         operational_path,
         audit_log_path,
         ingress_udp,
+        enable_l0_demo,
+        opcua_bind,
+        allow_insecure_bind,
     })
+}
+
+/// Whether `addr` resolves to a loopback interface — IPv4
+/// 127.0.0.0/8 or IPv6 `::1`. The ADR-0017 §5 guard relies on
+/// this to decide whether the no-security OPC UA bind needs the
+/// operator's explicit opt-in.
+fn is_loopback_addr(addr: SocketAddr) -> bool {
+    addr.ip().is_loopback()
 }
 
 fn main() -> ExitCode {
@@ -203,6 +310,17 @@ fn main() -> ExitCode {
         }
         Err(ConfigError::BadAddr(addr)) => {
             eprintln!("Error: '{addr}' is not a valid socket address.");
+            return ExitCode::FAILURE;
+        }
+        Err(ConfigError::InsecureBindRefused(addr)) => {
+            eprintln!(
+                "Error: --enable-opcua refuses to bind {addr} (non-loopback) without --allow-insecure-bind."
+            );
+            eprintln!("Hint: ADR-0017 §5 keeps the no-security L1 OPC UA server on loopback");
+            eprintln!("by default. Either re-bind on 127.0.0.1, or pass --allow-insecure-bind");
+            eprintln!(
+                "to confirm you understand the L1 traffic is unencrypted and unauthenticated."
+            );
             return ExitCode::FAILURE;
         }
     };
@@ -290,6 +408,9 @@ fn main() -> ExitCode {
     // the same TickBuffer the UI exposes via
     // svdc_console::dataplane::global().
     let ingress_udp = cfg.ingress_udp;
+    let enable_l0_demo = cfg.enable_l0_demo;
+    let opcua_bind = cfg.opcua_bind;
+    let opcua_insecure_ack = cfg.allow_insecure_bind;
     let bind = cfg.ui_bind;
     let result = rt.block_on(async move {
         if let Some(addr) = ingress_udp {
@@ -298,6 +419,18 @@ fn main() -> ExitCode {
                 return Err(std::io::Error::other(format!("ingress-udp: {e}")));
             }
             println!("svdc: --ingress-udp {addr} bound; live feed active");
+        }
+        if enable_l0_demo {
+            spawn_l0_demo();
+        }
+        if let Some(addr) = opcua_bind {
+            if opcua_insecure_ack && !is_loopback_addr(addr) {
+                eprintln!(
+                    "svdc: WARNING \u{2014} --enable-opcua bound on non-loopback {addr} with \
+                     --allow-insecure-bind; L1 traffic is unencrypted and unauthenticated."
+                );
+            }
+            spawn_l1_opcua_server(addr);
         }
         println!("svdc: Operator Console enabled at http://{bind}");
         svdc_console::start_console(bind).await
@@ -399,6 +532,10 @@ fn spawn_udp_ingress(addr: std::net::SocketAddr) -> std::io::Result<()> {
             loop {
                 match consumer_ring.pop() {
                     Some(frame) => {
+                        // PR D's svID auto-registration is not on this
+                        // branch (Antigravity lane). Skip the call;
+                        // the L1 wizard uses the SCD-derived registry
+                        // directly for MU identity instead.
                         for tick in aligner.process_frame(frame) {
                             pipe.buffer.push(tick);
                             pipe.record_external_tick();
@@ -413,6 +550,149 @@ fn spawn_udp_ingress(addr: std::net::SocketAddr) -> std::io::Result<()> {
         })?;
 
     Ok(())
+}
+
+/// Spawn the L0 reference in-process subscriber demo (ADR-0016).
+///
+/// Subscribes to the shared `TickBuffer` via
+/// `svdc-subscribe::InProcessSubscriber`, then loops every 100 ms
+/// calling `read_since()` and printing a one-line summary of each
+/// freshly arrived tick to stdout. This is the reference consumer a
+/// real EBP relay (or any zero-network-hop subscriber) would build
+/// on — except a relay would feed each tick into a protection
+/// algorithm instead of printing it.
+///
+/// Output format (one line per tick, every 10th tick by default to
+/// keep stdout readable at 4800 Hz):
+///
+/// ```text
+/// svdc-l0-demo: tick_id=480  ts=1717603200000000000 ch0=4811 ch4=22987 lag=0
+/// ```
+///
+/// `lag` reports the number of fresh ticks delivered in this
+/// `read_since` batch minus one — i.e. how far behind the consumer
+/// was when the read drained.
+fn spawn_l0_demo() {
+    use svdc_subscribe::{ChannelSet, InProcessSubscriber, Subscriber};
+
+    let pipeline = svdc_console::dataplane::global();
+    let buffer = std::sync::Arc::clone(&pipeline.buffer);
+    let factory = InProcessSubscriber::new(buffer);
+    let pipe_for_task = std::sync::Arc::clone(&pipeline);
+
+    tokio::spawn(async move {
+        let mut subscription = factory.subscribe(ChannelSet::all());
+        pipe_for_task.mark_l0_demo_active(true);
+        println!("svdc-l0-demo: subscribed (cursor = 0)");
+        let mut emitted: u64 = 0;
+        let print_every: u64 = 10;
+        loop {
+            let batch = subscription.read_since();
+            let batch_len = batch.len();
+            for tick in batch {
+                pipe_for_task.record_l0_demo_tick(tick.tick_id);
+                if emitted % print_every == 0 {
+                    let live = tick.live_samples();
+                    let ch0 = live.first().map(|s| s.value_q).unwrap_or(0);
+                    let ch4 = live.get(4).map(|s| s.value_q).unwrap_or(0);
+                    let lag = batch_len.saturating_sub(1);
+                    println!(
+                        "svdc-l0-demo: tick_id={} ts={} ch0={} ch4={} lag={}",
+                        tick.tick_id, tick.ts_utc_ns, ch0, ch4, lag
+                    );
+                }
+                emitted = emitted.wrapping_add(1);
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+    });
+}
+
+/// Spawn the L1 OPC UA server (PR L+ — replaces PR L's stub).
+///
+/// Builds the server via `svdc-opcua::start_server`, then runs a
+/// background task that drains the shared `TickBuffer` via an
+/// `InProcessSubscriber` and writes the latest tick into the
+/// server's `LatestTickSnapshot`. The server's own publisher task
+/// then pushes those values into the OPC UA AddressSpace at the
+/// configured cadence (10 Hz default per ADR-0017 §4).
+///
+/// Per-publish counters (`l1_opcua_last_tick_id`,
+/// `l1_opcua_total_publishes`) are incremented inside the
+/// snapshot-update loop so the UI's stub-vs-running distinction
+/// flips automatically the moment the first sample lands.
+fn spawn_l1_opcua_server(addr: std::net::SocketAddr) {
+    use svdc_opcua::{start_server, OpcuaServerConfig};
+    use svdc_subscribe::{ChannelSet, InProcessSubscriber, Subscriber};
+
+    let pipeline = svdc_console::dataplane::global();
+    let buffer = std::sync::Arc::clone(&pipeline.buffer);
+    let factory = InProcessSubscriber::new(buffer);
+    let pipe_for_task = std::sync::Arc::clone(&pipeline);
+
+    // Default to the first MU in the SCD registry; otherwise the
+    // canonical demo svID. Multi-MU federation is ADR-0017
+    // "Out of scope" §1, so the first slice ships single-MU.
+    let sv_id = svdc_console::scd::registry::global()
+        .snapshot()
+        .first()
+        .map(|m| m.sv_id.clone())
+        .unwrap_or_else(|| "SVDC_DEMO_PB_MU".to_string());
+
+    let cfg = OpcuaServerConfig::reference(addr, &sv_id);
+
+    let server = match start_server(cfg) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("svdc-l1-opcua: failed to start server: {e}");
+            return;
+        }
+    };
+
+    pipe_for_task.mark_l1_opcua_active(true);
+    println!("svdc-l1-opcua: server bound at {addr}; anonymous, no security (ADR-0017 §5)");
+
+    // Bridge task: drain ticks from the shared TickBuffer and
+    // overwrite the server's snapshot. The server's own internal
+    // publisher (10 Hz) then pushes the snapshot into the address
+    // space; this loop runs slightly faster so we never block the
+    // publisher waiting on fresh data.
+    let latest = server.latest.clone();
+    tokio::spawn(async move {
+        let mut subscription = factory.subscribe(ChannelSet::all());
+        loop {
+            let batch = subscription.read_since();
+            if let Some(tick) = batch.last() {
+                let snap = build_snapshot(tick);
+                pipe_for_task.record_l1_opcua_publish(snap.tick_id);
+                *latest.lock() = snap;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+    });
+
+    // Hold the server alive on the runtime — dropping the
+    // OpcuaServer struct here would cancel both internal tasks.
+    std::mem::forget(server.server_task);
+    std::mem::forget(server.publisher_task);
+    std::mem::forget(server.server_handle);
+}
+
+/// Convert a `TickRecord` into the snapshot shape `svdc-opcua`
+/// publishes. Calibration is unity for the thin slice; PR L++
+/// may consume the operational-state scale/offset triple.
+fn build_snapshot(tick: &svdc_core::TickRecord) -> svdc_opcua::LatestTickSnapshot {
+    let samples: Vec<(i32, f32, u8, u8)> = tick
+        .live_samples()
+        .iter()
+        .map(|s| (s.value_q, s.value_q as f32, s.quality, s.origin))
+        .collect();
+    svdc_opcua::LatestTickSnapshot {
+        tick_id: tick.tick_id,
+        ts_utc_ns: tick.ts_utc_ns,
+        n_channels: tick.n_channels,
+        samples,
+    }
 }
 
 #[cfg(test)]
@@ -515,5 +795,100 @@ mod tests {
     fn default_has_no_ingress_udp() {
         let cfg = resolve_config(&args(&[])).unwrap();
         assert!(cfg.ingress_udp.is_none());
+    }
+
+    #[test]
+    fn enable_l0_demo_defaults_off() {
+        let cfg = resolve_config(&args(&[])).unwrap();
+        assert!(!cfg.enable_l0_demo);
+    }
+
+    #[test]
+    fn enable_l0_demo_flag_turns_it_on() {
+        let cfg = resolve_config(&args(&["--enable-l0-demo"])).unwrap();
+        assert!(cfg.enable_l0_demo);
+    }
+
+    #[test]
+    fn enable_l0_demo_composes_with_ingress_udp() {
+        let cfg = resolve_config(&args(&[
+            "--ingress-udp",
+            "239.0.0.1:9100",
+            "--enable-l0-demo",
+        ]))
+        .unwrap();
+        assert!(cfg.enable_l0_demo);
+        assert_eq!(
+            cfg.ingress_udp.map(|a| a.to_string()),
+            Some("239.0.0.1:9100".to_string())
+        );
+    }
+
+    #[test]
+    fn enable_opcua_defaults_to_loopback_4840_when_no_addr_given() {
+        let cfg = resolve_config(&args(&["--enable-opcua"])).unwrap();
+        assert_eq!(
+            cfg.opcua_bind.map(|a| a.to_string()),
+            Some("127.0.0.1:4840".to_string())
+        );
+    }
+
+    #[test]
+    fn enable_opcua_accepts_explicit_loopback_addr() {
+        let cfg = resolve_config(&args(&["--enable-opcua", "127.0.0.1:14840"])).unwrap();
+        assert_eq!(
+            cfg.opcua_bind.map(|a| a.to_string()),
+            Some("127.0.0.1:14840".to_string())
+        );
+    }
+
+    #[test]
+    fn enable_opcua_refuses_non_loopback_without_allow_insecure_bind() {
+        let r = resolve_config(&args(&["--enable-opcua", "0.0.0.0:4840"]));
+        assert!(matches!(r, Err(ConfigError::InsecureBindRefused(_))));
+    }
+
+    #[test]
+    fn enable_opcua_accepts_non_loopback_with_allow_insecure_bind() {
+        let cfg = resolve_config(&args(&[
+            "--enable-opcua",
+            "0.0.0.0:4840",
+            "--allow-insecure-bind",
+        ]))
+        .unwrap();
+        assert_eq!(
+            cfg.opcua_bind.map(|a| a.to_string()),
+            Some("0.0.0.0:4840".to_string())
+        );
+        assert!(cfg.allow_insecure_bind);
+    }
+
+    #[test]
+    fn default_has_no_opcua_bind() {
+        let cfg = resolve_config(&args(&[])).unwrap();
+        assert!(cfg.opcua_bind.is_none());
+        assert!(!cfg.allow_insecure_bind);
+    }
+
+    #[test]
+    fn enable_opcua_rejects_bad_addr() {
+        let r = resolve_config(&args(&["--enable-opcua", "not-an-address:nope"]));
+        assert!(matches!(r, Err(ConfigError::BadAddr(_))));
+    }
+
+    #[test]
+    fn allow_insecure_bind_without_enable_opcua_is_silent_noop() {
+        let cfg = resolve_config(&args(&["--allow-insecure-bind"])).unwrap();
+        assert!(cfg.opcua_bind.is_none());
+        assert!(cfg.allow_insecure_bind);
+    }
+
+    #[test]
+    fn ipv6_loopback_is_recognised() {
+        let cfg = resolve_config(&args(&["--enable-opcua", "[::1]:4840"])).unwrap();
+        assert!(cfg
+            .opcua_bind
+            .map(|a| a.ip().is_loopback())
+            .unwrap_or(false));
     }
 }

@@ -1,0 +1,18 @@
+[package]
+name = "svdc-l1-opcua-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "Reference L1 OPC UA client simulator (per ADR-0016 §6 / PR M). Standalone binary that connects to the SVDC daemon's L1 server, subscribes to channel variables, and prints data-change events to stdout. Used by docs/l1-quickstart.md to verify the L1 trail end to end."
+
+[[bin]]
+name = "svdc-l1-opcua-client"
+path = "src/main.rs"
+
+[dependencies]
+# async-opcua client side. Same crate the L1 server (PR L+) uses
+# so the protocol versions cannot drift.
+async-opcua = { version = "0.18", features = ["client"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
